@@ -133,8 +133,9 @@ static void _xfce_overview_workspaces_window_tracker_backend_x11_on_stage_screen
 
 		primaryMonitor=gdk_display_get_primary_monitor(gdk_screen_get_display(topScreen));
 		gdk_monitor_get_geometry(primaryMonitor, &geometry);
-		stripHeight=(gint)(geometry.height*0.22f);
+		stripHeight=(gint)(geometry.height*0.22f)+16;
 		if(stripHeight<1) stripHeight=1;
+		if(stripHeight>geometry.height) stripHeight=geometry.height;
 
 		topStageWindow=xfce_overview_workspaces_window_tracker_window_x11_get_window(realStageWindow);
 		if(topStageWindow)
@@ -174,8 +175,7 @@ static void _xfce_overview_workspaces_window_tracker_backend_x11_on_stage_screen
 	 */
 	primaryMonitor=gdk_screen_get_primary_monitor(screen);
 	gdk_screen_get_monitor_geometry(screen, primaryMonitor, &geometry);
-	geometry.height=(gint)(geometry.height*0.22f);
-	if(geometry.height<1) geometry.height=1;
+	{ gint _fullH=geometry.height; geometry.height=(gint)(_fullH*0.22f)+16; if(geometry.height<1) geometry.height=1; if(geometry.height>_fullH) geometry.height=_fullH; }
 	wnck_window_set_geometry(stageWindow,
 								WNCK_WINDOW_GRAVITY_STATIC,
 								WNCK_WINDOW_CHANGE_X | WNCK_WINDOW_CHANGE_Y | WNCK_WINDOW_CHANGE_WIDTH | WNCK_WINDOW_CHANGE_HEIGHT,

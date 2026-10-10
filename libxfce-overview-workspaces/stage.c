@@ -1227,8 +1227,13 @@ static void _xfce_overview_workspaces_stage_on_screen_size_changed(XfceOverviewW
 	 * fullscreen height.
 	 */
 	{
-		gint stripHeight=(gint)(screenHeight*0.22f);
+		/* Chrome compensation: container y=8 + BoxLayout spacing 8 (see
+		 * data/themes/.../xfce-overview-workspaces.xml) would otherwise
+		 * overflow the 0.22 strip and get clipped (~20px cut at base).
+		 */
+		gint stripHeight=(gint)(screenHeight*0.22f)+16;
 		if(stripHeight<1) stripHeight=1;
+		if(stripHeight>screenHeight) stripHeight=screenHeight;
 
 		clutter_actor_get_size(CLUTTER_ACTOR(self), &stageWidth, &stageHeight);
 

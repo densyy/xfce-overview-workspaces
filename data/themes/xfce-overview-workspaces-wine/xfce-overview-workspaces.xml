@@ -6,7 +6,7 @@
 				<property name="y-expand">true</property>
 				<property name="x">0</property>
 				<property name="y">8</property>
-				<property name="clip-to-allocation">true</property>
+				<property name="clip-to-allocation">false</property>
 
 				<constraint>
 					<object class="ClutterBindConstraint">
