@@ -78,6 +78,12 @@ struct _XfdashboardStagePrivate
 	XfdashboardFocusManager					*focusManager;
 
 	XfdashboardSettings						*settings;
+
+	/* Last active-workspace switch (monotonic usec). Focus changes right
+	 * after a workspace switch (e.g. scrolling over the strip to navigate
+	 * workspaces) must not hide the stage as "clicked outside".
+	 */
+	gint64									lastWorkspaceSwitchUsec;
 };
 
 G_DEFINE_TYPE_WITH_PRIVATE(XfdashboardStage,
@@ -454,6 +460,23 @@ static void _xfdashboard_stage_on_desktop_window_opened(XfdashboardStage *self,
 	}
 }
 
+/* The active workspace changed: remember when, so focus changes caused
+ * by workspace switches (e.g. scrolling over the strip) do not hide the
+ * stage as "clicked outside".
+ */
+static void _xfdashboard_stage_on_active_workspace_changed(XfdashboardStage *self,
+															XfdashboardWindowTrackerWorkspace *inOldWorkspace,
+															XfdashboardWindowTrackerWorkspace *inNewWorkspace,
+															gpointer inUserData)
+{
+	XfdashboardStagePrivate				*priv;
+
+	g_return_if_fail(XFDASHBOARD_IS_STAGE(self));
+
+	priv=self->priv;
+	priv->lastWorkspaceSwitchUsec=g_get_monotonic_time();
+}
+
 /* The active window changed: hide when focus leaves the stage, i.e. the
  * user clicked outside. Only reacts when the stage itself was active to
  * avoid hiding right after resume before the stage took focus, and does
@@ -479,6 +502,17 @@ static void _xfdashboard_stage_on_active_window_changed(XfdashboardStage *self,
 	/* Do nothing while suspended (already hidden) */
 	core=xfdashboard_core_get_default();
 	if(!core || xfdashboard_core_is_suspended(core)) return;
+
+	/* Ignore focus changes right after a workspace switch: scrolling
+	 * over the strip navigates workspaces and the window manager may
+	 * move focus (or clear it on empty workspaces) as a result. That
+	 * is navigation, not "clicked outside".
+	 */
+	if(priv->lastWorkspaceSwitchUsec!=0 &&
+		(g_get_monotonic_time()-priv->lastWorkspaceSwitchUsec)<G_USEC_PER_SEC)
+	{
+		return;
+	}
 
 	XFDASHBOARD_DEBUG(self, ACTOR, "Active window left stage window, hiding");
 	xfdashboard_core_quit(NULL);
@@ -1590,6 +1624,10 @@ static void xfdashboard_stage_init(XfdashboardStage *self)
 	g_signal_connect_swapped(priv->windowTracker,
 								"active-window-changed",
 								G_CALLBACK(_xfdashboard_stage_on_active_window_changed),
+								self);
+	g_signal_connect_swapped(priv->windowTracker,
+								"active-workspace-changed",
+								G_CALLBACK(_xfdashboard_stage_on_active_workspace_changed),
 								self);
 
 	/* Connect signal to core */
