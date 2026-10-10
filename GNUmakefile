@@ -57,6 +57,10 @@ deps:
 	fi
 
 setup:
+	@if [ -d "$(BUILDDIR)" ] && [ -n "$$(find $(BUILDDIR) -not -user $$(id -un) -print -quit 2>/dev/null)" ]; then \
+		echo "$(BUILDDIR)/ tem arquivos de outro dono (sudo anterior?). Removendo..."; \
+		$(SUDO) rm -rf $(BUILDDIR); \
+	fi
 	@if [ ! -f "$(BUILDDIR)/build.ninja" ]; then \
 		$(MESON) setup $(BUILDDIR) --prefix=$(PREFIX); \
 	else \
@@ -103,4 +107,4 @@ clean:
 	$(NINJA) -C $(BUILDDIR) clean || true
 
 distclean:
-	rm -rf $(BUILDDIR)
+	rm -rf $(BUILDDIR) || $(SUDO) rm -rf $(BUILDDIR)
