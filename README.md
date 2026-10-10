@@ -30,15 +30,40 @@ Novos módulos extraídos (cada um com um escopo):
 - `xfdashboard/restart.[hc]` — restart `-r`/`-q` via dbus; `xfdashboard/toolkit-init.[hc]`
   — init do toolkit; `xfdashboard/main.c` — só backend-env + run.
 
-## Rodando
+## Guia: instalar, buildar, rodar, toggle
 
-    % meson setup build
-    % meson compile -C build
-    % ./build/xfdashboard/xfdashboard -d   # daemon
-    % ./build/xfdashboard/xfdashboard -t   # mostra/esconde a faixa
+Tudo passa pelo `GNUmakefile` (`make help` lista os alvos).
 
-Temas ficam em `~/.local/share/themes/*/xfdashboard-1.0/` (sombreiam o
-instalado); após rebuild, `-q` + `-d` de novo.
+### Instalar (PC zerado, Debian/Ubuntu com Xfce)
+
+    % make deps       # dependências de build (apt)
+    % sudo make install   # compila + instala em /usr/local + ldconfig
+    % make autostart  # daemon no login (~/.config/autostart)
+
+### Buildar ajustes que eu fizer
+
+    % make build      # recompila o que mudou (ou: meson compile -C build)
+
+Depois de rebuildar, o daemon continua rodando o binário velho — reinicie:
+
+    % xfdashboard -q  # desliga o daemon atual
+    % xfdashboard -d  # sobe o novo instalado
+
+(Se rodar sem install, use o binário do build: `./build/xfdashboard/xfdashboard -d`.
+Nesse caso os temas do fonte valem via `XFDASHBOARD_THEME_PATH=data/themes`
+ou copiando `data/themes/*/` para `~/.local/share/themes/*/xfdashboard-1.0/`
+— que sombreia o instalado.)
+
+### Rodar o daemon
+
+    % xfdashboard -d  # bifurca para segundo plano (uma vez por login; o autostart já faz)
+
+### Toggle (mostra / esconde a faixa)
+
+    % xfdashboard -t  # alterna a visibilidade da faixa dos 6 workspaces
+
+A faixa fica no topo (largura da tela × ~22% da altura). Arrastar um programa
+de um quadradinho para outro move a janela de workspace.
 
 ---
 
@@ -72,26 +97,16 @@ See [NEWS](https://gitlab.xfce.org/apps/xfdashboard/-/blob/master/NEWS) for deta
 
 ### Installation
 
-From source code repository: 
+Use o `GNUmakefile` deste fork (seção "Guia" acima):
 
-    % cd xfdashboard
-    % meson setup build
-    % meson compile -C build
-    % meson install -C build
+    % make deps && sudo make install && make autostart
 
-From release tarball:
-
-    % tar xf xfdashboard-<version>.tar.bz2
-    % cd xfdashboard-<version>
-    % meson setup build
-    % meson compile -C build
-    % meson install -C build
+Equivalente manual: `meson setup build`, `meson compile -C build`,
+`sudo meson install -C build`.
 
 ### Uninstallation
 
-From source code repository and release tarball:
-
-    % ninja uninstall -C build
+    % sudo ninja uninstall -C build   # ou: make uninstall
 
 ### Reporting Bugs
 
