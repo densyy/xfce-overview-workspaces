@@ -81,8 +81,19 @@ static gboolean _on_quit_timeout(gpointer inUserData)
 /* Idle callback for quitting application has been called */
 static gboolean _on_quit_idle(gpointer inUserData)
 {
-	/* Quit application */
-	xfdashboard_application_quit_forced(NULL);
+	RestartData			*restartData=(RestartData*)inUserData;
+
+	/* Quit primary instance via DBUS action. restartData is stack-allocated
+	 * in _restart() and stays alive while its main loop runs, so this is safe.
+	 */
+	if(restartData && restartData->application)
+	{
+		xfdashboard_application_quit_forced(restartData->application);
+	}
+		else
+		{
+			g_warning("Cannot quit running instance for restart: missing application");
+		}
 
 	/* Remove this source from main loop and prevent getting it called again */
 	return(G_SOURCE_REMOVE);
@@ -105,7 +116,7 @@ static void _on_dbus_watcher_name_appeared(GDBusConnection *inConnection,
 	 * the main loop is running and the DBUS watcher was set up.
 	 */
 	quitIdleSource=g_idle_source_new();
-	g_source_set_callback(quitIdleSource, _on_quit_idle, NULL, NULL);
+	g_source_set_callback(quitIdleSource, _on_quit_idle, restartData, NULL);
 	g_source_attach(quitIdleSource, g_main_loop_get_context(restartData->mainLoop));
 	g_source_unref(quitIdleSource);
 
@@ -194,13 +205,49 @@ static gboolean _restart(XfdashboardApplication *inApplication)
 	return(restartData.appHasQuitted);
 }
 
+/* Initialize toolkit for primary instance (xfconf + GTK + Clutter).
+ * Must be called exactly once in a process that will become primary.
+ * Remote instances skip this for fast-path; a remote-turned-primary after
+ * _restart() must call it before the second g_application_run().
+ * Returns TRUE on success, FALSE on fatal error (xfconf/clutter).
+ */
+static gboolean _init_toolkit_primary(int *ioArgc, char ***ioArgv)
+{
+	GError		*error=NULL;
+
+	/* Initialize Xfconf (primary instance only) */
+	if(G_UNLIKELY(!xfconf_init(&error)))
+	{
+		if(G_LIKELY(error))
+		{
+			g_error("Failed to initialize xfconf: %s",
+						error ? error->message : "Unknown error");
+			if(error) g_error_free(error);
+		}
+
+		return(FALSE);
+	}
+
+	/* Initialize GTK+ and Clutter (primary instance only) */
+	gtk_init(ioArgc, ioArgv);
+	if(!clutter_init(ioArgc, ioArgv))
+	{
+		g_error("Initializing clutter failed!");
+		return(FALSE);
+	}
+
+	/* Notify that application has started and main loop will be entered */
+	gdk_notify_startup_complete();
+
+	return(TRUE);
+}
+
 /* Main entry point */
 int main(int argc, char **argv)
 {
 	XfdashboardApplication		*app=NULL;
 	gint						status;
 	const gchar					*backend;
-	GError						*error=NULL;
 	gboolean					isRemote=FALSE;
 
 	/* Set up localization */
@@ -259,37 +306,22 @@ int main(int argc, char **argv)
 	if(isRemote) g_debug("Remote instance detected - skipping local toolkit initialization");
 		else
 		{
-			/* Initialize Xfconf (primary instance only) */
-			if(G_UNLIKELY(!xfconf_init(&error)))
-			{
-				if(G_LIKELY(error))
-				{
-					g_error("Failed to initialize xfconf: %s",
-								error ? error->message : "Unknown error");
-					if(error) g_error_free(error);
-				}
-
-				return(1);
-			}
-
-			/* Initialize GTK+ and Clutter (primary instance only) */
-			gtk_init(&argc, &argv);
-			if(!clutter_init(&argc, &argv))
-			{
-				g_error("Initializing clutter failed!");
-				return(1);
-			}
-
-			/* Notify that application has started and main loop will be entered */
-			gdk_notify_startup_complete();
+			if(!_init_toolkit_primary(&argc, &argv)) return(1);
 		}
 
 	/* Start application as primary or remote instace.
 	 * On the remote path this only forwards arguments over DBUS and returns.
 	 */
 	status=g_application_run(G_APPLICATION(app), argc, argv);
+	/* NB: do NOT call g_application_get_is_remote() here: after g_application_run()
+	 * returns, a remote instance is no longer registered (GLib unregisters the
+	 * transient remote), so get_is_remote() would warn with
+	 * "assertion 'application->priv->is_registered' failed" and return FALSE,
+	 * skipping the restart and leaving no instance running. Use the cached
+	 * isRemote from before run instead.
+	 */
 	if(status==XFDASHBOARD_APPLICATION_ERROR_RESTART &&
-		g_application_get_is_remote(G_APPLICATION(app)))
+		isRemote)
 	{
 		/* Wait for existing primary instance to quit */
 		if(_restart(app))
@@ -311,6 +343,18 @@ int main(int argc, char **argv)
 			}
 
 			g_debug("Starting new primary instance");
+
+			/* This process was a remote instance and skipped toolkit init for
+			 * fast-path. It must initialize now before becoming primary,
+			 * otherwise core/stage init will crash (no GDK display, no xfconf).
+			 */
+			if(!_init_toolkit_primary(&argc, &argv))
+			{
+				g_object_unref(app);
+				return(XFDASHBOARD_APPLICATION_ERROR_FAILED);
+			}
+
+			isRemote=FALSE;
 			status=g_application_run(G_APPLICATION(app), argc, argv);
 		}
 			else

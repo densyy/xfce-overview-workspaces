@@ -194,6 +194,9 @@ static XfdashboardView* _xfdashboard_stage_get_view_to_switch_to(XfdashboardStag
 	priv=self->priv;
 	view=NULL;
 
+	/* No viewpad (sidebar-only mode): no views to switch to */
+	if(!priv->viewpad) return(NULL);
+
 	/* First lookup view at private variable 'switchToView' which has higher
 	 * priority as it is a temporary value and is usually set via command-line.
 	 */
@@ -496,8 +499,8 @@ static void _xfdashboard_stage_on_application_resume(XfdashboardStage *self, gpo
 		/* Find view to switch to if requested */
 		resumeView=_xfdashboard_stage_get_view_to_switch_to(self);
 
-		/* Switch to view if requested */
-		if(resumeView)
+		/* Switch to view if requested (no-op in sidebar-only mode) */
+		if(resumeView && priv->viewpad)
 		{
 			xfdashboard_viewpad_set_active_view(XFDASHBOARD_VIEWPAD(priv->viewpad), resumeView);
 		}
@@ -1155,21 +1158,27 @@ static void _xfdashboard_stage_on_screen_size_changed(XfdashboardStage *self,
 	/* Get screen size */
 	xfdashboard_window_tracker_get_screen_size(windowTracker, &screenWidth, &screenHeight);
 
-	/* Get current size of stage */
-	clutter_actor_get_size(CLUTTER_ACTOR(self), &stageWidth, &stageHeight);
-
-	/* If either stage's width or height does not match screen's width or height
-	 * resize the stage.
+	/* Top-strip mode: stage is as wide as the screen but only as tall as
+	 * the workspace selector strip (~22% of screen height). Never force
+	 * fullscreen height.
 	 */
-	if((gint)stageWidth!=screenWidth ||
-		(gint)stageHeight!=screenHeight)
 	{
-		XFDASHBOARD_DEBUG(self, ACTOR,
-							"Screen resized to %dx%d but stage has size of %dx%d - resizing stage",
-							screenWidth, screenHeight,
-							(gint)stageWidth, (gint)stageHeight);
+		gint stripHeight=(gint)(screenHeight*0.22f);
+		if(stripHeight<1) stripHeight=1;
 
-		clutter_actor_set_size(CLUTTER_ACTOR(self), screenWidth, screenHeight);
+		clutter_actor_get_size(CLUTTER_ACTOR(self), &stageWidth, &stageHeight);
+
+		if((gint)stageWidth!=screenWidth ||
+			(gint)stageHeight!=stripHeight)
+		{
+			XFDASHBOARD_DEBUG(self, ACTOR,
+								"Screen is %dx%d, resizing top-strip stage to %dx%d",
+								screenWidth, screenHeight,
+								screenWidth, stripHeight);
+
+			clutter_actor_set_size(CLUTTER_ACTOR(self), screenWidth, stripHeight);
+		}
+		return;
 	}
 }
 
@@ -1189,13 +1198,13 @@ static void _xfdashboard_stage_show(ClutterActor *inActor)
 
 	/* Find view to switch to if requested and switch to this view */
 	switchView=_xfdashboard_stage_get_view_to_switch_to(self);
-	if(switchView)
+	if(switchView && priv->viewpad)
 	{
 		xfdashboard_viewpad_set_active_view(XFDASHBOARD_VIEWPAD(priv->viewpad), switchView);
 	}
 
-	/* Set stage to fullscreen as it may will be a newly created window */
-	clutter_stage_set_fullscreen(CLUTTER_STAGE(self), TRUE);
+	/* Set stage to non-fullscreen top strip (may be a newly created window) */
+	clutter_stage_set_fullscreen(CLUTTER_STAGE(self), FALSE);
 
 	/* If we do not know the stage window connect signal to find it */
 	if(!priv->stageWindow)
@@ -1529,8 +1538,11 @@ static void xfdashboard_stage_init(XfdashboardStage *self)
 	clutter_actor_set_background_color(CLUTTER_ACTOR(self), &transparent);
 
 	clutter_stage_set_use_alpha(CLUTTER_STAGE(self), TRUE);
-	clutter_stage_set_user_resizable(CLUTTER_STAGE(self), FALSE);
-	clutter_stage_set_fullscreen(CLUTTER_STAGE(self), TRUE);
+	clutter_stage_set_user_resizable(CLUTTER_STAGE(self), TRUE);
+	/* Top-strip mode: only the 6 workspace squares at the top, never
+	 * fullscreen. The window is sized in _on_screen_size_changed.
+	 */
+	clutter_stage_set_fullscreen(CLUTTER_STAGE(self), FALSE);
 
 	/* Connect signals to window tracker */
 	g_signal_connect_swapped(priv->windowTracker,

@@ -31,9 +31,6 @@
 #include <glib/gi18n-lib.h>
 #include <clutter/x11/clutter-x11.h>
 #include <gdk/gdkx.h>
-#ifdef HAVE_XINERAMA
-#include <X11/extensions/Xinerama.h>
-#endif
 
 #include <libxfdashboard/x11/window-tracker-x11.h>
 #include <libxfdashboard/x11/window-tracker-window-x11.h>
@@ -49,21 +46,6 @@ struct _XfdashboardWindowTrackerBackendX11Private
 	/* Instance related */
 	XfdashboardWindowTrackerX11		*windowTracker;
 };
-
-#ifdef HAVE_XINERAMA
-/* Cache for fullscreen-across-all-monitors spanning. show_stage_window runs
- * on every resume and used to recompute the Xinerama edge monitors and
- * re-send the _NET_WM_FULLSCREEN_MONITORS client message each time
- * (X roundtrips + WM reconfigure). If screen size and monitor count did not
- * change since the last spanning, the identical message would be sent again,
- * so the query and the send are skipped. Any real change recomputes and
- * resends, hence no visible behavior change.
- */
-static gboolean _fsMonitorsCacheValid=FALSE;
-static gint _fsMonitorsCacheScreenWidth=0;
-static gint _fsMonitorsCacheScreenHeight=0;
-static gint _fsMonitorsCacheMonitorsCount=0;
-#endif
 
 G_DEFINE_TYPE_WITH_CODE(XfdashboardWindowTrackerBackendX11,
 						xfdashboard_window_tracker_backend_x11,
@@ -176,171 +158,43 @@ static void _xfdashboard_window_tracker_backend_x11_on_stage_screen_size_changed
 {
 #ifdef HAVE_XINERAMA
 	XfdashboardWindowTrackerWindowX11	*realStageWindow;
-	WnckWindow							*stageWindow;
-	GdkDisplay							*display;
-	GdkScreen							*screen;
-	XineramaScreenInfo					*monitors;
-	int									monitorsCount;
-	gint								top, bottom, left, right;
-	gint								topIndex, bottomIndex, leftIndex, rightIndex;
-	gint								i;
-	Atom								atomFullscreenMonitors;
-	XEvent								xEvent;
 
 	g_return_if_fail(XFDASHBOARD_IS_WINDOW_TRACKER(inWindowTracker));
 	g_return_if_fail(XFDASHBOARD_IS_WINDOW_TRACKER_WINDOW_X11(inUserData));
 
 	realStageWindow=XFDASHBOARD_WINDOW_TRACKER_WINDOW_X11(inUserData);
 
-	XFDASHBOARD_DEBUG(inWindowTracker, WINDOWS, "Set fullscreen across all monitors using Xinerama");
-
-	/* Get wnck window for stage window object as it is needed a lot from this
-	 * point on.
+	/* Top-strip mode: never fullscreen-span. The stage window is a top bar
+	 * (full width, ~22% height at y=0). Skip _NET_WM_FULLSCREEN_MONITORS.
 	 */
-	stageWindow=xfdashboard_window_tracker_window_x11_get_window(realStageWindow);
-
-	/* If window manager does not support fullscreen across all monitors
-	 * return here.
-	 */
-	if(!wnck_screen_net_wm_supports(wnck_window_get_screen(stageWindow), "_NET_WM_FULLSCREEN_MONITORS"))
 	{
-		g_warning("Keep window fullscreen on primary monitor because window manager does not support _NET_WM_FULLSCREEN_MONITORS.");
-		return;
-	}
-
-	/* Get display */
-	display=gdk_display_get_default();
-
-	/* Get screen */
-	screen=gdk_screen_get_default();
-
-	/* Check if Xinerama is active on display. If not try to move and resize
-	 * stage window to primary monitor.
-	 */
-	if(!XineramaIsActive(gdk_x11_display_get_xdisplay(display)))
-	{
+		GdkDisplay			*topDisplay;
+		GdkScreen			*topScreen;
 		GdkMonitor			*primaryMonitor;
 		GdkRectangle		geometry;
+		gint				stripHeight;
+		WnckWindow			*topStageWindow;
 
-		/* Get position and size of primary monitor and try to move and resize
-		 * stage window to its position and size. Even if it fails it should
-		 * resize the stage to the size of current monitor this window is
-		 * fullscreened to. Tested with xfwm4.
-		 */
-		primaryMonitor=gdk_display_get_primary_monitor(gdk_screen_get_display(screen));
+		topDisplay=gdk_display_get_default();
+		topScreen=gdk_screen_get_default();
+		if(topDisplay==NULL || topScreen==NULL) return;
+
+		primaryMonitor=gdk_display_get_primary_monitor(gdk_screen_get_display(topScreen));
 		gdk_monitor_get_geometry(primaryMonitor, &geometry);
-		wnck_window_set_geometry(stageWindow,
-									WNCK_WINDOW_GRAVITY_STATIC,
-									WNCK_WINDOW_CHANGE_X | WNCK_WINDOW_CHANGE_Y | WNCK_WINDOW_CHANGE_WIDTH | WNCK_WINDOW_CHANGE_HEIGHT,
-									geometry.x, geometry.y, geometry.width, geometry.height);
+		stripHeight=(gint)(geometry.height*0.22f);
+		if(stripHeight<1) stripHeight=1;
+
+		topStageWindow=xfdashboard_window_tracker_window_x11_get_window(realStageWindow);
+		if(topStageWindow)
+		{
+			wnck_window_set_geometry(topStageWindow,
+										WNCK_WINDOW_GRAVITY_STATIC,
+										WNCK_WINDOW_CHANGE_X | WNCK_WINDOW_CHANGE_Y | WNCK_WINDOW_CHANGE_WIDTH | WNCK_WINDOW_CHANGE_HEIGHT,
+										geometry.x, geometry.y, geometry.width, stripHeight);
+		}
 		return;
 	}
 
-	/* Get monitors from Xinerama but skip the query and the client message
-	 * below if screen size and monitor count match the last spanning: the
-	 * identical _NET_WM_FULLSCREEN_MONITORS message was already sent.
-	 * Both values come from cached GDK/tracker state (no X roundtrip).
-	 */
-	xfdashboard_window_tracker_get_screen_size(inWindowTracker, &left, &top);
-	if(_fsMonitorsCacheValid &&
-		left==_fsMonitorsCacheScreenWidth &&
-		top==_fsMonitorsCacheScreenHeight &&
-		gdk_display_get_n_monitors(gdk_display_get_default())==_fsMonitorsCacheMonitorsCount)
-	{
-		XFDASHBOARD_DEBUG(inWindowTracker, WINDOWS,
-							"Skipping fullscreen-across-all-monitors spanning, screen is still %dx%d over %d monitors",
-							left, top,
-							_fsMonitorsCacheMonitorsCount);
-		return;
-	}
-
-	monitors=XineramaQueryScreens(GDK_DISPLAY_XDISPLAY(display), &monitorsCount);
-	if(monitorsCount<=0 || !monitors)
-	{
-		if(monitors) XFree(monitors);
-		return;
-	}
-
-	/* Remember screen size for the cache now because left/top are reused
-	 * as edge accumulators in the loop below.
-	 */
-	_fsMonitorsCacheScreenWidth=left;
-	_fsMonitorsCacheScreenHeight=top;
-
-	/* Get monitor indices for each corner of screen */
-	bottom=0;
-	right=0;
-	topIndex=bottomIndex=leftIndex=rightIndex=0;
-	for(i=0; i<monitorsCount; i++)
-	{
-		XFDASHBOARD_DEBUG(inWindowTracker, WINDOWS,
-							"Checking edges at monitor %d with upper-left at %d,%d and lower-right at %d,%d [size: %dx%d]",
-							i,
-							monitors[i].x_org,
-							monitors[i].y_org,
-							monitors[i].x_org+monitors[i].width, monitors[i].y_org+monitors[i].height,
-							monitors[i].width, monitors[i].height);
-
-		if(left>monitors[i].x_org)
-		{
-			left=monitors[i].x_org;
-			leftIndex=i;
-		}
-
-		if(right<(monitors[i].x_org+monitors[i].width))
-		{
-			right=(monitors[i].x_org+monitors[i].width);
-			rightIndex=i;
-		}
-
-		if(top>monitors[i].y_org)
-		{
-			top=monitors[i].y_org;
-			topIndex=i;
-		}
-
-		if(bottom<(monitors[i].y_org+monitors[i].height))
-		{
-			bottom=(monitors[i].y_org+monitors[i].height);
-			bottomIndex=i;
-		}
-	}
-	XFDASHBOARD_DEBUG(inWindowTracker, WINDOWS,
-						"Found edge monitors: left=%d (monitor %d), right=%d (monitor %d), top=%d (monitor %d), bottom=%d (monitor %d)",
-						left, leftIndex,
-						right, rightIndex,
-						top, topIndex,
-						bottom, bottomIndex);
-
-	/* Get X atom for fullscreen-across-all-monitors */
-	atomFullscreenMonitors=XInternAtom(gdk_x11_display_get_xdisplay(display),
-										"_NET_WM_FULLSCREEN_MONITORS",
-										False);
-
-	/* Send event to X to set window to fullscreen over all monitors */
-	memset(&xEvent, 0, sizeof(xEvent));
-	xEvent.type=ClientMessage;
-	xEvent.xclient.window=wnck_window_get_xid(stageWindow);
-	xEvent.xclient.display=GDK_DISPLAY_XDISPLAY(display);
-	xEvent.xclient.message_type=atomFullscreenMonitors;
-	xEvent.xclient.format=32;
-	xEvent.xclient.data.l[0]=topIndex;
-	xEvent.xclient.data.l[1]=bottomIndex;
-	xEvent.xclient.data.l[2]=leftIndex;
-	xEvent.xclient.data.l[3]=rightIndex;
-	xEvent.xclient.data.l[4]=0;
-	XSendEvent(GDK_DISPLAY_XDISPLAY(display),
-				DefaultRootWindow(GDK_DISPLAY_XDISPLAY(display)),
-				False,
-				SubstructureRedirectMask | SubstructureNotifyMask,
-				&xEvent);
-
-	/* Remember spanning to skip identical work on next resume */
-	_fsMonitorsCacheValid=TRUE;
-	_fsMonitorsCacheMonitorsCount=monitorsCount;
-
-	/* Release allocated resources */
-	if(monitors) XFree(monitors);
 #else
 	XfdashboardWindowTrackerWindowX11	*realStageWindow;
 	WnckWindow							*stageWindow;
@@ -363,13 +217,13 @@ static void _xfdashboard_window_tracker_backend_x11_on_stage_screen_size_changed
 	/* Get screen */
 	screen=gdk_screen_get_default();
 
-	/* Get position and size of primary monitor and try to move and resize
-	 * stage window to its position and size. Even if it fails it should
-	 * resize the stage to the size of current monitor this window is
-	 * fullscreened to. Tested with xfwm4.
+	/* Get position and size of primary monitor: top strip (full width,
+	 * ~22% height at y=0). Tested with xfwm4.
 	 */
 	primaryMonitor=gdk_screen_get_primary_monitor(screen);
 	gdk_screen_get_monitor_geometry(screen, primaryMonitor, &geometry);
+	geometry.height=(gint)(geometry.height*0.22f);
+	if(geometry.height<1) geometry.height=1;
 	wnck_window_set_geometry(stageWindow,
 								WNCK_WINDOW_GRAVITY_STATIC,
 								WNCK_WINDOW_CHANGE_X | WNCK_WINDOW_CHANGE_Y | WNCK_WINDOW_CHANGE_WIDTH | WNCK_WINDOW_CHANGE_HEIGHT,

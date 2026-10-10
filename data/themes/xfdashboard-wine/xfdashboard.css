@@ -197,36 +197,10 @@ XfdashboardWorkspaceSelector
 	background-fill-color: @background;
 	outline-color: #5792e2ff;
 	outline-width: 0.5;
-	orientation: vertical;
-	max-fraction: 0.20;
+	orientation: horizontal;
+	max-fraction: 0.22;
 	using-fraction: true;
-	orientation: vertical;
-}
-
-/* Viewpad */
-#viewpad
-{
-	spacing: 4.0;
-	horizontal-scrollbar-policy: automatic;
-	vertical-scrollbar-policy: automatic;
-}
-
-/* Views */
-XfdashboardView.view-list-mode
-{
-	view-mode: list;
-}
-
-XfdashboardView.view-icon-mode
-{
-	view-mode: icon;
-}
-
-/* Applications view */
-XfdashboardApplicationsView
-{
-	view-mode: list;
-	spacing: 4.0;
+	orientation: horizontal;
 }
 
 XfdashboardApplicationsView,
