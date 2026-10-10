@@ -1422,7 +1422,26 @@ static void _xfdashboard_window_tracker_window_x11_window_tracker_window_move_to
 	}
 
 	/* Move window to workspace */
-	wnck_window_move_to_workspace(priv->window, workspace);
+	{
+		ClutterContent *contentHold=NULL;
+
+		/* Hold the live content across the synchronous Wnck signal
+		 * emission. The source LiveWorkspace destroys its actor before
+		 * the destination creates a new one, which would drop the shared
+		 * WindowContent refcount to zero, disposing the live texture and
+		 * (before the _release_resources fix) the frozen JPG. The
+		 * destination would then show only an icon/empty actor: the
+		 * thumbnail "disappears". Holding one ref keeps the texture alive
+		 * so the destination shares it immediately.
+		 * Only hold when content already exists to avoid creating one
+		 * just for the move.
+		 */
+		if(priv->content) contentHold=g_object_ref(priv->content);
+
+		wnck_window_move_to_workspace(priv->window, workspace);
+
+		if(contentHold) g_object_unref(contentHold);
+	}
 }
 
 /* Activate window with its transient windows */

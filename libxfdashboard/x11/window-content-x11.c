@@ -888,11 +888,15 @@ static void _xfdashboard_window_content_x11_release_resources(XfdashboardWindowC
 				XSync(display, False);
 			}
 #endif
-			xfdashboard_thumbnail_cache_invalidate_xid((gulong)priv->xWindowID);
-			if(priv->window)
-			{
-				xfdashboard_thumbnail_cache_invalidate_xid((gulong)xfdashboard_window_tracker_window_x11_get_xid(priv->window));
-			}
+			/* NOTE: do NOT invalidate the on-disk frozen cache here. This
+			 * function runs on dispose, which also happens transiently
+			 * during a workspace move: the source LiveWorkspace destroys
+			 * its actor before the destination creates a new one, dropping
+			 * the shared WindowContent refcount to zero. Deleting the JPG
+			 * then leaves the destination with no frozen fallback and the
+			 * thumbnail disappears. Stale files are removed on window
+			 * close (see _on_window_closed) and overwritten on recapture.
+			 */
 			priv->xWindowID=None;
 		}
 
