@@ -273,6 +273,260 @@ static const XfdashboardXfconfSettingsMapping* _xfdashboard_xfconf_settings_find
 	return(NULL);
 }
 
+/* Convert a settings value to its xfconf-storable type.
+ * Handles enum to int, flags to uint and clutter color to string
+ * conversions (one way: settings -> xfconf). The caller provides an
+ * uninitialized out value; on success it holds the converted (or copied)
+ * value and TRUE is returned. On failure FALSE is returned, out value is
+ * left untouched (still invalid) and an identical warning is shown.
+ * Extra context parameters (settings and xfconf property names plus the
+ * instance for debug) only preserve the original messages.
+ */
+static gboolean _value_to_xfconf(XfdashboardXfconfSettings *self,
+									const gchar *inSettingsName,
+									const gchar *inXfconfPropertyName,
+									const GValue *inValue,
+									GValue *outValue)
+{
+	GType								transformType;
+
+	g_return_val_if_fail(inValue!=NULL, FALSE);
+	g_return_val_if_fail(outValue!=NULL, FALSE);
+	g_return_val_if_fail(G_VALUE_TYPE(outValue)==G_TYPE_INVALID, FALSE);
+
+	/* Some types are not supported by xfconf directly and need
+	 * to be converted, e.g. enums to ints and flags to uints.
+	 */
+	transformType=G_TYPE_INVALID;
+	if(G_VALUE_HOLDS_ENUM(inValue)) transformType=G_TYPE_INT;
+		else if(G_VALUE_HOLDS_FLAGS(inValue)) transformType=G_TYPE_UINT;
+		else if(CLUTTER_VALUE_HOLDS_COLOR(inValue)) transformType=G_TYPE_STRING;
+
+	if(transformType==G_TYPE_INVALID)
+	{
+		/* No conversion needed, just copy input to output */
+		g_value_init(outValue, G_VALUE_TYPE(inValue));
+		g_value_copy(inValue, outValue);
+		return(TRUE);
+	}
+
+	{
+		GValue							convertedValue=G_VALUE_INIT;
+
+		g_value_init(&convertedValue, transformType);
+#ifdef DEBUG
+		XFDASHBOARD_DEBUG(self, MISC,
+							"Need to convert value of settings '%s' of type '%s' to type '%s' for xfconf property '%s'",
+							inSettingsName,
+							G_VALUE_TYPE_NAME(inValue),
+							G_VALUE_TYPE_NAME(&convertedValue),
+							inXfconfPropertyName);
+#endif
+		if(g_value_transform(inValue, &convertedValue))
+		{
+			/* Transformation succeeded, so copy converted value to set it */
+			g_value_init(outValue, transformType);
+			g_value_copy(&convertedValue, outValue);
+
+			/* Unset converted value */
+			g_value_unset(&convertedValue);
+
+			return(TRUE);
+		}
+			/* Tranformation failed, so show error and set failed state */
+			else
+			{
+				/* Show error */
+				g_warning("Cannot transform settings '%s' for xfconf property '%s' from type '%s' to type '%s'",
+							inSettingsName,
+							inXfconfPropertyName,
+							G_VALUE_TYPE_NAME(inValue),
+							G_VALUE_TYPE_NAME(&convertedValue));
+
+				/* Unset converted value */
+				g_value_unset(&convertedValue);
+
+				return(FALSE);
+			}
+	}
+}
+
+/* Convert an xfconf value back to its settings object property type.
+ * Handles the GStrv from GPtrArray special case, the invalid-type
+ * fallback to the parameter default and the generic xfconf-to-property
+ * conversion (other way: xfconf -> settings). The caller provides an
+ * uninitialized out value; on success it holds the converted value and
+ * TRUE is returned. On failure FALSE is returned and out value handling
+ * matches the original code (strv failure leaves it invalid, generic
+ * failure leaves the copied original). Extra context parameters only
+ * preserve the original messages; fallback and migration logic is
+ * unchanged and stays inside this helper.
+ */
+static gboolean _value_from_xfconf(XfdashboardXfconfSettings *self,
+									GParamSpec *inSpec,
+									const GValue *inValue,
+									GValue *outValue,
+									const gchar *inPluginID,
+									const gchar *inSettingsName)
+{
+	const GValue					*effectiveValue;
+	gboolean						success;
+
+	g_return_val_if_fail(XFDASHBOARD_IS_XFCONF_SETTINGS(self), FALSE);
+	g_return_val_if_fail(G_IS_PARAM_SPEC(inSpec), FALSE);
+	g_return_val_if_fail(inValue!=NULL, FALSE);
+	g_return_val_if_fail(outValue!=NULL, FALSE);
+	g_return_val_if_fail(G_VALUE_TYPE(outValue)==G_TYPE_INVALID, FALSE);
+	g_return_val_if_fail(inSettingsName && *inSettingsName, FALSE);
+
+	effectiveValue=inValue;
+	success=TRUE;
+
+	/* Special case is that property at settings object (destination) is a GStrv
+	 * then the provided GValue from xfconf can be a GPtrArray containing GValues
+	 * holding strings ... which must be converted in a special non-common way.
+	 */
+	if(G_PARAM_SPEC_VALUE_TYPE(inSpec)==G_TYPE_STRV &&
+		G_VALUE_TYPE(effectiveValue)==G_TYPE_PTR_ARRAY)
+	{
+		GPtrArray						*sourceArray;
+		guint								sourceArrayLength;
+		gchar								**destStringList;
+		guint								i;
+		const GValue						*iterValue;
+
+		/* Get GPtrArray from source value */
+		sourceArray=(GPtrArray*)g_value_get_boxed(effectiveValue);
+		sourceArrayLength=sourceArray->len;
+
+		/* Copy GPtrArray to GStrv */
+		destStringList=g_new0(gchar *, sourceArrayLength+1);
+
+		/* Iterate through source GPtrArray, retrieve GValues and
+		 * store each string helt by GValue at GStrv.
+		 */
+		for(i=0; i<sourceArrayLength; i++)
+		{
+			/* Get GValue from iterated index of source GPtrArray */
+			iterValue=(const GValue*)g_ptr_array_index(sourceArray, i);
+
+			/* Check that GValue holds a string */
+			if(!G_VALUE_HOLDS_STRING(iterValue))
+			{
+				/* Show error */
+				g_warning("Cannot transform value for settings '%s' of %s%s from type '%s' to type '%s' because GValue at index #%u holds %s",
+							inSettingsName,
+							inPluginID ? "plug-in " : "core settings",
+							inPluginID ? inPluginID : "",
+							g_type_name(G_VALUE_TYPE(effectiveValue)),
+							g_type_name(G_TYPE_STRV),
+							i,
+							G_VALUE_TYPE_NAME(iterValue));
+
+				/* Set failed state */
+				success=FALSE;
+
+				/* Stop further processing */
+				break;
+			}
+
+			/* Store string of GValue at destination GStrv */
+			destStringList[i]=g_value_dup_string(iterValue);
+		}
+
+		/* Set value */
+		if(success)
+		{
+			g_value_init(outValue, G_TYPE_STRV);
+			g_value_set_boxed(outValue, destStringList);
+		}
+
+		/* Release allocated memory */
+		g_strfreev(destStringList);
+
+		/* Strv is handled completely here; generic conversion below is
+		 * skipped because out value is no longer invalid on success or
+		 * success is FALSE on failure (same condition as original code).
+		 */
+		if(!success ||
+			G_VALUE_TYPE(outValue)!=G_TYPE_INVALID)
+		{
+			return(success);
+		}
+	}
+
+	/* When a xfconf property was resetted then this function may be called with
+	 * a GValue of type G_TYPE_INVALID. This can neither be set nor converted
+	 * (in next step if required) so we use the default value of parameter
+	 * specification of (plugin) settings object.
+	 */
+	if(G_VALUE_TYPE(effectiveValue)==G_TYPE_INVALID)
+	{
+		effectiveValue=g_param_spec_get_default_value(inSpec);
+		XFDASHBOARD_DEBUG(self, MISC,
+							"Using default value of type %s for settings '%s' of %s%s as the provided value was of invalid type",
+							G_VALUE_TYPE_NAME(effectiveValue),
+							inSettingsName,
+							inPluginID ? "plug-in settings for plug-in " : "core settings",
+							inPluginID ? inPluginID : "");
+	}
+
+	/* Some parameters specification types of object properties are not supported
+	 * by xfconf directly and needed to be converted. So convert back from xfconf
+	 * type to object property type.
+	 */
+	if(success &&
+		G_VALUE_TYPE(outValue)==G_TYPE_INVALID)
+	{
+		g_value_init(outValue, G_VALUE_TYPE(effectiveValue));
+		g_value_copy(effectiveValue, outValue);
+
+		if(!g_type_is_a(G_VALUE_TYPE(effectiveValue), inSpec->value_type))
+		{
+			GValue							convertedValue=G_VALUE_INIT;
+
+			g_value_init(&convertedValue, inSpec->value_type);
+
+#ifdef DEBUG
+			XFDASHBOARD_DEBUG(self, MISC,
+								"Need to convert xfconf value for setting '%s' of %s%s from type '%s' to type '%s'",
+								inSettingsName,
+								inPluginID ? "plug-in " : "core settings",
+								inPluginID ? inPluginID : "",
+								g_type_name(G_VALUE_TYPE(outValue)),
+								g_type_name(G_VALUE_TYPE(&convertedValue)));
+#endif
+
+			if(g_value_transform(outValue, &convertedValue))
+			{
+				/* Transformation succeeded, so copy converted value to set it */
+				g_value_unset(outValue);
+				g_value_init(outValue, G_VALUE_TYPE(&convertedValue));
+				g_value_copy(&convertedValue, outValue);
+			}
+				/* Tranformation failed, so show error and set failed state */
+				else
+				{
+					/* Show error */
+					g_warning("Cannot transform value for settings '%s' of %s%s from type '%s' to type '%s'",
+								inSettingsName,
+								inPluginID ? "plug-in " : "core settings",
+								inPluginID ? inPluginID : "",
+								g_type_name(G_VALUE_TYPE(outValue)),
+								g_type_name(G_VALUE_TYPE(&convertedValue)));
+
+					/* Set failed stat */
+					success=FALSE;
+				}
+
+			/* Unset converted value */
+			g_value_unset(&convertedValue);
+		}
+	}
+
+	return(success);
+}
+
 /* Signal handler for changed settings */
 static void _xfdashboard_xfconf_settings_on_settings_changed(XfdashboardSettings *inSettings,
 																const gchar *inPluginID,
@@ -286,7 +540,6 @@ static void _xfdashboard_xfconf_settings_on_settings_changed(XfdashboardSettings
 	const gchar								*xfconfPropertyName;
 	gboolean								success;
 	GValue									value=G_VALUE_INIT;
-	GType									transformType;
 
 	g_return_if_fail(XFDASHBOARD_IS_XFCONF_SETTINGS(inSettings));
 	g_return_if_fail(inPluginID==NULL || *inPluginID);
@@ -357,53 +610,24 @@ static void _xfdashboard_xfconf_settings_on_settings_changed(XfdashboardSettings
 	}
 		else pluginSettings=G_OBJECT(self);
 
-	/* Get value from changed settings */
+	/* Get value from changed settings and convert to xfconf-storable type */
 	g_object_get_property(pluginSettings, g_param_spec_get_name(inParamSpec), &value);
-
-	/* Some types are not supported by xfconf directly and need
-	 * to be converted, e.g. enums to ints and flags to uints.
-	 */
-	transformType=G_TYPE_INVALID;
-	if(G_VALUE_HOLDS_ENUM(&value)) transformType=G_TYPE_INT;
-		else if(G_VALUE_HOLDS_FLAGS(&value)) transformType=G_TYPE_UINT;
-		else if(CLUTTER_VALUE_HOLDS_COLOR(&value)) transformType=G_TYPE_STRING;
-
-	if(transformType!=G_TYPE_INVALID)
 	{
 		GValue								convertedValue=G_VALUE_INIT;
 
-		g_value_init(&convertedValue, transformType);
-#ifdef DEBUG
-		XFDASHBOARD_DEBUG(self, MISC,
-							"Need to convert value of settings '%s' of type '%s' to type '%s' for xfconf property '%s'",
-							settingsName,
-							G_VALUE_TYPE_NAME(&value),
-							G_VALUE_TYPE_NAME(&convertedValue),
-							xfconfPropertyName);
-#endif
-		if(g_value_transform(&value, &convertedValue))
+		if(!_value_to_xfconf(self, settingsName, xfconfPropertyName, &value, &convertedValue))
 		{
-			/* Transformation succeeded, so copy converted value to set it */
-			g_value_unset(&value);
-			g_value_init(&value, transformType);
-			g_value_copy(&convertedValue, &value);
+			/* Set failed state */
+			success=FALSE;
 		}
-			/* Tranformation failed, so show error and set failed state */
 			else
 			{
-				/* Show error */
-				g_warning("Cannot transform settings '%s' for xfconf property '%s' from type '%s' to type '%s'",
-							settingsName,
-							xfconfPropertyName,
-							G_VALUE_TYPE_NAME(&value),
-							G_VALUE_TYPE_NAME(&convertedValue));
-
-				/* Set failed stat */
-				success=FALSE;
+				/* Use converted (or copied) value from helper */
+				g_value_unset(&value);
+				g_value_init(&value, G_VALUE_TYPE(&convertedValue));
+				g_value_copy(&convertedValue, &value);
+				g_value_unset(&convertedValue);
 			}
-
-		/* Unset converted value */
-		g_value_unset(&convertedValue);
 	}
 
 	/* Set or reset value at xfconf property */
@@ -682,137 +906,10 @@ static gboolean _xfdashboard_xfconf_settings_set_settings_value(XfdashboardXfcon
 		return(FALSE);
 	}
 
-	/* Special case is that property at settings object (destination) is a GStrv
-	 * then the provided GValue from xfconf can be a GPtrArray containing GValues
-	 * holding strings ... which must be converted in a special non-common way.
+	/* Convert xfconf value back to settings property type (handles GStrv
+	 * special case, invalid-type fallback to default and generic conversion).
 	 */
-	if(G_PARAM_SPEC_VALUE_TYPE(paramSpec)==G_TYPE_STRV &&
-		G_VALUE_TYPE(inValue)==G_TYPE_PTR_ARRAY)
-	{
-		GPtrArray						*sourceArray;
-		guint							sourceArrayLength;
-		gchar							**destStringList;
-		guint							i;
-		const GValue					*iterValue;
-
-		/* Get GPtrArray from source value */
-		sourceArray=(GPtrArray*)g_value_get_boxed(inValue);
-		sourceArrayLength=sourceArray->len;
-
-		/* Copy GPtrArray to GStrv */
-		destStringList=g_new0(gchar *, sourceArrayLength+1);
-
-		/* Iterate through source GPtrArray, retrieve GValues and
-		 * store each string helt by GValue at GStrv.
-		 */
-		for(i=0; i<sourceArrayLength; i++)
-		{
-			/* Get GValue from iterated index of source GPtrArray */
-			iterValue=(const GValue*)g_ptr_array_index(sourceArray, i);
-
-			/* Check that GValue holds a string */
-			if(!G_VALUE_HOLDS_STRING(iterValue))
-			{
-				/* Show error */
-				g_warning("Cannot transform value for settings '%s' of %s%s from type '%s' to type '%s' because GValue at index #%u holds %s",
-							inSettingsName,
-							inPluginID ? "plug-in " : "core settings",
-							inPluginID ? inPluginID : "",
-							g_type_name(G_VALUE_TYPE(inValue)),
-							g_type_name(G_TYPE_STRV),
-							i,
-							G_VALUE_TYPE_NAME(iterValue));
-
-				/* Set failed state */
-				success=FALSE;
-
-				/* Stop further processing */
-				break;
-			}
-
-			/* Store string of GValue at destination GStrv */
-			destStringList[i]=g_value_dup_string(iterValue);
-		}
-
-		/* Set value */
-		if(success)
-		{
-			g_value_init(&value, G_TYPE_STRV);
-			g_value_set_boxed(&value, destStringList);
-		}
-
-		/* Release allocated memory */
-		g_strfreev(destStringList);
-	}
-
-	/* When a xfconf property was resetted then this function may be called with
-	 * a GValue of type G_TYPE_INVALID. This can neither be set nor converted
-	 * (in next step if required) so we use the default value of parameter
-	 * specification of (plugin) settings object.
-	 */
-	if(G_VALUE_TYPE(inValue)==G_TYPE_INVALID)
-	{
-		inValue=g_param_spec_get_default_value(paramSpec);
-		XFDASHBOARD_DEBUG(self, MISC,
-							"Using default value of type %s for settings '%s' of %s%s as the provided value was of invalid type",
-							G_VALUE_TYPE_NAME(inValue),
-							inSettingsName,
-							inPluginID ? "plug-in settings for plug-in " : "core settings",
-							inPluginID ? inPluginID : "");
-	}
-
-	/* Some parameters specification types of object properties are not supported
-	 * by xfconf directly and needed to be converted. So convert back from xfconf
-	 * type to object property type.
-	 */
-	if(success &&
-		G_VALUE_TYPE(&value)==G_TYPE_INVALID)
-	{
-		g_value_init(&value, G_VALUE_TYPE(inValue));
-		g_value_copy(inValue, &value);
-
-		if(!g_type_is_a(G_VALUE_TYPE(inValue), paramSpec->value_type))
-		{
-			GValue							convertedValue=G_VALUE_INIT;
-
-			g_value_init(&convertedValue, paramSpec->value_type);
-
-#ifdef DEBUG
-			XFDASHBOARD_DEBUG(self, MISC,
-								"Need to convert xfconf value for setting '%s' of %s%s from type '%s' to type '%s'",
-								inSettingsName,
-								inPluginID ? "plug-in " : "core settings",
-								inPluginID ? inPluginID : "",
-								g_type_name(G_VALUE_TYPE(&value)),
-								g_type_name(G_VALUE_TYPE(&convertedValue)));
-#endif
-
-			if(g_value_transform(&value, &convertedValue))
-			{
-				/* Transformation succeeded, so copy converted value to set it */
-				g_value_unset(&value);
-				g_value_init(&value, G_VALUE_TYPE(&convertedValue));
-				g_value_copy(&convertedValue, &value);
-			}
-				/* Tranformation failed, so show error and set failed state */
-				else
-				{
-					/* Show error */
-					g_warning("Cannot transform value for settings '%s' of %s%s from type '%s' to type '%s'",
-								inSettingsName,
-								inPluginID ? "plug-in " : "core settings",
-								inPluginID ? inPluginID : "",
-								g_type_name(G_VALUE_TYPE(&value)),
-								g_type_name(G_VALUE_TYPE(&convertedValue)));
-
-					/* Set failed stat */
-					success=FALSE;
-				}
-
-			/* Unset converted value */
-			g_value_unset(&convertedValue);
-		}
-	}
+	success=_value_from_xfconf(self, paramSpec, inValue, &value, inPluginID, inSettingsName);
 
 	/* Set (converted) value if successful converted */
 	if(success)

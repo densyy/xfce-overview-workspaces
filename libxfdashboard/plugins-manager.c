@@ -249,24 +249,49 @@ static gboolean _xfdashboard_plugins_manager_load_plugin(XfdashboardPluginsManag
 	return(TRUE);
 }
 
-/* Property for list of enabled plugins in settings has changed */
-static void _xfdashboard_plugins_manager_on_enabled_plugins_changed(XfdashboardPluginsManager *self,
-																	const gchar *inProperty,
-																	const GValue *inValue,
-																	gpointer inUserData)
+/* Load one plugin and print warning on failure (moved from changed callback) */
+static void _xfdashboard_plugins_manager_load_one_with_warning(XfdashboardPluginsManager *self,
+																const gchar *inPluginID)
+{
+	GError								*error;
+
+	g_return_if_fail(XFDASHBOARD_IS_PLUGINS_MANAGER(self));
+	g_return_if_fail(inPluginID && *inPluginID);
+
+	error=NULL;
+
+	/* Try to load plugin */
+	if(!_xfdashboard_plugins_manager_load_plugin(self, inPluginID, &error))
+	{
+		/* Show error message */
+		g_warning("Could not load plugin '%s': %s",
+					inPluginID,
+					error ? error->message : "Unknown error");
+
+		/* Release allocated resources */
+		if(error)
+		{
+			g_error_free(error);
+			error=NULL;
+		}
+	}
+		else
+		{
+			XFDASHBOARD_DEBUG(self, PLUGINS,
+								"Loaded plugin '%s'",
+								inPluginID);
+		}
+}
+
+/* Disable plugins which were removed from list of enabled plugins */
+static void _xfdashboard_plugins_manager_disable_removed_plugins(XfdashboardPluginsManager *self,
+																	const gchar **inEnabledPlugins)
 {
 	XfdashboardPluginsManagerPrivate	*priv;
-	const gchar							**enabledPlugins;
 
 	g_return_if_fail(XFDASHBOARD_IS_PLUGINS_MANAGER(self));
 
 	priv=self->priv;
-
-	/* If plugin managed is not inited do not load or "unload" any plugin */
-	if(!priv->isInited) return;
-
-	/* Get new list of enabled plugins */
-	enabledPlugins=xfdashboard_settings_get_enabled_plugins(priv->settings);
 
 	/* Iterate through list of loaded plugin and check if it also in new list
 	 * of enabled plugins. If it is not then disable this plugin.
@@ -299,7 +324,7 @@ static void _xfdashboard_plugins_manager_on_enabled_plugins_changed(XfdashboardP
 
 			/* Check if plugin ID is still in new list of enabled plugins */
 			found=FALSE;
-			for(listIter=enabledPlugins; !found && *listIter; listIter++)
+			for(listIter=inEnabledPlugins; listIter && *listIter && !found; listIter++)
 			{
 				/* Get plugin ID of new enabled plugins currently iterated */
 				listIterPluginID=*listIter;
@@ -325,23 +350,27 @@ static void _xfdashboard_plugins_manager_on_enabled_plugins_changed(XfdashboardP
 			iter=nextIter;
 		}
 	}
+}
+
+/* Enable plugins which were added to list of enabled plugins */
+static void _xfdashboard_plugins_manager_enable_added_plugins(XfdashboardPluginsManager *self,
+																const gchar **inEnabledPlugins)
+{
+	g_return_if_fail(XFDASHBOARD_IS_PLUGINS_MANAGER(self));
 
 	/* Iterate through new list of enabled plugin and check if it is already
 	 * or still in the list of loaded plugins. If it not in this list then
 	 * try to load this plugin. If it is then enable it again when it is in
 	 * disable state.
 	 */
-	if(enabledPlugins)
+	if(inEnabledPlugins)
 	{
 		const gchar							**iter;
 		const gchar							*pluginID;
-		GError								*error;
 		XfdashboardPlugin					*plugin;
 
-		error=NULL;
-
 		/* Iterate through new list of enabled plugins and load new plugins */
-		for(iter=enabledPlugins; *iter; iter++)
+		for(iter=inEnabledPlugins; *iter; iter++)
 		{
 			/* Get plugin ID to check */
 			pluginID=*iter;
@@ -351,26 +380,7 @@ static void _xfdashboard_plugins_manager_on_enabled_plugins_changed(XfdashboardP
 			if(!plugin)
 			{
 				/* The plugin does not exist so try to load it */
-				if(!_xfdashboard_plugins_manager_load_plugin(self, pluginID, &error))
-				{
-					/* Show error message */
-					g_warning("Could not load plugin '%s': %s",
-								pluginID,
-								error ? error->message : "Unknown error");
-
-					/* Release allocated resources */
-					if(error)
-					{
-						g_error_free(error);
-						error=NULL;
-					}
-				}
-					else
-					{
-						XFDASHBOARD_DEBUG(self, PLUGINS,
-											"Loaded plugin '%s'",
-											pluginID);
-					}
+				_xfdashboard_plugins_manager_load_one_with_warning(self, pluginID);
 			}
 				else
 				{
@@ -387,6 +397,30 @@ static void _xfdashboard_plugins_manager_on_enabled_plugins_changed(XfdashboardP
 				}
 		}
 	}
+}
+
+/* Property for list of enabled plugins in settings has changed */
+static void _xfdashboard_plugins_manager_on_enabled_plugins_changed(XfdashboardPluginsManager *self,
+																	const gchar *inProperty,
+																	const GValue *inValue,
+																	gpointer inUserData)
+{
+	XfdashboardPluginsManagerPrivate	*priv;
+	const gchar							**enabledPlugins;
+
+	g_return_if_fail(XFDASHBOARD_IS_PLUGINS_MANAGER(self));
+
+	priv=self->priv;
+
+	/* If plugin managed is not inited do not load or "unload" any plugin */
+	if(!priv->isInited) return;
+
+	/* Get new list of enabled plugins */
+	enabledPlugins=xfdashboard_settings_get_enabled_plugins(priv->settings);
+
+	/* First disable removed plugins, then enable added ones (order kept) */
+	_xfdashboard_plugins_manager_disable_removed_plugins(self, enabledPlugins);
+	_xfdashboard_plugins_manager_enable_added_plugins(self, enabledPlugins);
 }
 
 /* Application was fully initialized so enabled all loaded plugin except the

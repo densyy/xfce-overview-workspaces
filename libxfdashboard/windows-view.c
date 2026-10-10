@@ -1510,6 +1510,103 @@ static gboolean _xfdashboard_windows_view_focusable_set_selection(XfdashboardFoc
 	return(TRUE);
 }
 
+/* Compute grid index for selection direction (extracted from find_selection) */
+static gint _grid_index(gint inRows, gint inCols, gint inCurRow, gint inCurCol, XfdashboardSelectionTarget inDir, gint inNChildren)
+{
+	gint					curIndex;
+	gint					newIndex;
+	gint					curRow;
+	gint					curCol;
+
+	g_return_val_if_fail(inCols>0, 0);
+	g_return_val_if_fail(inNChildren>=0, 0);
+
+	curIndex=(inCurRow*inCols)+inCurCol;
+	curRow=inCurRow;
+	curCol=inCurCol;
+	newIndex=curIndex;
+
+	/* Find target index */
+	switch(inDir)
+	{
+		case XFDASHBOARD_SELECTION_TARGET_LEFT:
+			curCol--;
+			if(curCol<0)
+			{
+				curRow++;
+				newIndex=(curRow*inCols)-1;
+			}
+				else newIndex=curIndex-1;
+			newIndex=MIN(newIndex, inNChildren-1);
+			break;
+
+		case XFDASHBOARD_SELECTION_TARGET_RIGHT:
+			curCol++;
+			if(curCol==inCols ||
+				curIndex==inNChildren)
+			{
+				newIndex=(curRow*inCols);
+			}
+				else newIndex=curIndex+1;
+			newIndex=MIN(newIndex, inNChildren-1);
+			break;
+
+		case XFDASHBOARD_SELECTION_TARGET_UP:
+			curRow--;
+			if(curRow<0) curRow=inRows-1;
+			newIndex=(curRow*inCols)+curCol;
+			newIndex=MIN(newIndex, inNChildren-1);
+			break;
+
+		case XFDASHBOARD_SELECTION_TARGET_DOWN:
+			curRow++;
+			if(curRow>=inRows) curRow=0;
+			newIndex=(curRow*inCols)+curCol;
+			newIndex=MIN(newIndex, inNChildren-1);
+			break;
+
+		case XFDASHBOARD_SELECTION_TARGET_FIRST:
+			newIndex=0;
+			break;
+
+		case XFDASHBOARD_SELECTION_TARGET_LAST:
+			newIndex=MAX(inNChildren-1, 0);
+			break;
+
+		case XFDASHBOARD_SELECTION_TARGET_NEXT:
+			if(curIndex+1<inNChildren) newIndex=curIndex+1;
+				else if(curIndex>0) newIndex=curIndex-1;
+				else newIndex=0;
+			break;
+
+		case XFDASHBOARD_SELECTION_TARGET_PAGE_LEFT:
+			newIndex=(curRow*inCols);
+			newIndex=MIN(newIndex, inNChildren-1);
+			break;
+
+		case XFDASHBOARD_SELECTION_TARGET_PAGE_RIGHT:
+			newIndex=((curRow+1)*inCols)-1;
+			newIndex=MIN(newIndex, inNChildren-1);
+			break;
+
+		case XFDASHBOARD_SELECTION_TARGET_PAGE_UP:
+			newIndex=curCol;
+			newIndex=MIN(newIndex, inNChildren-1);
+			break;
+
+		case XFDASHBOARD_SELECTION_TARGET_PAGE_DOWN:
+			newIndex=((inRows-1)*inCols)+curCol;
+			newIndex=MIN(newIndex, inNChildren-1);
+			break;
+
+		default:
+			newIndex=curIndex;
+			break;
+	}
+
+	return(newIndex);
+}
+
 /* Find requested selection target depending of current selection */
 static ClutterActor* _xfdashboard_windows_view_focusable_find_selection(XfdashboardFocusable *inFocusable,
 																			ClutterActor *inSelection,
@@ -1589,87 +1686,21 @@ static ClutterActor* _xfdashboard_windows_view_focusable_find_selection(Xfdashbo
 	currentSelectionRow=(currentSelectionIndex / columns);
 	currentSelectionColumn=(currentSelectionIndex % columns);
 
-	/* Find target selection */
+	/* Find target selection via grid index helper (covers all 11 directions) */
 	switch(inDirection)
 	{
 		case XFDASHBOARD_SELECTION_TARGET_LEFT:
-			currentSelectionColumn--;
-			if(currentSelectionColumn<0)
-			{
-				currentSelectionRow++;
-				newSelectionIndex=(currentSelectionRow*columns)-1;
-			}
-				else newSelectionIndex=currentSelectionIndex-1;
-
-			newSelectionIndex=MIN(newSelectionIndex, numberChildren-1);
-			newSelection=clutter_actor_get_child_at_index(CLUTTER_ACTOR(self), newSelectionIndex);
-			break;
-
 		case XFDASHBOARD_SELECTION_TARGET_RIGHT:
-			currentSelectionColumn++;
-			if(currentSelectionColumn==columns ||
-				currentSelectionIndex==numberChildren)
-			{
-				newSelectionIndex=(currentSelectionRow*columns);
-			}
-				else newSelectionIndex=currentSelectionIndex+1;
-
-			newSelectionIndex=MIN(newSelectionIndex, numberChildren-1);
-			newSelection=clutter_actor_get_child_at_index(CLUTTER_ACTOR(self), newSelectionIndex);
-			break;
-
 		case XFDASHBOARD_SELECTION_TARGET_UP:
-			currentSelectionRow--;
-			if(currentSelectionRow<0) currentSelectionRow=rows-1;
-			newSelectionIndex=(currentSelectionRow*columns)+currentSelectionColumn;
-
-			newSelectionIndex=MIN(newSelectionIndex, numberChildren-1);
-			newSelection=clutter_actor_get_child_at_index(CLUTTER_ACTOR(self), newSelectionIndex);
-			break;
-
 		case XFDASHBOARD_SELECTION_TARGET_DOWN:
-			currentSelectionRow++;
-			if(currentSelectionRow>=rows) currentSelectionRow=0;
-			newSelectionIndex=(currentSelectionRow*columns)+currentSelectionColumn;
-
-			newSelectionIndex=MIN(newSelectionIndex, numberChildren-1);
-			newSelection=clutter_actor_get_child_at_index(CLUTTER_ACTOR(self), newSelectionIndex);
-			break;
-
 		case XFDASHBOARD_SELECTION_TARGET_FIRST:
-			newSelection=clutter_actor_get_first_child(CLUTTER_ACTOR(self));
-			break;
-
 		case XFDASHBOARD_SELECTION_TARGET_LAST:
-			newSelection=clutter_actor_get_last_child(CLUTTER_ACTOR(self));
-			break;
-
 		case XFDASHBOARD_SELECTION_TARGET_NEXT:
-			newSelection=clutter_actor_get_next_sibling(inSelection);
-			if(!newSelection) newSelection=clutter_actor_get_previous_sibling(inSelection);
-			break;
-
 		case XFDASHBOARD_SELECTION_TARGET_PAGE_LEFT:
-			newSelectionIndex=(currentSelectionRow*columns);
-			newSelectionIndex=MIN(newSelectionIndex, numberChildren-1);
-			newSelection=clutter_actor_get_child_at_index(CLUTTER_ACTOR(self), newSelectionIndex);
-			break;
-
 		case XFDASHBOARD_SELECTION_TARGET_PAGE_RIGHT:
-			newSelectionIndex=((currentSelectionRow+1)*columns)-1;
-			newSelectionIndex=MIN(newSelectionIndex, numberChildren-1);
-			newSelection=clutter_actor_get_child_at_index(CLUTTER_ACTOR(self), newSelectionIndex);
-			break;
-
 		case XFDASHBOARD_SELECTION_TARGET_PAGE_UP:
-			newSelectionIndex=currentSelectionColumn;
-			newSelectionIndex=MIN(newSelectionIndex, numberChildren-1);
-			newSelection=clutter_actor_get_child_at_index(CLUTTER_ACTOR(self), newSelectionIndex);
-			break;
-
 		case XFDASHBOARD_SELECTION_TARGET_PAGE_DOWN:
-			newSelectionIndex=((rows-1)*columns)+currentSelectionColumn;
-			newSelectionIndex=MIN(newSelectionIndex, numberChildren-1);
+			newSelectionIndex=_grid_index(rows, columns, currentSelectionRow, currentSelectionColumn, inDirection, numberChildren);
 			newSelection=clutter_actor_get_child_at_index(CLUTTER_ACTOR(self), newSelectionIndex);
 			break;
 

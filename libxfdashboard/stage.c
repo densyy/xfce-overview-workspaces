@@ -574,6 +574,133 @@ static XfdashboardStageThemeInterfaceData* _xfdashboard_stage_theme_interface_da
 	return(data);
 }
 
+/* Wire primary children (viewpad, workspace-selector, notification, tooltip) */
+static void _wire_primary_children(XfdashboardStage *self, XfdashboardStageThemeInterfaceData *interface)
+{
+	XfdashboardStagePrivate		*priv;
+	ClutterActor					*child;
+
+	g_return_if_fail(XFDASHBOARD_IS_STAGE(self));
+	g_return_if_fail(interface!=NULL);
+
+	priv=self->priv;
+
+	/* Get children from built stage and set up pointer variables */
+	priv->viewpad=NULL;
+	child=xfdashboard_find_actor_by_name(CLUTTER_ACTOR(self), "viewpad");
+	if(child && XFDASHBOARD_IS_VIEWPAD(child))
+	{
+		priv->viewpad=child;
+		g_object_add_weak_pointer(G_OBJECT(priv->viewpad), &priv->viewpad);
+
+		/* Register this focusable actor if it is focusable */
+		if(!interface->focusables && XFDASHBOARD_IS_FOCUSABLE(priv->viewpad))
+		{
+			xfdashboard_focus_manager_register(priv->focusManager,
+												XFDASHBOARD_FOCUSABLE(priv->viewpad));
+
+			/* Check if viewpad can be focused to enforce all focusable views
+			 * will be registered too. We need to do it now to get all focusable
+			 * views registered before first use of any function of focus manager.
+			 */
+			xfdashboard_focusable_can_focus(XFDASHBOARD_FOCUSABLE(priv->viewpad));
+		}
+	}
+
+	priv->workspaces=NULL;
+	child=xfdashboard_find_actor_by_name(CLUTTER_ACTOR(self), "workspace-selector");
+	if(child && XFDASHBOARD_IS_WORKSPACE_SELECTOR(child))
+	{
+		priv->workspaces=child;
+		g_object_add_weak_pointer(G_OBJECT(priv->workspaces), &priv->workspaces);
+
+		/* Register this focusable actor if it is focusable */
+		if(!interface->focusables && XFDASHBOARD_IS_FOCUSABLE(priv->workspaces))
+		{
+			xfdashboard_focus_manager_register(priv->focusManager,
+												XFDASHBOARD_FOCUSABLE(priv->workspaces));
+		}
+	}
+
+	priv->notification=NULL;
+	child=xfdashboard_find_actor_by_name(CLUTTER_ACTOR(self), "notification");
+	if(child && XFDASHBOARD_IS_TEXT_BOX(child))
+	{
+		priv->notification=child;
+		g_object_add_weak_pointer(G_OBJECT(priv->notification), &priv->notification);
+
+		/* Register this focusable actor if it is focusable */
+		if(!interface->focusables && XFDASHBOARD_IS_FOCUSABLE(priv->notification))
+		{
+			xfdashboard_focus_manager_register(priv->focusManager,
+												XFDASHBOARD_FOCUSABLE(priv->notification));
+		}
+
+		/* Hide notification by default */
+		clutter_actor_hide(priv->notification);
+		clutter_actor_set_reactive(priv->notification, FALSE);
+	}
+
+	priv->tooltip=NULL;
+	child=xfdashboard_find_actor_by_name(CLUTTER_ACTOR(self), "tooltip");
+	if(child && XFDASHBOARD_IS_TEXT_BOX(child))
+	{
+		priv->tooltip=child;
+		g_object_add_weak_pointer(G_OBJECT(priv->tooltip), &priv->tooltip);
+
+		/* Register this focusable actor if it is focusable */
+		if(!interface->focusables && XFDASHBOARD_IS_FOCUSABLE(priv->tooltip))
+		{
+			xfdashboard_focus_manager_register(priv->focusManager,
+												XFDASHBOARD_FOCUSABLE(priv->tooltip));
+		}
+
+		/* Hide tooltip by default */
+		clutter_actor_hide(priv->tooltip);
+		clutter_actor_set_reactive(priv->tooltip, FALSE);
+	}
+}
+
+/* Register interface focusables at focus manager */
+static void _register_interface_focusables(XfdashboardStage *self, XfdashboardStageThemeInterfaceData *interface)
+{
+	XfdashboardStagePrivate		*priv;
+	GObject						*focusObject;
+	guint						i;
+
+	g_return_if_fail(XFDASHBOARD_IS_STAGE(self));
+	g_return_if_fail(interface!=NULL);
+
+	priv=self->priv;
+
+	/* Register focusable actors at focus manager */
+	if(interface->focusables)
+	{
+		for(i=0; i<interface->focusables->len; i++)
+		{
+			/* Get actor to register at focus manager */
+			focusObject=G_OBJECT(g_ptr_array_index(interface->focusables, i));
+			if(!focusObject) continue;
+
+			/* Check that actor is focusable */
+			if(!XFDASHBOARD_IS_FOCUSABLE(focusObject))
+			{
+				g_warning("Object %s is not focusable and cannot be registered.",
+							G_OBJECT_TYPE_NAME(focusObject));
+				continue;
+			}
+
+			/* Register actor at focus manager */
+			xfdashboard_focus_manager_register(priv->focusManager,
+												XFDASHBOARD_FOCUSABLE(focusObject));
+			XFDASHBOARD_DEBUG(self, ACTOR,
+								"Registering actor %s of interface with ID '%s' at focus manager",
+								G_OBJECT_TYPE_NAME(focusObject),
+								clutter_actor_get_name(interface->actor));
+		}
+	}
+}
+
 static void _xfdashboard_stage_on_application_theme_changed(XfdashboardStage *self,
 															XfdashboardTheme *inTheme,
 															gpointer inUserData)
@@ -772,107 +899,11 @@ static void _xfdashboard_stage_on_application_theme_changed(XfdashboardStage *se
 				else g_critical("Invalid multiple stages for primary monitor");
 
 			/* Get children from built stage and set up pointer variables */
-			priv->viewpad=NULL;
-			child=xfdashboard_find_actor_by_name(CLUTTER_ACTOR(self), "viewpad");
-			if(child && XFDASHBOARD_IS_VIEWPAD(child))
-			{
-				priv->viewpad=child;
-				g_object_add_weak_pointer(G_OBJECT(priv->viewpad), &priv->viewpad);
-
-				/* Register this focusable actor if it is focusable */
-				if(!interface->focusables && XFDASHBOARD_IS_FOCUSABLE(priv->viewpad))
-				{
-					xfdashboard_focus_manager_register(priv->focusManager,
-														XFDASHBOARD_FOCUSABLE(priv->viewpad));
-
-					/* Check if viewpad can be focused to enforce all focusable views
-					 * will be registered too. We need to do it now to get all focusable
-					 * views registered before first use of any function of focus manager.
-					 */
-					xfdashboard_focusable_can_focus(XFDASHBOARD_FOCUSABLE(priv->viewpad));
-				}
-			}
-
-			priv->workspaces=NULL;
-			child=xfdashboard_find_actor_by_name(CLUTTER_ACTOR(self), "workspace-selector");
-			if(child && XFDASHBOARD_IS_WORKSPACE_SELECTOR(child))
-			{
-				priv->workspaces=child;
-				g_object_add_weak_pointer(G_OBJECT(priv->workspaces), &priv->workspaces);
-
-				/* Register this focusable actor if it is focusable */
-				if(!interface->focusables && XFDASHBOARD_IS_FOCUSABLE(priv->workspaces))
-				{
-					xfdashboard_focus_manager_register(priv->focusManager,
-														XFDASHBOARD_FOCUSABLE(priv->workspaces));
-				}
-			}
-
-			priv->notification=NULL;
-			child=xfdashboard_find_actor_by_name(CLUTTER_ACTOR(self), "notification");
-			if(child && XFDASHBOARD_IS_TEXT_BOX(child))
-			{
-				priv->notification=child;
-				g_object_add_weak_pointer(G_OBJECT(priv->notification), &priv->notification);
-
-				/* Register this focusable actor if it is focusable */
-				if(!interface->focusables && XFDASHBOARD_IS_FOCUSABLE(priv->notification))
-				{
-					xfdashboard_focus_manager_register(priv->focusManager,
-														XFDASHBOARD_FOCUSABLE(priv->notification));
-				}
-
-				/* Hide notification by default */
-				clutter_actor_hide(priv->notification);
-				clutter_actor_set_reactive(priv->notification, FALSE);
-			}
-
-			priv->tooltip=NULL;
-			child=xfdashboard_find_actor_by_name(CLUTTER_ACTOR(self), "tooltip");
-			if(child && XFDASHBOARD_IS_TEXT_BOX(child))
-			{
-				priv->tooltip=child;
-				g_object_add_weak_pointer(G_OBJECT(priv->tooltip), &priv->tooltip);
-
-				/* Register this focusable actor if it is focusable */
-				if(!interface->focusables && XFDASHBOARD_IS_FOCUSABLE(priv->tooltip))
-				{
-					xfdashboard_focus_manager_register(priv->focusManager,
-														XFDASHBOARD_FOCUSABLE(priv->tooltip));
-				}
-
-				/* Hide tooltip by default */
-				clutter_actor_hide(priv->tooltip);
-				clutter_actor_set_reactive(priv->tooltip, FALSE);
-			}
+			_wire_primary_children(self, interface);
 		}
 
 		/* Register focusable actors at focus manager */
-		if(interface->focusables)
-		{
-			for(i=0; i<interface->focusables->len; i++)
-			{
-				/* Get actor to register at focus manager */
-				focusObject=G_OBJECT(g_ptr_array_index(interface->focusables, i));
-				if(!focusObject) continue;
-
-				/* Check that actor is focusable */
-				if(!XFDASHBOARD_IS_FOCUSABLE(focusObject))
-				{
-					g_warning("Object %s is not focusable and cannot be registered.",
-								G_OBJECT_TYPE_NAME(focusObject));
-					continue;
-				}
-
-				/* Register actor at focus manager */
-				xfdashboard_focus_manager_register(priv->focusManager,
-													XFDASHBOARD_FOCUSABLE(focusObject));
-				XFDASHBOARD_DEBUG(self, ACTOR,
-									"Registering actor %s of interface with ID '%s' at focus manager",
-									G_OBJECT_TYPE_NAME(focusObject),
-									clutter_actor_get_name(interface->actor));
-			}
-		}
+		_register_interface_focusables(self, interface);
 
 		/* Move focus to selected actor or remember actor focus to set it later
 		 * but only if selected actor is a focusable actor and is registered

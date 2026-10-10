@@ -96,11 +96,71 @@ struct _XfdashboardHotCornerBox
 };
 
 /* Timeout callback to check for activation or suspend via hot corner */
+static gboolean _is_fullscreen_blocked(XfdashboardWindowTracker *inTracker)
+{
+	XfdashboardWindowTrackerWindow		*activeWindow;
+	XfdashboardWindowTrackerWindowState	activeWindowState;
+
+	g_return_val_if_fail(!inTracker || XFDASHBOARD_IS_WINDOW_TRACKER(inTracker), FALSE);
+
+	if(!inTracker) return(FALSE);
+
+	activeWindow=xfdashboard_window_tracker_get_active_window(inTracker);
+	if(!activeWindow) return(FALSE);
+
+	activeWindowState=xfdashboard_window_tracker_window_get_state(activeWindow);
+	if((activeWindowState & XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_FULLSCREEN) &&
+		!xfdashboard_window_tracker_window_is_stage(activeWindow))
+	{
+		return(TRUE);
+	}
+
+	return(FALSE);
+}
+
+static void _hot_rect(const XfdashboardHotCornerBox *inMonitorRect, gint inCorner, gint inRadius, XfdashboardHotCornerBox *outHotRect)
+{
+	g_return_if_fail(inMonitorRect);
+	g_return_if_fail(outHotRect);
+
+	/* Get rectangle where pointer must be inside to activate hot corner */
+	switch(inCorner)
+	{
+		case XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_TOP_RIGHT:
+			outHotRect->x2=inMonitorRect->x2;
+			outHotRect->x1=MAX(inMonitorRect->x2-inRadius, inMonitorRect->x1);
+			outHotRect->y1=inMonitorRect->y1;
+			outHotRect->y2=MIN(inMonitorRect->y1+inRadius, inMonitorRect->y2);
+			break;
+
+		case XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_LEFT:
+			outHotRect->x1=inMonitorRect->x1;
+			outHotRect->x2=MIN(inMonitorRect->x1+inRadius, inMonitorRect->x2);
+			outHotRect->y2=inMonitorRect->y2;
+			outHotRect->y1=MAX(inMonitorRect->y2-inRadius, inMonitorRect->y1);
+			break;
+
+		case XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_RIGHT:
+			outHotRect->x2=inMonitorRect->x2;
+			outHotRect->x1=MAX(inMonitorRect->x2-inRadius, inMonitorRect->x1);
+			outHotRect->y2=inMonitorRect->y2;
+			outHotRect->y1=MAX(inMonitorRect->y2-inRadius, inMonitorRect->y1);
+			break;
+
+		case XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_TOP_LEFT:
+		default:
+			outHotRect->x1=inMonitorRect->x1;
+			outHotRect->x2=MIN(inMonitorRect->x1+inRadius, inMonitorRect->x2);
+			outHotRect->y1=inMonitorRect->y1;
+			outHotRect->y2=MIN(inMonitorRect->y1+inRadius, inMonitorRect->y2);
+			break;
+	}
+}
+
 static gboolean _xfdashboard_hot_corner_check_hot_corner(gpointer inUserData)
 {
 	XfdashboardHotCorner							*self;
 	XfdashboardHotCornerPrivate						*priv;
-	XfdashboardWindowTrackerWindow					*activeWindow;
 	GdkDevice										*pointerDevice;
 	gint											pointerX, pointerY;
 	XfdashboardHotCornerSettingsActivationCorner	activationCorner;
@@ -125,17 +185,9 @@ static gboolean _xfdashboard_hot_corner_check_hot_corner(gpointer inUserData)
 	primaryMonitorOnly=xfdashboard_hot_corner_settings_get_primary_monitor_only(priv->settings);
 
 	/* Do nothing if current window is fullscreen but not this application */
-	activeWindow=xfdashboard_window_tracker_get_active_window(priv->windowTracker);
-	if(activeWindow)
+	if(_is_fullscreen_blocked(priv->windowTracker))
 	{
-		XfdashboardWindowTrackerWindowState			activeWindowState;
-
-		activeWindowState=xfdashboard_window_tracker_window_get_state(activeWindow);
-		if((activeWindowState & XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_FULLSCREEN) &&
-			!xfdashboard_window_tracker_window_is_stage(activeWindow))
-		{
-			return(G_SOURCE_CONTINUE);
-		}
+		return(G_SOURCE_CONTINUE);
 	}
 
 	/* Get current position of pointer */
@@ -178,37 +230,7 @@ static gboolean _xfdashboard_hot_corner_check_hot_corner(gpointer inUserData)
 	}
 
 	/* Get rectangle where pointer must be inside to activate hot corner */
-	switch(activationCorner)
-	{
-		case XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_TOP_RIGHT:
-			hotCornerRect.x2=monitorRect.x2;
-			hotCornerRect.x1=MAX(monitorRect.x2-activationRadius, monitorRect.x1);
-			hotCornerRect.y1=monitorRect.y1;
-			hotCornerRect.y2=MIN(monitorRect.y1+activationRadius, monitorRect.y2);
-			break;
-
-		case XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_LEFT:
-			hotCornerRect.x1=monitorRect.x1;
-			hotCornerRect.x2=MIN(monitorRect.x1+activationRadius, monitorRect.x2);
-			hotCornerRect.y2=monitorRect.y2;
-			hotCornerRect.y1=MAX(monitorRect.y2-activationRadius, monitorRect.y1);
-			break;
-
-		case XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_RIGHT:
-			hotCornerRect.x2=monitorRect.x2;
-			hotCornerRect.x1=MAX(monitorRect.x2-activationRadius, monitorRect.x1);
-			hotCornerRect.y2=monitorRect.y2;
-			hotCornerRect.y1=MAX(monitorRect.y2-activationRadius, monitorRect.y1);
-			break;
-
-		case XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_TOP_LEFT:
-		default:
-			hotCornerRect.x1=monitorRect.x1;
-			hotCornerRect.x2=MIN(monitorRect.x1+activationRadius, monitorRect.x2);
-			hotCornerRect.y1=monitorRect.y1;
-			hotCornerRect.y2=MIN(monitorRect.y1+activationRadius, monitorRect.y2);
-			break;
-	}
+	_hot_rect(&monitorRect, activationCorner, activationRadius, &hotCornerRect);
 
 	/* Check if pointer is in configured hot corner for a configured interval.
 	 * If it is not reset entered time and return immediately without doing anything.

@@ -223,6 +223,43 @@ static void _xfdashboard_viewpad_update_scrollbars(XfdashboardViewpad *self)
 	}
 }
 
+/* Deactivate current view: unset focus, hide, emit signals and drop reference */
+static void _deactivate_current_view(XfdashboardViewpad *self, XfdashboardFocusManager *focusManager, gboolean *hadFocus)
+{
+	XfdashboardViewpadPrivate	*priv;
+
+	g_return_if_fail(XFDASHBOARD_IS_VIEWPAD(self));
+	g_return_if_fail(hadFocus!=NULL);
+
+	priv=self->priv;
+	if(!priv->activeView) return;
+
+	/* Unset focus at current active view if this view has the focus */
+	*hadFocus=xfdashboard_focus_manager_has_focus(focusManager, XFDASHBOARD_FOCUSABLE(priv->activeView));
+	if(*hadFocus)
+	{
+		xfdashboard_focusable_unset_focus(XFDASHBOARD_FOCUSABLE(priv->activeView));
+		XFDASHBOARD_DEBUG(self, ACTOR,
+							"Unset focus from view '%s' because it is the active view at viewpad",
+							xfdashboard_view_get_name(priv->activeView));
+	}
+
+	/* Hide current view and emit signal before and after deactivation */
+	g_signal_emit(self, XfdashboardViewpadSignals[SIGNAL_VIEW_DEACTIVATING], 0, priv->activeView);
+	g_signal_emit_by_name(priv->activeView, "deactivating");
+
+	clutter_actor_hide(CLUTTER_ACTOR(priv->activeView));
+	XFDASHBOARD_DEBUG(self, ACTOR,
+						"Deactivated view %s",
+						G_OBJECT_TYPE_NAME(priv->activeView));
+
+	g_signal_emit_by_name(priv->activeView, "deactivated");
+	g_signal_emit(self, XfdashboardViewpadSignals[SIGNAL_VIEW_DEACTIVATED], 0, priv->activeView);
+
+	g_object_unref(priv->activeView);
+	priv->activeView=NULL;
+}
+
 /* Set new active view and deactive current one */
 static void _xfdashboard_viewpad_activate_view(XfdashboardViewpad *self, XfdashboardView *inView)
 {
@@ -260,33 +297,7 @@ static void _xfdashboard_viewpad_activate_view(XfdashboardViewpad *self, Xfdashb
 	focusManager=xfdashboard_core_get_focus_manager(NULL);
 
 	/* Deactivate current view */
-	if(priv->activeView)
-	{
-		/* Unset focus at current active view if this view has the focus */
-		hasFocus=xfdashboard_focus_manager_has_focus(focusManager, XFDASHBOARD_FOCUSABLE(priv->activeView));
-		if(hasFocus)
-		{
-			xfdashboard_focusable_unset_focus(XFDASHBOARD_FOCUSABLE(priv->activeView));
-			XFDASHBOARD_DEBUG(self, ACTOR,
-								"Unset focus from view '%s' because it is the active view at viewpad",
-								xfdashboard_view_get_name(priv->activeView));
-		}
-
-		/* Hide current view and emit signal before and after deactivation */
-		g_signal_emit(self, XfdashboardViewpadSignals[SIGNAL_VIEW_DEACTIVATING], 0, priv->activeView);
-		g_signal_emit_by_name(priv->activeView, "deactivating");
-
-		clutter_actor_hide(CLUTTER_ACTOR(priv->activeView));
-		XFDASHBOARD_DEBUG(self, ACTOR,
-							"Deactivated view %s",
-							G_OBJECT_TYPE_NAME(priv->activeView));
-
-		g_signal_emit_by_name(priv->activeView, "deactivated");
-		g_signal_emit(self, XfdashboardViewpadSignals[SIGNAL_VIEW_DEACTIVATED], 0, priv->activeView);
-
-		g_object_unref(priv->activeView);
-		priv->activeView=NULL;
-	}
+	_deactivate_current_view(self, focusManager, &hasFocus);
 
 	/* Activate new view (if available) by showing new view, setting up
 	 * scrollbars and emitting signal before and after activation.
@@ -887,6 +898,23 @@ static void _xfdashboard_viewpad_get_preferred_width(ClutterActor *self,
 	/* Store sizes computed */
 	if(outMinWidth) *outMinWidth=minWidth;
 	if(outNaturalWidth) *outNaturalWidth=naturalWidth;
+}
+
+/* Compute scrollbar visibility from policy, range and view fit mode */
+static void _compute_scrollbar_visibility(XfdashboardViewpad *self, gfloat viewWidth, gfloat viewHeight, gboolean *showH, gboolean *showV)
+{
+	XfdashboardViewpadPrivate	*priv;
+	gboolean					hScrollbarVisible, vScrollbarVisible;
+
+	g_return_if_fail(XFDASHBOARD_IS_VIEWPAD(self));
+
+	priv=self->priv;
+
+	/* Determine visibility of scroll bars */
+	_compute_scrollbar_visibility(XFDASHBOARD_VIEWPAD(self), viewWidth, viewHeight, &hScrollbarVisible, &vScrollbarVisible);
+
+	if(showH) *showH=hScrollbarVisible;
+	if(showV) *showV=vScrollbarVisible;
 }
 
 /* Allocate position and size of actor and its children */

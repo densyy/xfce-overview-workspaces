@@ -371,7 +371,7 @@ static void _xfdashboard_settings_set_data_path(XfdashboardSettings *self, const
 		}
 
 		/* Notify about property change */
-		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardSettingsProperties[PROP_CONFIG_PATH]);
+		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardSettingsProperties[PROP_DATA_PATH]);
 	}
 }
 
@@ -893,7 +893,7 @@ static void xfdashboard_settings_init(XfdashboardSettings *self)
 	priv->allowSubwindows=DEFAULT_ALLOW_SUBWINDOWS;
 	priv->enabledPlugins=NULL;
 	priv->enableWorkaroundUnmappedWindow=DEFAULT_ENABLE_WORKAROUND_UNMAPPED_WINDOW;
-	priv->windowContentCreationPriority=DEFAULT_WINDOW_CONTENT_CREATION_PRIORITY;
+	priv->windowContentCreationPriority=g_strdup(DEFAULT_WINDOW_CONTENT_CREATION_PRIORITY);
 	priv->enableAnimations=DEFAULT_ENABLE_ANIMATIONS;
 	priv->notificationTimeout=DEFAULT_NOTIFICATION_TIMEOUT;
 	priv->switchToViewOnResume=g_strdup(DEFAULT_SWITCH_TO_VIEW_ON_RESUME);

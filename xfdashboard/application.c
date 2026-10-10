@@ -30,6 +30,8 @@
 
 #include "application.h"
 
+#include <string.h>
+
 #include <glib/gi18n-lib.h>
 #include <gtk/gtk.h>
 #include <libxfce4ui/libxfce4ui.h>
@@ -76,6 +78,29 @@ static GParamSpec* XfdashboardApplicationProperties[PROP_LAST]={ 0, };
 
 /* Forward declarations */
 static void _xfdashboard_application_activate(GApplication *inApplication);
+
+/* Command-line options (file-scope static const, filled into AppOpts by parse_opts) */
+typedef struct _AppOpts AppOpts;
+struct _AppOpts
+{
+	gboolean						daemon;
+	gboolean						quit;
+	gboolean						restart;
+	gboolean						toggle;
+	gchar							*view;
+	gboolean						version;
+};
+
+static const GOptionEntry _appOptionEntriesTemplate[]=
+{
+	{ "daemonize", 'd', 0, G_OPTION_ARG_NONE, NULL, N_("Fork to background"), NULL },
+	{ "quit", 'q', 0, G_OPTION_ARG_NONE, NULL, N_("Quit running instance"), NULL },
+	{ "restart", 'r', 0, G_OPTION_ARG_NONE, NULL, N_("Restart running instance"), NULL },
+	{ "toggle", 't', 0, G_OPTION_ARG_NONE, NULL, N_("Toggles visibility if running instance was started in daemon mode otherwise it quits running non-daemon instance"), NULL },
+	{ "view", 0, 0, G_OPTION_ARG_STRING, NULL, N_("The ID of view to switch to on startup or resume"), "ID" },
+	{ "version", 'v', 0, G_OPTION_ARG_NONE, NULL, N_("Show version"), NULL },
+	{ NULL }
+};
 
 /* Quit application depending on daemon mode and force parameter */
 static void _xfdashboard_application_quit_intern(XfdashboardApplication *self, gboolean inForceQuit)
@@ -224,16 +249,104 @@ static void _xfdashboard_application_add_settings_path_list(GArray *inSearchPath
 	if(normalizedPath) g_free(normalizedPath);
 }
 
+/* Add a single path to search list (wraps dedup helper) */
+static void _add_one_path(GArray *inSearchPaths, const gchar *inPath, gboolean inIsFile)
+{
+	if(!inSearchPaths) return;
+	if(!inPath || !*inPath) return;
+
+	_xfdashboard_application_add_settings_path_list(inSearchPaths, inPath, inIsFile);
+}
+
+/* Add colon-separated paths from environment variable to search list */
+static void _add_env_colon_paths(GArray *inSearchPaths, const gchar *inEnvVar, gboolean inIsFile)
+{
+	const gchar					*envValue;
+	gchar						**paths;
+	gchar						**iter;
+
+	g_return_if_fail(inSearchPaths);
+	g_return_if_fail(inEnvVar && *inEnvVar);
+
+	envValue=g_getenv(inEnvVar);
+	if(!envValue) return;
+
+	iter=paths=g_strsplit(envValue, ":", -1);
+	while(*iter)
+	{
+		_add_one_path(inSearchPaths, *iter, inIsFile);
+		iter++;
+	}
+	g_strfreev(paths);
+}
+
+/* Base directory getters for default-path table */
+static const gchar* _app_base_user_data(void) { return(g_get_user_data_dir()); }
+static const gchar* _app_base_home(void) { return(g_get_home_dir()); }
+static const gchar* _app_base_user_config(void) { return(g_get_user_config_dir()); }
+static const gchar* _app_base_pkg_data(void) { return(PACKAGE_DATADIR); }
+static const gchar* _app_base_pkg_lib(void) { return(PACKAGE_LIBDIR); }
+
+typedef struct _AppDefaultPath AppDefaultPath;
+struct _AppDefaultPath
+{
+	const gchar* (*getBase)(void);
+	const gchar					*child1;
+	const gchar					*child2;
+	gboolean					isFile;
+};
+
+static const AppDefaultPath _themesDefaults[]=
+{
+	{ _app_base_user_data, "themes", NULL, FALSE },
+	{ _app_base_home, ".themes", NULL, FALSE },
+	{ _app_base_pkg_data, "themes", NULL, FALSE },
+	{ NULL, NULL, NULL, FALSE }
+};
+
+static const AppDefaultPath _pluginsDefaults[]=
+{
+	{ _app_base_user_data, "xfdashboard", "plugins", FALSE },
+	{ _app_base_pkg_lib, "xfdashboard", "plugins", FALSE },
+	{ NULL, NULL, NULL, FALSE }
+};
+
+static const AppDefaultPath _bindingsDefaults[]=
+{
+	{ _app_base_pkg_data, "xfdashboard", "bindings.xml", TRUE },
+	{ _app_base_user_config, "xfdashboard", "bindings.xml", TRUE },
+	{ NULL, NULL, NULL, FALSE }
+};
+
+/* Add default paths from static table to search list */
+static void _add_default_paths(GArray *inSearchPaths, const AppDefaultPath *inDefaults)
+{
+	const AppDefaultPath		*def;
+	const gchar					*base;
+	gchar						*path;
+
+	g_return_if_fail(inSearchPaths);
+	g_return_if_fail(inDefaults);
+
+	for(def=inDefaults; def->getBase; def++)
+	{
+		base=def->getBase();
+		if(!base || !*base) continue;
+
+		if(def->child2) path=g_build_filename(base, def->child1, def->child2, NULL);
+			else path=g_build_filename(base, def->child1, NULL);
+		_add_one_path(inSearchPaths, path, def->isFile);
+		g_free(path);
+	}
+}
+
 static XfdashboardSettings* _xfdashboard_application_create_settings(XfdashboardApplication *self)
 {
 	XfdashboardSettings			*settings;
 	GArray						*pathFileList;
-	const gchar					*environmentVariable;
 	gchar						**themesSearchPaths;
 	gchar						**pluginsSearchPaths;
 	gchar						**bindingFilePaths;
-	gchar						*entry;
-	const gchar					*homeDirectory;
 	gchar						*configPath;
 	gchar						*dataPath;
 
@@ -243,95 +356,27 @@ static XfdashboardSettings* _xfdashboard_application_create_settings(Xfdashboard
 	pluginsSearchPaths=NULL;
 	bindingFilePaths=NULL;
 
-	/* Set up search path for themes */
+	/* Set up search path for themes (env first, then static defaults table) */
 	pathFileList=g_array_new(TRUE, TRUE, sizeof(gchar*));
 
-	environmentVariable=g_getenv("XFDASHBOARD_THEME_PATH");
-	if(environmentVariable)
-	{
-		gchar						**paths;
-		gchar						**pathIter;
-
-		pathIter=paths=g_strsplit(environmentVariable, ":", -1);
-		while(*pathIter)
-		{
-			_xfdashboard_application_add_settings_path_list(pathFileList, *pathIter, FALSE);
-			pathIter++;
-		}
-		g_strfreev(paths);
-	}
-
-	entry=g_build_filename(g_get_user_data_dir(), "themes", NULL);
-	_xfdashboard_application_add_settings_path_list(pathFileList, entry, FALSE);
-	g_free(entry);
-
-	homeDirectory=g_get_home_dir();
-	if(homeDirectory)
-	{
-		entry=g_build_filename(homeDirectory, ".themes", NULL);
-		_xfdashboard_application_add_settings_path_list(pathFileList, entry, FALSE);
-		g_free(entry);
-	}
-
-	entry=g_build_filename(PACKAGE_DATADIR, "themes", NULL);
-	_xfdashboard_application_add_settings_path_list(pathFileList, entry, FALSE);
-	g_free(entry);
+	_add_env_colon_paths(pathFileList, "XFDASHBOARD_THEME_PATH", FALSE);
+	_add_default_paths(pathFileList, _themesDefaults);
 
 	themesSearchPaths=(gchar**)(gpointer)g_array_free(pathFileList, FALSE);
 
-	/* Set up search path for plugins */
+	/* Set up search path for plugins (env first, then static defaults table) */
 	pathFileList=g_array_new(TRUE, TRUE, sizeof(gchar*));
 
-	environmentVariable=g_getenv("XFDASHBOARD_PLUGINS_PATH");
-	if(environmentVariable)
-	{
-		gchar						**paths;
-		gchar						**pathIter;
-
-		pathIter=paths=g_strsplit(environmentVariable, ":", -1);
-		while(*pathIter)
-		{
-			_xfdashboard_application_add_settings_path_list(pathFileList, *pathIter, FALSE);
-			pathIter++;
-		}
-		g_strfreev(paths);
-	}
-
-	entry=g_build_filename(g_get_user_data_dir(), "xfdashboard", "plugins", NULL);
-	_xfdashboard_application_add_settings_path_list(pathFileList, entry, FALSE);
-	g_free(entry);
-
-	entry=g_build_filename(PACKAGE_LIBDIR, "xfdashboard", "plugins", NULL);
-	_xfdashboard_application_add_settings_path_list(pathFileList, entry, FALSE);
-	g_free(entry);
+	_add_env_colon_paths(pathFileList, "XFDASHBOARD_PLUGINS_PATH", FALSE);
+	_add_default_paths(pathFileList, _pluginsDefaults);
 
 	pluginsSearchPaths=(gchar**)(gpointer)g_array_free(pathFileList, FALSE);
 
-	/* Set up file path for bindings */
+	/* Set up file path for bindings (defaults table first, then env) */
 	pathFileList=g_array_new(TRUE, TRUE, sizeof(gchar*));
 
-	entry=g_build_filename(PACKAGE_DATADIR, "xfdashboard", "bindings.xml", NULL);
-	_xfdashboard_application_add_settings_path_list(pathFileList, entry, TRUE);
-	g_free(entry);
-
-	entry=g_build_filename(g_get_user_config_dir(), "xfdashboard", "bindings.xml", NULL);
-	_xfdashboard_application_add_settings_path_list(pathFileList, entry, TRUE);
-	g_free(entry);
-
-	environmentVariable=g_getenv("XFDASHBOARD_BINDINGS_POOL_FILE");
-	if(environmentVariable)
-	{
-		gchar						**paths;
-		gchar						**pathIter;
-
-		pathIter=paths=g_strsplit(environmentVariable, ":", -1);
-		while(*pathIter)
-		{
-			_xfdashboard_application_add_settings_path_list(pathFileList, *pathIter, TRUE);
-			pathIter++;
-		}
-		g_strfreev(paths);
-	}
+	_add_default_paths(pathFileList, _bindingsDefaults);
+	_add_env_colon_paths(pathFileList, "XFDASHBOARD_BINDINGS_POOL_FILE", TRUE);
 
 	bindingFilePaths=(gchar**)(gpointer)g_array_free(pathFileList, FALSE);
 
@@ -460,54 +505,43 @@ static void _xfdashboard_application_switch_to_view(XfdashboardApplication *self
 	xfdashboard_stage_set_switch_to_view(stage, inInternalViewName);
 }
 
-/* Handle command-line on primary instance */
-static gint _xfdashboard_application_handle_command_line_arguments(XfdashboardApplication *self,
-																	gint inArgc,
-																	gchar **inArgv)
+/* Pure option parsing (no application side effects except filling AppOpts) */
+static gboolean parse_opts(gint *ioArgc, gchar ***ioArgv, AppOpts *outOpts, GError **outError)
 {
-	XfdashboardApplicationPrivate	*priv;
-	GOptionContext					*context;
-	gboolean						result;
-	GError							*error;
-	gboolean						optionDaemonize;
-	gboolean						optionQuit;
-	gboolean						optionRestart;
-	gboolean						optionToggle;
-	gchar							*optionSwitchToView;
-	gboolean						optionVersion;
-	GOptionEntry					entries[]=
-									{
-										{ "daemonize", 'd', 0, G_OPTION_ARG_NONE, &optionDaemonize, N_("Fork to background"), NULL },
-										{ "quit", 'q', 0, G_OPTION_ARG_NONE, &optionQuit, N_("Quit running instance"), NULL },
-										{ "restart", 'r', 0, G_OPTION_ARG_NONE, &optionRestart, N_("Restart running instance"), NULL },
-										{ "toggle", 't', 0, G_OPTION_ARG_NONE, &optionToggle, N_("Toggles visibility if running instance was started in daemon mode otherwise it quits running non-daemon instance"), NULL },
-										{ "view", 0, 0, G_OPTION_ARG_STRING, &optionSwitchToView, N_("The ID of view to switch to on startup or resume"), "ID" },
-										{ "version", 'v', 0, G_OPTION_ARG_NONE, &optionVersion, N_("Show version"), NULL },
-										{ NULL }
-									};
+	GOptionContext				*context;
+	GOptionEntry				entries[G_N_ELEMENTS(_appOptionEntriesTemplate)];
+	gchar						buf[1024];
 
-	g_return_val_if_fail(XFDASHBOARD_IS_APPLICATION(self), XFDASHBOARD_APPLICATION_ERROR_FAILED);
+	g_return_val_if_fail(ioArgc, FALSE);
+	g_return_val_if_fail(ioArgv, FALSE);
+	g_return_val_if_fail(outOpts, FALSE);
+	g_return_val_if_fail(outError==NULL || *outError==NULL, FALSE);
 
-	priv=self->priv;
-	error=NULL;
+	/* Set up default option values */
+	outOpts->daemon=FALSE;
+	outOpts->quit=FALSE;
+	outOpts->restart=FALSE;
+	outOpts->toggle=FALSE;
+	outOpts->view=NULL;
+	outOpts->version=FALSE;
 
-	/* Set up options */
-	optionDaemonize=FALSE;
-	optionQuit=FALSE;
-	optionRestart=FALSE;
-	optionToggle=FALSE;
-	optionSwitchToView=NULL;
-	optionVersion=FALSE;
+	/* Bind file-scope template to this AppOpts instance */
+	memcpy(entries, _appOptionEntriesTemplate, sizeof(entries));
+	entries[0].arg_data=&outOpts->daemon;
+	entries[1].arg_data=&outOpts->quit;
+	entries[2].arg_data=&outOpts->restart;
+	entries[3].arg_data=&outOpts->toggle;
+	entries[4].arg_data=&outOpts->view;
+	entries[5].arg_data=&outOpts->version;
 
 	/* Setup command-line options */
 	context=g_option_context_new("");
-	gchar buf[1024];
 	g_snprintf(buf, sizeof(buf), _("A Gnome Shell like dashboard for Xfce4 - version %s"), VERSION_FULL);
 	g_option_context_set_summary(context, buf);
 	g_option_context_set_translation_domain(context, GETTEXT_PACKAGE);
 	g_option_context_add_group(context, gtk_get_option_group(TRUE));
 	g_option_context_add_group(context, clutter_get_option_group_without_init());
-	g_option_context_add_group(context, xfce_sm_client_get_option_group(inArgc, inArgv));
+	g_option_context_add_group(context, xfce_sm_client_get_option_group(*ioArgc, *ioArgv));
 	g_option_context_add_main_entries(context, entries, GETTEXT_PACKAGE);
 
 #ifdef DEBUG
@@ -517,110 +551,68 @@ static gint _xfdashboard_application_handle_command_line_arguments(XfdashboardAp
 #endif
 #endif
 
-	if(!g_option_context_parse(context, &inArgc, &inArgv, &error))
+	if(!g_option_context_parse(context, ioArgc, ioArgv, outError))
 	{
-		/* Show error */
-		g_print(N_("%s\n"),
-				(error && error->message) ? error->message : _("unknown error"));
-		if(error)
-		{
-			g_error_free(error);
-			error=NULL;
-		}
-
-		/* Release allocated resources */
-		if(optionSwitchToView) g_free(optionSwitchToView);
 		if(context) g_option_context_free(context);
-
-		return(XFDASHBOARD_APPLICATION_ERROR_FAILED);
+		return(FALSE);
 	}
 
-	/* If this application instance is a remote instance do not handle any
-	 * command-line argument. The arguments will be sent to the primary instance,
-	 * handled there and the exit code will be sent back to the remote instance.
-	 * We can check for remote instance with g_application_get_is_remote() because
-	 * the application was tried to get registered either by local_command_line
-	 * signal handler or by g_application_run().
-	 */
-	if(g_application_get_is_remote(G_APPLICATION(self)))
-	{
-		XFDASHBOARD_DEBUG(self, MISC, "Do not handle command-line parameters on remote application instance");
+	if(context) g_option_context_free(context);
+	return(TRUE);
+}
 
-		/* One exception is "--version" */
-		if(optionVersion)
-		{
-			g_print("Remote instance: %s-%s\n", PACKAGE_NAME, VERSION_FULL);
-		}
+/* Dispatch helpers (moved from handle_command_line_arguments, order kept) */
+static gboolean _handle_restart(XfdashboardApplication *self, const AppOpts *inOpts, gint *outStatus)
+{
+	XfdashboardApplicationPrivate	*priv;
 
-		/* Release allocated resources */
-		if(optionSwitchToView) g_free(optionSwitchToView);
-		if(context) g_option_context_free(context);
+	g_return_val_if_fail(XFDASHBOARD_IS_APPLICATION(self), FALSE);
+	g_return_val_if_fail(inOpts, FALSE);
 
-		/* No errors so far and no errors will happen as we do not handle
-		 * any command-line arguments here.
-		 */
-		return(XFDASHBOARD_APPLICATION_ERROR_NONE);
-	}
-	XFDASHBOARD_DEBUG(self, MISC, "Handling command-line parameters on primary application instance");
+	priv=self->priv;
 
-#ifdef DEBUG
-	/* Check if a new instance was forced by checking application ID */
-	if(g_strcmp0(g_application_get_application_id(G_APPLICATION(self)), XFDASHBOARD_APP_ID)!=0)
-	{
-		priv->forcedNewInstance=TRUE;
-	}
-#endif
-
-	/* Handle options: restart
-	 *
-	 * First handle option 'restart' to quit this application early. Also return
-	 * immediately with status XFDASHBOARD_APPLICATION_ERROR_RESTART to tell
-	 * remote instance to perform a restart and to become the new primary instance.
-	 * This option requires that application was initialized.
-	 */
-	if(optionRestart &&
+	if(inOpts->restart &&
 		priv->initialized)
 	{
 		/* Quit existing instance for restart */
 		XFDASHBOARD_DEBUG(self, MISC, "Received request to restart application!");
 		_xfdashboard_application_quit_intern(self, TRUE);
 
-		/* Release allocated resources */
-		if(optionSwitchToView) g_free(optionSwitchToView);
-		if(context) g_option_context_free(context);
-
-		/* Return state to restart this applicationa */
-		return(XFDASHBOARD_APPLICATION_ERROR_RESTART);
+		if(outStatus) *outStatus=XFDASHBOARD_APPLICATION_ERROR_RESTART;
+		return(TRUE);
 	}
 
-	/* Handle options: quit
-	 *
-	 * Now check for the next application stopping option 'quit'. We check for it
-	 * to quit this application early and to prevent further and unnecessary check
-	 * for other options.
-	 */
-	if(optionQuit)
+	return(FALSE);
+}
+
+static gboolean _handle_quit(XfdashboardApplication *self, const AppOpts *inOpts, gint *outStatus)
+{
+	g_return_val_if_fail(XFDASHBOARD_IS_APPLICATION(self), FALSE);
+	g_return_val_if_fail(inOpts, FALSE);
+
+	if(inOpts->quit)
 	{
 		/* Quit existing instance */
 		XFDASHBOARD_DEBUG(self, MISC, "Received request to quit running instance!");
 		xfdashboard_application_quit_forced(self);
 
-		/* Release allocated resources */
-		if(optionSwitchToView) g_free(optionSwitchToView);
-		if(context) g_option_context_free(context);
-
-		return(XFDASHBOARD_APPLICATION_ERROR_QUIT);
+		if(outStatus) *outStatus=XFDASHBOARD_APPLICATION_ERROR_QUIT;
+		return(TRUE);
 	}
 
-	/* Handle options: toggle
-	 *
-	 * Now check if we should toggle the state of application. That means
-	 * if application is running daemon mode, resume it if suspended otherwise
-	 * suspend it. If application is running but not in daemon just quit the
-	 * application. If application was not inited yet, skip toggling state and
-	 * perform a normal start-up.
-	 */
-	if(optionToggle &&
+	return(FALSE);
+}
+
+static gboolean _handle_toggle(XfdashboardApplication *self, const AppOpts *inOpts, gint *outStatus)
+{
+	XfdashboardApplicationPrivate	*priv;
+
+	g_return_val_if_fail(XFDASHBOARD_IS_APPLICATION(self), FALSE);
+	g_return_val_if_fail(inOpts, FALSE);
+
+	priv=self->priv;
+
+	if(inOpts->toggle &&
 		priv->initialized)
 	{
 		/* If application is running in daemon mode, toggle between suspend/resume ... */
@@ -629,7 +621,7 @@ static gint _xfdashboard_application_handle_command_line_arguments(XfdashboardAp
 			if(xfdashboard_core_is_suspended(priv->core))
 			{
 				/* Switch to view if requested */
-				_xfdashboard_application_switch_to_view(self, optionSwitchToView);
+				_xfdashboard_application_switch_to_view(self, inOpts->view);
 
 				/* Show application again */
 				_xfdashboard_application_activate(G_APPLICATION(self));
@@ -647,35 +639,116 @@ static gint _xfdashboard_application_handle_command_line_arguments(XfdashboardAp
 				_xfdashboard_application_quit_intern(self, FALSE);
 			}
 
-		/* Release allocated resources */
-		if(optionSwitchToView) g_free(optionSwitchToView);
-		if(context) g_option_context_free(context);
+		if(outStatus) *outStatus=XFDASHBOARD_APPLICATION_ERROR_NONE;
+		return(TRUE);
+	}
 
-		/* Stop here because option was handled and application does not get initialized */
+	return(FALSE);
+}
+
+/* Handle command-line on primary instance (parse->dispatch->init) */
+static gint _xfdashboard_application_handle_command_line_arguments(XfdashboardApplication *self,
+															gint inArgc,
+															gchar **inArgv)
+{
+	XfdashboardApplicationPrivate	*priv;
+	gboolean						result;
+	GError							*error;
+	AppOpts							opts;
+	gint							dispatchStatus;
+
+	g_return_val_if_fail(XFDASHBOARD_IS_APPLICATION(self), XFDASHBOARD_APPLICATION_ERROR_FAILED);
+
+	priv=self->priv;
+	error=NULL;
+
+	/* Parse command-line (pure, no side effects) */
+	if(!parse_opts(&inArgc, &inArgv, &opts, &error))
+	{
+		/* Show error */
+		g_print(N_("%s\n"),
+				(error && error->message) ? error->message : _("unknown error"));
+		if(error)
+		{
+			g_error_free(error);
+			error=NULL;
+		}
+
+		/* Release allocated resources */
+		if(opts.view) g_free(opts.view);
+
+		return(XFDASHBOARD_APPLICATION_ERROR_FAILED);
+	}
+
+	/* Dispatch: remote instance handling */
+	if(g_application_get_is_remote(G_APPLICATION(self)))
+	{
+		XFDASHBOARD_DEBUG(self, MISC, "Do not handle command-line parameters on remote application instance");
+
+		/* One exception is "--version" */
+		if(opts.version)
+		{
+			g_print("Remote instance: %s-%s\n", PACKAGE_NAME, VERSION_FULL);
+		}
+
+		/* Release allocated resources */
+		if(opts.view) g_free(opts.view);
+
+		/* No errors so far and no errors will happen as we do not handle
+		 * any command-line arguments here.
+		 */
 		return(XFDASHBOARD_APPLICATION_ERROR_NONE);
+	}
+	XFDASHBOARD_DEBUG(self, MISC, "Handling command-line parameters on primary application instance");
+
+#ifdef DEBUG
+	/* Check if a new instance was forced by checking application ID */
+	if(g_strcmp0(g_application_get_application_id(G_APPLICATION(self)), XFDASHBOARD_APP_ID)!=0)
+	{
+		priv->forcedNewInstance=TRUE;
+	}
+#endif
+
+	/* Dispatch: restart, quit, toggle (order kept) */
+	if(_handle_restart(self, &opts, &dispatchStatus))
+	{
+		if(opts.view) g_free(opts.view);
+		return(dispatchStatus);
+	}
+
+	if(_handle_quit(self, &opts, &dispatchStatus))
+	{
+		if(opts.view) g_free(opts.view);
+		return(dispatchStatus);
+	}
+
+	if(_handle_toggle(self, &opts, &dispatchStatus))
+	{
+		if(opts.view) g_free(opts.view);
+		return(dispatchStatus);
 	}
 
 	/* Handle options: version
 	 *
 	 * Show the version of this (maybe daemonized) instance.
 	 */
-	if(optionVersion)
+	if(opts.version)
 	{
 		if(priv->isDaemon)
 		{
 			g_print("Daemon instance: %s-%s\n", PACKAGE_NAME, VERSION_FULL);
+			if(opts.view) g_free(opts.view);
 			return(XFDASHBOARD_APPLICATION_ERROR_NONE);
 		}
 			else
 			{
 				g_print("Version: %s-%s\n", PACKAGE_NAME, VERSION_FULL);
+				if(opts.view) g_free(opts.view);
 				return(XFDASHBOARD_APPLICATION_ERROR_QUIT);
 			}
 	}
 
-	/* Check if this instance needs to be initialized fully and also handle
-	 * daemonization if requested.
-	 */
+	/* Init: full initialization and daemon handling */
 	if(!priv->initialized)
 	{
 		/* Set daemon mode property if requested which must be done before the core is
@@ -683,15 +756,19 @@ static gint _xfdashboard_application_handle_command_line_arguments(XfdashboardAp
 		 * which causes plugins depending on daemon to be disabled. Setting daemon mode
 		 * does not work if a new instance was forced.
 		 */
-		if(optionDaemonize && !priv->forcedNewInstance)
+		if(opts.daemon && !priv->forcedNewInstance)
 		{
-			priv->isDaemon=optionDaemonize;
+			priv->isDaemon=opts.daemon;
 			g_object_notify_by_pspec(G_OBJECT(self), XfdashboardApplicationProperties[PROP_DAEMONIZED]);
 		}
 
 		/* Perform full initialization of this application instance */
 		result=_xfdashboard_application_initialize_full(self);
-		if(result==FALSE) return(XFDASHBOARD_APPLICATION_ERROR_FAILED);
+		if(result==FALSE)
+		{
+			if(opts.view) g_free(opts.view);
+			return(XFDASHBOARD_APPLICATION_ERROR_FAILED);
+		}
 
 		/* Handle options: daemonize
 		 *
@@ -701,7 +778,7 @@ static gint _xfdashboard_application_handle_command_line_arguments(XfdashboardAp
 		 *
 		 * Does not work if a new instance was forced.
 		 */
-		if(optionDaemonize)
+		if(opts.daemon)
 		{
 			if(!priv->forcedNewInstance)
 			{
@@ -717,7 +794,7 @@ static gint _xfdashboard_application_handle_command_line_arguments(XfdashboardAp
 		}
 
 		/* Switch to view if requested */
-		_xfdashboard_application_switch_to_view(self, optionSwitchToView);
+		_xfdashboard_application_switch_to_view(self, opts.view);
 
 		/* Show application if not started daemonized */
 		if(!priv->isDaemon)
@@ -730,6 +807,7 @@ static gint _xfdashboard_application_handle_command_line_arguments(XfdashboardAp
 			{
 				g_critical("No stage available to show at start-up of standalone application");
 
+				if(opts.view) g_free(opts.view);
 				return(XFDASHBOARD_APPLICATION_ERROR_FAILED);
 			}
 
@@ -749,21 +827,19 @@ static gint _xfdashboard_application_handle_command_line_arguments(XfdashboardAp
 	if(priv->initialized)
 	{
 		/* Switch to view if requested */
-		_xfdashboard_application_switch_to_view(self, optionSwitchToView);
+		_xfdashboard_application_switch_to_view(self, opts.view);
 
 		/* Show application */
 		_xfdashboard_application_activate(G_APPLICATION(self));
 	}
 
 	/* Release allocated resources */
-	if(optionSwitchToView) g_free(optionSwitchToView);
-	if(context) g_option_context_free(context);
+	if(opts.view) g_free(opts.view);
 
 	/* All done successfully so return status code 0 for success */
 	priv->initialized=TRUE;
 	return(XFDASHBOARD_APPLICATION_ERROR_NONE);
 }
-
 
 /* IMPLEMENTATION: GApplication */
 

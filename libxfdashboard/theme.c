@@ -168,6 +168,126 @@ static GParamSpec* XfdashboardThemeProperties[PROP_LAST]={ 0, };
 #define XFDASHBOARD_THEME_GROUP_KEY_EFFECTS				"Effects"
 #define XFDASHBOARD_THEME_GROUP_KEY_ANIMATIONS			"Animations"
 
+/* Unified loader signature for a single theme resource file. The priority
+ * is only used by CSS resources; other loaders ignore it but the shared
+ * counter is still increased to keep original ordering and priority semantics.
+ */
+typedef gboolean (*XfdashboardThemeResourceLoader)(gpointer inInstance,
+													const gchar *inResourceFile,
+													gint inPriority,
+													GError **outError);
+
+static gboolean _xfdashboard_theme_load_css_resource(gpointer inInstance,
+														const gchar *inResourceFile,
+														gint inPriority,
+														GError **outError)
+{
+	return(xfdashboard_theme_css_add_file(XFDASHBOARD_THEME_CSS(inInstance), inResourceFile, inPriority, outError));
+}
+
+static gboolean _xfdashboard_theme_load_layout_resource(gpointer inInstance,
+														const gchar *inResourceFile,
+														gint inPriority,
+														GError **outError)
+{
+	(void)inPriority;
+	return(xfdashboard_theme_layout_add_file(XFDASHBOARD_THEME_LAYOUT(inInstance), inResourceFile, outError));
+}
+
+static gboolean _xfdashboard_theme_load_effects_resource(gpointer inInstance,
+															const gchar *inResourceFile,
+															gint inPriority,
+															GError **outError)
+{
+	(void)inPriority;
+	return(xfdashboard_theme_effects_add_file(XFDASHBOARD_THEME_EFFECTS(inInstance), inResourceFile, outError));
+}
+
+static gboolean _xfdashboard_theme_load_animation_resource(gpointer inInstance,
+															const gchar *inResourceFile,
+															gint inPriority,
+															GError **outError)
+{
+	(void)inPriority;
+	return(xfdashboard_theme_animation_add_file(XFDASHBOARD_THEME_ANIMATION(inInstance), inResourceFile, outError));
+}
+
+typedef struct _XfdashboardThemeResourceEntry		XfdashboardThemeResourceEntry;
+struct _XfdashboardThemeResourceEntry
+{
+	const gchar							*key;
+	gboolean							optional;
+	XfdashboardThemeResourceLoader		loader;
+	gpointer							instance;
+	const gchar							*debugFormat;
+	gboolean							usePriority;
+};
+
+/* Load a single NULL-terminated list of resource names for a theme.
+ * Builds each full path from the theme path, logs with the given debug
+ * format (which must contain "%s for theme %s" and additionally "%d" for
+ * priority when inUsePriority is TRUE), calls the unified loader and
+ * increases the shared counter (used as CSS priority) on each success.
+ * Returns TRUE on success or FALSE with outError set on first failure.
+ */
+static gboolean _load_single_list(XfdashboardTheme *self,
+									const gchar **inList,
+									XfdashboardThemeResourceLoader inLoader,
+									gpointer inLoaderInstance,
+									const gchar *inDebugFormat,
+									gboolean inUsePriority,
+									gint *ioCounter,
+									GError **outError)
+{
+	XfdashboardThemePrivate		*priv;
+	const gchar					**iter;
+	GError						*error;
+
+	g_return_val_if_fail(XFDASHBOARD_IS_THEME(self), FALSE);
+	g_return_val_if_fail(inList!=NULL, FALSE);
+	g_return_val_if_fail(inLoader!=NULL, FALSE);
+	g_return_val_if_fail(inDebugFormat!=NULL, FALSE);
+	g_return_val_if_fail(ioCounter!=NULL, FALSE);
+	g_return_val_if_fail(outError==NULL || *outError==NULL, FALSE);
+
+	priv=self->priv;
+	error=NULL;
+
+	for(iter=inList; iter && *iter; iter++)
+	{
+		gchar					*resourceFile;
+		gchar					*debugMessage;
+		gboolean				success;
+
+		/* Get path and file for resource */
+		resourceFile=g_build_filename(priv->themePath, *iter, NULL);
+
+		/* Try to load resource (log first with identical messages) */
+		if(inUsePriority) debugMessage=g_strdup_printf(inDebugFormat, resourceFile, priv->themeName, *ioCounter);
+			else debugMessage=g_strdup_printf(inDebugFormat, resourceFile, priv->themeName);
+		XFDASHBOARD_DEBUG(self, THEME, "%s", debugMessage);
+		g_free(debugMessage);
+
+		success=inLoader(inLoaderInstance, resourceFile, *ioCounter, &error);
+		g_free(resourceFile);
+
+		if(!success)
+		{
+			/* Set error */
+			g_propagate_error(outError, error);
+
+			/* Return FALSE to indicate error */
+			return(FALSE);
+		}
+
+		/* Continue with next entry */
+		(*ioCounter)++;
+	}
+
+	/* Return TRUE to indicate success */
+	return(TRUE);
+}
+
 
 /* Load theme file and all listed resources in this file */
 static gboolean _xfdashboard_theme_load_resources(XfdashboardTheme *self,
@@ -177,8 +297,7 @@ static gboolean _xfdashboard_theme_load_resources(XfdashboardTheme *self,
 	GError						*error;
 	gchar						*themeFile;
 	GKeyFile					*themeKeyFile;
-	gchar						**resources, **resource;
-	gchar						*resourceFile;
+	gchar						**resources;
 	gint						counter;
 
 	g_return_val_if_fail(XFDASHBOARD_IS_THEME(self), FALSE);
@@ -263,283 +382,142 @@ static gboolean _xfdashboard_theme_load_resources(XfdashboardTheme *self,
 		return(FALSE);
 	}
 
-	/* Create CSS parser, load style resources first and user stylesheets (theme
-	 * unrelated "global.css" and theme related "user-[THEME_NAME].css" in this
-	 * order) at last to allow user to override theme styles.
+	/* Load style, layout, effects and animation resources in fixed order.
+	 * Style and layout are required, effects and animations are optional.
+	 * The shared counter is used as CSS priority (and still increased for
+	 * the other lists to keep original semantics). User stylesheets
+	 * ("global.css" and "user-[THEME_NAME].css" in this order) are loaded
+	 * right after the style list to allow user overrides.
 	 */
-	resources=g_key_file_get_string_list(themeKeyFile,
-											XFDASHBOARD_THEME_GROUP,
-											XFDASHBOARD_THEME_GROUP_KEY_STYLE,
-											NULL,
-											&error);
-	if(!resources)
-	{
-		/* Set error */
-		g_propagate_error(outError, error);
-
-		/* Release allocated resources */
-		if(themeKeyFile) g_key_file_free(themeKeyFile);
-
-		/* Return FALSE to indicate error */
-		return(FALSE);
-	}
-
 	counter=0;
-	resource=resources;
-	while(*resource)
 	{
-		/* Get path and file for style resource */
-		resourceFile=g_build_filename(priv->themePath, *resource, NULL);
+		XfdashboardThemeResourceEntry		resourceEntries[]=
+			{
+				{ XFDASHBOARD_THEME_GROUP_KEY_STYLE, FALSE, _xfdashboard_theme_load_css_resource, NULL, "Loading CSS file %s for theme %s with priority %d", TRUE },
+				{ XFDASHBOARD_THEME_GROUP_KEY_LAYOUT, FALSE, _xfdashboard_theme_load_layout_resource, NULL, "Loading XML layout file %s for theme %s", FALSE },
+				{ XFDASHBOARD_THEME_GROUP_KEY_EFFECTS, TRUE, _xfdashboard_theme_load_effects_resource, NULL, "Loading XML effects file %s for theme %s", FALSE },
+				{ XFDASHBOARD_THEME_GROUP_KEY_ANIMATIONS, TRUE, _xfdashboard_theme_load_animation_resource, NULL, "Loading XML animation file %s for theme %s", FALSE },
+			};
+		guint								entryIndex;
 
-		/* Try to load style resource */
-		XFDASHBOARD_DEBUG(self, THEME,
-							"Loading CSS file %s for theme %s with priority %d",
-							resourceFile,
-							priv->themeName,
-							counter);
+		resourceEntries[0].instance=priv->styling;
+		resourceEntries[1].instance=priv->layout;
+		resourceEntries[2].instance=priv->effects;
+		resourceEntries[3].instance=priv->animation;
 
-		if(!xfdashboard_theme_css_add_file(priv->styling, resourceFile, counter, &error))
+		for(entryIndex=0; entryIndex<G_N_ELEMENTS(resourceEntries); entryIndex++)
 		{
-			/* Set error */
-			g_propagate_error(outError, error);
+			XfdashboardThemeResourceEntry		*entry;
 
-			/* Release allocated resources */
-			if(resources) g_strfreev(resources);
-			if(resourceFile) g_free(resourceFile);
-			if(themeKeyFile) g_key_file_free(themeKeyFile);
+			entry=&resourceEntries[entryIndex];
 
-			/* Return FALSE to indicate error */
-			return(FALSE);
-		}
+			/* Skip optional lists when key is missing */
+			if(entry->optional &&
+				!g_key_file_has_key(themeKeyFile,
+									XFDASHBOARD_THEME_GROUP,
+									entry->key,
+									NULL))
+			{
+				continue;
+			}
 
-		/* Release allocated resources */
-		if(resourceFile) g_free(resourceFile);
-
-		/* Continue with next entry */
-		resource++;
-		counter++;
-	}
-	g_strfreev(resources);
-
-	if(priv->userGlobalStyleFile)
-	{
-		XFDASHBOARD_DEBUG(self, THEME,
-							"Loading user's global CSS file %s for theme %s with priority %d",
-							priv->userGlobalStyleFile,
-							priv->themeName,
-							counter);
-
-		/* Load user's theme unrelated (global) stylesheet as it exists */
-		if(!xfdashboard_theme_css_add_file(priv->styling, priv->userGlobalStyleFile, counter, &error))
-		{
-			/* Set error */
-			g_propagate_error(outError, error);
-
-			/* Release allocated resources */
-			if(themeKeyFile) g_key_file_free(themeKeyFile);
-
-			/* Return FALSE to indicate error */
-			return(FALSE);
-		}
-
-		/* Increase counter used for CSS priority for next user CSS file */
-		counter++;
-	}
-
-	if(priv->userThemeStyleFile)
-	{
-		XFDASHBOARD_DEBUG(self, THEME,
-							"Loading user's theme CSS file %s for theme %s with priority %d",
-							priv->userThemeStyleFile,
-							priv->themeName,
-							counter);
-
-		/* Load user's theme related stylesheet as it exists */
-		if(!xfdashboard_theme_css_add_file(priv->styling, priv->userThemeStyleFile, counter, &error))
-		{
-			/* Set error */
-			g_propagate_error(outError, error);
-
-			/* Release allocated resources */
-			if(themeKeyFile) g_key_file_free(themeKeyFile);
-
-			/* Return FALSE to indicate error */
-			return(FALSE);
-		}
-
-		/* Increase counter used for CSS priority for next user CSS file */
-		counter++;
-	}
-
-	/* Create XML parser and load layout resources */
-	resources=g_key_file_get_string_list(themeKeyFile,
-											XFDASHBOARD_THEME_GROUP,
-											XFDASHBOARD_THEME_GROUP_KEY_LAYOUT,
-											NULL,
-											&error);
-	if(!resources)
-	{
-		/* Set error */
-		g_propagate_error(outError, error);
-
-		/* Release allocated resources */
-		if(themeKeyFile) g_key_file_free(themeKeyFile);
-
-		/* Return FALSE to indicate error */
-		return(FALSE);
-	}
-
-	resource=resources;
-	while(*resource)
-	{
-		/* Get path and file for style resource */
-		resourceFile=g_build_filename(priv->themePath, *resource, NULL);
-
-		/* Try to load layout resource */
-		XFDASHBOARD_DEBUG(self, THEME,
-							"Loading XML layout file %s for theme %s",
-							resourceFile,
-							priv->themeName);
-
-		if(!xfdashboard_theme_layout_add_file(priv->layout, resourceFile, &error))
-		{
-			/* Set error */
-			g_propagate_error(outError, error);
-
-			/* Release allocated resources */
-			if(resources) g_strfreev(resources);
-			if(resourceFile) g_free(resourceFile);
-			if(themeKeyFile) g_key_file_free(themeKeyFile);
-
-			/* Return FALSE to indicate error */
-			return(FALSE);
-		}
-
-		/* Release allocated resources */
-		if(resourceFile) g_free(resourceFile);
-
-		/* Continue with next entry */
-		resource++;
-		counter++;
-	}
-	g_strfreev(resources);
-
-	/* Create XML parser and load effect resources which are optional */
-	if(g_key_file_has_key(themeKeyFile,
-							XFDASHBOARD_THEME_GROUP,
-							XFDASHBOARD_THEME_GROUP_KEY_EFFECTS,
-							NULL))
-	{
-		resources=g_key_file_get_string_list(themeKeyFile,
-												XFDASHBOARD_THEME_GROUP,
-												XFDASHBOARD_THEME_GROUP_KEY_EFFECTS,
-												NULL,
-												&error);
-		if(!resources)
-		{
-			/* Set error */
-			g_propagate_error(outError, error);
-
-			/* Release allocated resources */
-			if(themeKeyFile) g_key_file_free(themeKeyFile);
-
-			/* Return FALSE to indicate error */
-			return(FALSE);
-		}
-
-		resource=resources;
-		while(*resource)
-		{
-			/* Get path and file for effect resource */
-			resourceFile=g_build_filename(priv->themePath, *resource, NULL);
-
-			/* Try to load effects resource */
-			XFDASHBOARD_DEBUG(self, THEME,
-								"Loading XML effects file %s for theme %s",
-								resourceFile,
-								priv->themeName);
-
-			if(!xfdashboard_theme_effects_add_file(priv->effects, resourceFile, &error))
+			resources=g_key_file_get_string_list(themeKeyFile,
+													XFDASHBOARD_THEME_GROUP,
+													entry->key,
+													NULL,
+													&error);
+			if(!resources)
 			{
 				/* Set error */
 				g_propagate_error(outError, error);
 
 				/* Release allocated resources */
-				if(resources) g_strfreev(resources);
-				if(resourceFile) g_free(resourceFile);
 				if(themeKeyFile) g_key_file_free(themeKeyFile);
 
 				/* Return FALSE to indicate error */
 				return(FALSE);
 			}
 
-			/* Release allocated resources */
-			if(resourceFile) g_free(resourceFile);
-
-			/* Continue with next entry */
-			resource++;
-			counter++;
-		}
-		g_strfreev(resources);
-	}
-
-	/* Create XML parser and load animation resources which are optional */
-	if(g_key_file_has_key(themeKeyFile,
-							XFDASHBOARD_THEME_GROUP,
-							XFDASHBOARD_THEME_GROUP_KEY_ANIMATIONS,
-							NULL))
-	{
-		resources=g_key_file_get_string_list(themeKeyFile,
-												XFDASHBOARD_THEME_GROUP,
-												XFDASHBOARD_THEME_GROUP_KEY_ANIMATIONS,
-												NULL,
-												&error);
-		if(!resources)
-		{
-			/* Set error */
-			g_propagate_error(outError, error);
-
-			/* Release allocated resources */
-			if(themeKeyFile) g_key_file_free(themeKeyFile);
-
-			/* Return FALSE to indicate error */
-			return(FALSE);
-		}
-
-		resource=resources;
-		while(*resource)
-		{
-			/* Get path and file for animation resource */
-			resourceFile=g_build_filename(priv->themePath, *resource, NULL);
-
-			/* Try to load animation resource */
-			XFDASHBOARD_DEBUG(self, THEME,
-								"Loading XML animation file %s for theme %s",
-								resourceFile,
-								priv->themeName);
-
-			if(!xfdashboard_theme_animation_add_file(priv->animation, resourceFile, &error))
+			if(!_load_single_list(self,
+									(const gchar**)resources,
+									entry->loader,
+									entry->instance,
+									entry->debugFormat,
+									entry->usePriority,
+									&counter,
+									&error))
 			{
 				/* Set error */
 				g_propagate_error(outError, error);
 
 				/* Release allocated resources */
 				if(resources) g_strfreev(resources);
-				if(resourceFile) g_free(resourceFile);
 				if(themeKeyFile) g_key_file_free(themeKeyFile);
 
 				/* Return FALSE to indicate error */
 				return(FALSE);
 			}
+			g_strfreev(resources);
+			resources=NULL;
 
-			/* Release allocated resources */
-			if(resourceFile) g_free(resourceFile);
+			/* After style list, load user stylesheets (theme unrelated
+			 * "global.css" and theme related "user-[THEME_NAME].css" in this
+			 * order) at last to allow user to override theme styles.
+			 */
+			if(entryIndex==0)
+			{
+				if(priv->userGlobalStyleFile)
+				{
+					XFDASHBOARD_DEBUG(self, THEME,
+											"Loading user's global CSS file %s for theme %s with priority %d",
+											priv->userGlobalStyleFile,
+											priv->themeName,
+											counter);
 
-			/* Continue with next entry */
-			resource++;
-			counter++;
+					/* Load user's theme unrelated (global) stylesheet as it exists */
+					if(!xfdashboard_theme_css_add_file(priv->styling, priv->userGlobalStyleFile, counter, &error))
+					{
+						/* Set error */
+						g_propagate_error(outError, error);
+
+						/* Release allocated resources */
+						if(themeKeyFile) g_key_file_free(themeKeyFile);
+
+						/* Return FALSE to indicate error */
+						return(FALSE);
+					}
+
+					/* Increase counter used for CSS priority for next user CSS file */
+					counter++;
+				}
+
+				if(priv->userThemeStyleFile)
+				{
+					XFDASHBOARD_DEBUG(self, THEME,
+											"Loading user's theme CSS file %s for theme %s with priority %d",
+											priv->userThemeStyleFile,
+											priv->themeName,
+											counter);
+
+					/* Load user's theme related stylesheet as it exists */
+					if(!xfdashboard_theme_css_add_file(priv->styling, priv->userThemeStyleFile, counter, &error))
+					{
+						/* Set error */
+						g_propagate_error(outError, error);
+
+						/* Release allocated resources */
+						if(themeKeyFile) g_key_file_free(themeKeyFile);
+
+						/* Return FALSE to indicate error */
+						return(FALSE);
+					}
+
+					/* Increase counter used for CSS priority for next user CSS file */
+					counter++;
+				}
+			}
 		}
-		g_strfreev(resources);
+		resources=NULL;
 	}
 
 	/* Release allocated resources */

@@ -40,6 +40,7 @@ struct _XfdashboardSettingsGeneralPrivate
 	XfdashboardSettings		*settings;
 
 	/* Instance related */
+	gboolean				setupDone;
 	GtkWidget				*widgetSwitchToViewOnResume;
 	GtkWidget				*widgetMinNotificationTimeout;
 	GtkWidget				*widgetEnableUnmappedWindowWorkaround;
@@ -94,61 +95,80 @@ static XfdashboardSettingsGeneralNameValuePair				_xfdashboard_settings_general_
 };
 
 
-/* Setting '/switch-to-view-on-resume' changed either at widget or at xfconf property */
-static void _xfdashboard_settings_general_switch_to_view_on_resume_changed_by_widget(XfdashboardSettingsGeneral *self,
-																						GtkComboBox *inComboBox)
+/* Generic binding for a combo box showing a string table (display name, value).
+ * The getter returns the current settings value and the setter stores a new
+ * value from the widget. NULL values are handled with g_strcmp0 so the
+ * "Do nothing" (NULL) entry keeps working for switch-to-view-on-resume.
+ */
+typedef struct _XfdashboardSettingsGeneralComboboxBinding	XfdashboardSettingsGeneralComboboxBinding;
+struct _XfdashboardSettingsGeneralComboboxBinding
 {
-	XfdashboardSettingsGeneralPrivate		*priv;
+	XfdashboardSettingsGeneral		*self;
+	GtkWidget						*widget;
+	const gchar						*(*getter)(XfdashboardSettings *inSettings);
+	void							(*setter)(XfdashboardSettings *inSettings, const gchar *inValue);
+};
+
+/* Generic: combo box changed at widget -> store at settings */
+static void _xfdashboard_settings_general_combobox_changed_by_widget(GtkComboBox *inComboBox,
+																gpointer inUserData)
+{
+	XfdashboardSettingsGeneralComboboxBinding	*binding;
+	XfdashboardSettingsGeneralPrivate			*priv;
 	GtkTreeModel							*model;
 	GtkTreeIter								iter;
 	gchar									*value;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(self));
 	g_return_if_fail(GTK_IS_COMBO_BOX(inComboBox));
+	g_return_if_fail(inUserData!=NULL);
 
-	priv=self->priv;
+	binding=(XfdashboardSettingsGeneralComboboxBinding*)inUserData;
+	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(binding->self));
+
+	priv=binding->self->priv;
 
 	/* Get selected entry from combo box */
 	model=gtk_combo_box_get_model(inComboBox);
 	gtk_combo_box_get_active_iter(inComboBox, &iter);
 	gtk_tree_model_get(model, &iter, 1, &value, -1);
 
-	/* Set value at xfconf property */
-	xfdashboard_settings_set_switch_to_view_on_resume(priv->settings, value);
+	/* Set value at settings */
+	(binding->setter)(priv->settings, value);
 
 	/* Release allocated resources */
 	if(value) g_free(value);
 }
 
-static void _xfdashboard_settings_general_switch_to_view_on_resume_changed_by_settings(XfdashboardSettingsGeneral *self,
-																						GParamSpec *inParamSpec,
-																						GObject *inObject)
+/* Generic: settings changed -> select matching entry at combo box */
+static void _xfdashboard_settings_general_combobox_changed_by_settings(XfdashboardSettings *inSettings,
+																GParamSpec *inParamSpec,
+																gpointer inUserData)
 {
-	XfdashboardSettingsGeneralPrivate		*priv;
+	XfdashboardSettingsGeneralComboboxBinding	*binding;
 	GtkTreeModel							*model;
 	GtkTreeIter								iter;
 	gchar									*value;
 	const gchar								*newValue;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(self));
+	g_return_if_fail(inUserData!=NULL);
 
-	priv=self->priv;
+	binding=(XfdashboardSettingsGeneralComboboxBinding*)inUserData;
+	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(binding->self));
 
 	/* Get new value to lookup and set at combo box */
-	newValue=xfdashboard_settings_get_switch_to_view_on_resume(priv->settings);
+	newValue=(binding->getter)(binding->self->priv->settings);
 
 	/* Iterate through combo box value and set new value if match is found */
-	model=gtk_combo_box_get_model(GTK_COMBO_BOX(priv->widgetSwitchToViewOnResume));
+	model=gtk_combo_box_get_model(GTK_COMBO_BOX(binding->widget));
 	if(gtk_tree_model_get_iter_first(model, &iter))
 	{
 		do
 		{
 			gtk_tree_model_get(model, &iter, 1, &value, -1);
-			if(G_UNLIKELY((!newValue && !value)) ||
-				G_UNLIKELY(!g_strcmp0(value, newValue)))
+			if(g_strcmp0(value, newValue)==0)
 			{
 				g_free(value);
-				gtk_combo_box_set_active_iter(GTK_COMBO_BOX(priv->widgetSwitchToViewOnResume), &iter);
+				gtk_combo_box_set_active_iter(GTK_COMBO_BOX(binding->widget), &iter);
 				break;
 			}
 			g_free(value);
@@ -157,66 +177,96 @@ static void _xfdashboard_settings_general_switch_to_view_on_resume_changed_by_se
 	}
 }
 
-/* Setting '/window-content-creation-priority' changed either at widget or at xfconf property */
-static void _xfdashboard_settings_general_window_creation_priority_changed_by_widget(XfdashboardSettingsGeneral *self,
-																						GtkComboBox *inComboBox)
+/* Set up a combo box from a (display name, value) table, select the current
+ * settings value via getter and bind widget "changed" (via setter) and
+ * settings notify signal (via getter) with generic handlers above.
+ */
+static void _bind_combobox(XfdashboardSettingsGeneral *self,
+							GtkWidget *inWidget,
+							XfdashboardSettingsGeneralNameValuePair *inTable,
+							const gchar *(*inGetter)(XfdashboardSettings *inSettings),
+							void (*inSetter)(XfdashboardSettings *inSettings, const gchar *inValue),
+							const gchar *inNotifySignal)
 {
-	XfdashboardSettingsGeneralPrivate		*priv;
-	GtkTreeModel							*model;
-	GtkTreeIter								iter;
-	gchar									*value;
+	XfdashboardSettingsGeneralPrivate			*priv;
+	GtkCellRenderer							*renderer;
+	GtkListStore							*listStore;
+	GtkTreeIter								listStoreIter;
+	GtkTreeIter								*defaultListStoreIter;
+	XfdashboardSettingsGeneralNameValuePair		*iter;
+	const gchar								*defaultValue;
+	XfdashboardSettingsGeneralComboboxBinding	*bindingWidget;
+	XfdashboardSettingsGeneralComboboxBinding	*bindingSettings;
 
 	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(self));
-	g_return_if_fail(GTK_IS_COMBO_BOX(inComboBox));
+	g_return_if_fail(GTK_IS_COMBO_BOX(inWidget));
+	g_return_if_fail(inTable!=NULL);
+	g_return_if_fail(inGetter!=NULL);
+	g_return_if_fail(inSetter!=NULL);
+	g_return_if_fail(inNotifySignal!=NULL && *inNotifySignal!=0);
 
 	priv=self->priv;
 
-	/* Get selected entry from combo box */
-	model=gtk_combo_box_get_model(inComboBox);
-	gtk_combo_box_get_active_iter(inComboBox, &iter);
-	gtk_tree_model_get(model, &iter, 1, &value, -1);
+	/* Get default value from settings */
+	defaultValue=(inGetter)(priv->settings);
 
-	/* Set value at xfconf property */
-	xfdashboard_settings_set_window_content_creation_priority(priv->settings, value);
+	/* Clear combo box */
+	gtk_cell_layout_clear(GTK_CELL_LAYOUT(inWidget));
 
-	/* Release allocated resources */
-	if(value) g_free(value);
-}
+	/* Set up renderer for combo box */
+	renderer=gtk_cell_renderer_text_new();
+	gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(inWidget), renderer, TRUE);
+	gtk_cell_layout_add_attribute(GTK_CELL_LAYOUT(inWidget), renderer, "text", 0);
 
-static void _xfdashboard_settings_general_window_creation_priority_changed_by_settings(XfdashboardSettingsGeneral *self,
-																						GParamSpec *inParamSpec,
-																						GObject *inObject)
-{
-	XfdashboardSettingsGeneralPrivate		*priv;
-	GtkTreeModel							*model;
-	GtkTreeIter								iter;
-	gchar									*value;
-	const gchar								*newValue;
-
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(self));
-
-	priv=self->priv;
-
-	/* Get new value to lookup and set at combo box */
-	newValue=xfdashboard_settings_get_window_content_creation_priority(priv->settings);
-
-	/* Iterate through combo box value and set new value if match is found */
-	model=gtk_combo_box_get_model(GTK_COMBO_BOX(priv->widgetWindowCreationPriority));
-	if(gtk_tree_model_get_iter_first(model, &iter))
+	/* Set up list to show at combo box */
+	defaultListStoreIter=NULL;
+	listStore=gtk_list_store_new(2, G_TYPE_STRING, G_TYPE_STRING);
+	for(iter=inTable; iter->displayName; ++iter)
 	{
-		do
+		gtk_list_store_append(listStore, &listStoreIter);
+		gtk_list_store_set(listStore, &listStoreIter, 0, _(iter->displayName), 1, iter->value, -1);
+		if(g_strcmp0(iter->value, defaultValue)==0)
 		{
-			gtk_tree_model_get(model, &iter, 1, &value, -1);
-			if(G_UNLIKELY(g_str_equal(value, newValue)))
-			{
-				g_free(value);
-				gtk_combo_box_set_active_iter(GTK_COMBO_BOX(priv->widgetWindowCreationPriority), &iter);
-				break;
-			}
-			g_free(value);
+			defaultListStoreIter=gtk_tree_iter_copy(&listStoreIter);
 		}
-		while(gtk_tree_model_iter_next(model, &iter));
 	}
+	gtk_combo_box_set_model(GTK_COMBO_BOX(inWidget), GTK_TREE_MODEL(listStore));
+	g_object_unref(G_OBJECT(listStore));
+
+	/* Set up default value */
+	if(defaultListStoreIter)
+	{
+		gtk_combo_box_set_active_iter(GTK_COMBO_BOX(inWidget), defaultListStoreIter);
+		gtk_tree_iter_free(defaultListStoreIter);
+		defaultListStoreIter=NULL;
+	}
+
+	/* Connect signals with separate bindings as each connection takes
+	 * ownership of its data (avoids double-free of a shared struct).
+	 */
+	bindingWidget=g_new0(XfdashboardSettingsGeneralComboboxBinding, 1);
+	bindingWidget->self=self;
+	bindingWidget->widget=inWidget;
+	bindingWidget->getter=inGetter;
+	bindingWidget->setter=inSetter;
+	g_signal_connect_data(inWidget,
+							"changed",
+							G_CALLBACK(_xfdashboard_settings_general_combobox_changed_by_widget),
+							bindingWidget,
+							(GClosureNotify)g_free,
+							0);
+
+	bindingSettings=g_new0(XfdashboardSettingsGeneralComboboxBinding, 1);
+	bindingSettings->self=self;
+	bindingSettings->widget=inWidget;
+	bindingSettings->getter=inGetter;
+	bindingSettings->setter=inSetter;
+	g_signal_connect_data(priv->settings,
+							inNotifySignal,
+							G_CALLBACK(_xfdashboard_settings_general_combobox_changed_by_settings),
+							bindingSettings,
+							(GClosureNotify)g_free,
+							0);
 }
 
 /* Setting '/min-notification-timeout' changed either at widget or at xfconf property */
@@ -272,7 +322,6 @@ static gchar* _xfdashboard_settings_general_on_format_notification_timeout_value
 static void _xfdashboard_settings_general_setup(XfdashboardSettingsGeneral *self)
 {
 	XfdashboardSettingsGeneralPrivate				*priv;
-	static gboolean									setupDone=FALSE;
 
 	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(self));
 
@@ -281,67 +330,22 @@ static void _xfdashboard_settings_general_setup(XfdashboardSettingsGeneral *self
 	/* Do nothing if builder or settings is not set yet */
 	if(!priv->settings || !priv->builder) return;
 
-	/* Do nothing if set up was done already */
-	if(setupDone) return;
+	/* Do nothing if set up was done already (per-instance flag) */
+	if(priv->setupDone) return;
 
 	/* Mark that set up is done */
-	setupDone=TRUE;
+	priv->setupDone=TRUE;
 
 	/* Get widgets from builder */
 	priv->widgetSwitchToViewOnResume=GTK_WIDGET(gtk_builder_get_object(priv->builder, "switch-to-view-on-resume"));
 	if(priv->widgetSwitchToViewOnResume)
 	{
-		GtkCellRenderer								*renderer;
-		GtkListStore								*listStore;
-		GtkTreeIter									listStoreIter;
-		GtkTreeIter									*defaultListStoreIter;
-		XfdashboardSettingsGeneralNameValuePair		*iter;
-		const gchar									*defaultValue;
-
-		/* Get default value from settings */
-		defaultValue=xfdashboard_settings_get_switch_to_view_on_resume(priv->settings);
-
-		/* Clear combo box */
-		gtk_cell_layout_clear(GTK_CELL_LAYOUT(priv->widgetSwitchToViewOnResume));
-
-		/* Set up renderer for combo box */
-		renderer=gtk_cell_renderer_text_new();
-		gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(priv->widgetSwitchToViewOnResume), renderer, TRUE);
-		gtk_cell_layout_add_attribute(GTK_CELL_LAYOUT(priv->widgetSwitchToViewOnResume), renderer, "text", 0);
-
-		/* Set up list to show at combo box */
-		defaultListStoreIter=NULL;
-		listStore=gtk_list_store_new(2, G_TYPE_STRING, G_TYPE_STRING);
-		for(iter=_xfdashboard_settings_general_resumable_views_values; iter->displayName; ++iter)
-		{
-			gtk_list_store_append(listStore, &listStoreIter);
-			gtk_list_store_set(listStore, &listStoreIter, 0, _(iter->displayName), 1, iter->value, -1);
-			if((!defaultValue && !iter->value) ||
-				!g_strcmp0(iter->value, defaultValue))
-			{
-				defaultListStoreIter=gtk_tree_iter_copy(&listStoreIter);
-			}
-		}
-		gtk_combo_box_set_model(GTK_COMBO_BOX(priv->widgetSwitchToViewOnResume), GTK_TREE_MODEL(listStore));
-		g_object_unref(G_OBJECT(listStore));
-
-		/* Set up default value */
-		if(defaultListStoreIter)
-		{
-			gtk_combo_box_set_active_iter(GTK_COMBO_BOX(priv->widgetSwitchToViewOnResume), defaultListStoreIter);
-			gtk_tree_iter_free(defaultListStoreIter);
-			defaultListStoreIter=NULL;
-		}
-
-		/* Connect signals */
-		g_signal_connect_swapped(priv->widgetSwitchToViewOnResume,
-									"changed",
-									G_CALLBACK(_xfdashboard_settings_general_switch_to_view_on_resume_changed_by_widget),
-									self);
-		g_signal_connect_swapped(priv->settings,
-									"notify::switch-to-view-on-resume",
-									G_CALLBACK(_xfdashboard_settings_general_switch_to_view_on_resume_changed_by_settings),
-									self);
+		_bind_combobox(self,
+						priv->widgetSwitchToViewOnResume,
+						_xfdashboard_settings_general_resumable_views_values,
+						xfdashboard_settings_get_switch_to_view_on_resume,
+						xfdashboard_settings_set_switch_to_view_on_resume,
+						"notify::switch-to-view-on-resume");
 	}
 
 	priv->widgetMinNotificationTimeout=GTK_WIDGET(gtk_builder_get_object(priv->builder, "notification-timeout"));
@@ -399,56 +403,12 @@ static void _xfdashboard_settings_general_setup(XfdashboardSettingsGeneral *self
 	priv->widgetWindowCreationPriority=GTK_WIDGET(gtk_builder_get_object(priv->builder, "window-creation-priority"));
 	if(priv->widgetWindowCreationPriority)
 	{
-		GtkCellRenderer								*renderer;
-		GtkListStore								*listStore;
-		GtkTreeIter									listStoreIter;
-		GtkTreeIter									*defaultListStoreIter;
-		XfdashboardSettingsGeneralNameValuePair		*iter;
-		const gchar									*defaultValue;
-
-		/* Get default value from settings */
-		defaultValue=xfdashboard_settings_get_window_content_creation_priority(priv->settings);
-
-		/* Clear combo box */
-		gtk_cell_layout_clear(GTK_CELL_LAYOUT(priv->widgetWindowCreationPriority));
-
-		/* Set up renderer for combo box */
-		renderer=gtk_cell_renderer_text_new();
-		gtk_cell_layout_pack_start(GTK_CELL_LAYOUT(priv->widgetWindowCreationPriority), renderer, TRUE);
-		gtk_cell_layout_add_attribute(GTK_CELL_LAYOUT(priv->widgetWindowCreationPriority), renderer, "text", 0);
-
-		/* Set up list to show at combo box */
-		defaultListStoreIter=NULL;
-		listStore=gtk_list_store_new(2, G_TYPE_STRING, G_TYPE_STRING);
-		for(iter=_xfdashboard_settings_general_window_creation_priorities_values; iter->displayName; ++iter)
-		{
-			gtk_list_store_append(listStore, &listStoreIter);
-			gtk_list_store_set(listStore, &listStoreIter, 0, _(iter->displayName), 1, iter->value, -1);
-			if(!g_strcmp0(iter->value, defaultValue))
-			{
-				defaultListStoreIter=gtk_tree_iter_copy(&listStoreIter);
-			}
-		}
-		gtk_combo_box_set_model(GTK_COMBO_BOX(priv->widgetWindowCreationPriority), GTK_TREE_MODEL(listStore));
-		g_object_unref(G_OBJECT(listStore));
-
-		/* Set up default value */
-		if(defaultListStoreIter)
-		{
-			gtk_combo_box_set_active_iter(GTK_COMBO_BOX(priv->widgetWindowCreationPriority), defaultListStoreIter);
-			gtk_tree_iter_free(defaultListStoreIter);
-			defaultListStoreIter=NULL;
-		}
-
-		/* Connect signals */
-		g_signal_connect_swapped(priv->widgetWindowCreationPriority,
-									"changed",
-									G_CALLBACK(_xfdashboard_settings_general_window_creation_priority_changed_by_widget),
-									self);
-		g_signal_connect_swapped(priv->settings,
-									"notify::window-content-creation-priority",
-									G_CALLBACK(_xfdashboard_settings_general_window_creation_priority_changed_by_settings),
-									self);
+		_bind_combobox(self,
+						priv->widgetWindowCreationPriority,
+						_xfdashboard_settings_general_window_creation_priorities_values,
+						xfdashboard_settings_get_window_content_creation_priority,
+						xfdashboard_settings_set_window_content_creation_priority,
+						"notify::window-content-creation-priority");
 	}
 
 	priv->widgetAllowSubwindows=GTK_WIDGET(gtk_builder_get_object(priv->builder, "allow-subwindows"));
@@ -630,6 +590,7 @@ static void xfdashboard_settings_general_init(XfdashboardSettingsGeneral *self)
 	priv->builder=NULL;
 	priv->settings=NULL;
 
+	priv->setupDone=FALSE;
 	priv->widgetSwitchToViewOnResume=NULL;
 	priv->widgetMinNotificationTimeout=NULL;
 	priv->widgetEnableUnmappedWindowWorkaround=NULL;

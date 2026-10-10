@@ -105,6 +105,9 @@ static GParamSpec* XfdashboardApplicationsViewProperties[PROP_LAST]={ 0, };
 
 /* Forward declarations */
 static void _xfdashboard_applications_view_on_item_clicked(XfdashboardApplicationsView *self, gpointer inUserData);
+static void _xfdashboard_applications_view_on_parent_menu_clicked(XfdashboardApplicationsView *self, gpointer inUserData);
+static void _xfdashboard_applications_view_on_all_applications_menu_parent_menu_clicked(XfdashboardApplicationsView *self, gpointer inUserData);
+static void _xfdashboard_applications_view_on_all_applications_menu_clicked(XfdashboardApplicationsView *self, gpointer inUserData);
 
 /* Set up child actor for current view mode */
 static void _xfdashboard_applications_view_setup_actor_for_view_mode(XfdashboardApplicationsView *self, ClutterActor *inActor)
@@ -146,6 +149,76 @@ static void _xfdashboard_applications_view_setup_actor_for_view_mode(Xfdashboard
 
 			if(XFDASHBOARD_IS_STYLABLE(inActor)) xfdashboard_stylable_add_class(XFDASHBOARD_STYLABLE(inActor), "view-mode-icon");
 		}
+}
+
+/* Create back button for current view mode (extracted from 3 copied blocks) */
+static ClutterActor* _add_back_button(XfdashboardApplicationsView *self,
+										const gchar *inIconName,
+										const gchar *inTitle,
+										const gchar *inDescription,
+										GCallback inCallback)
+{
+	XfdashboardApplicationsViewPrivate	*priv;
+	ClutterActor						*actor;
+	gchar								*actorText;
+
+	g_return_val_if_fail(XFDASHBOARD_IS_APPLICATIONS_VIEW(self), NULL);
+	g_return_val_if_fail(inTitle, NULL);
+	g_return_val_if_fail(inCallback, NULL);
+
+	priv=self->priv;
+
+	/* Create button */
+	actor=xfdashboard_button_new();
+
+	if(inIconName) xfdashboard_label_set_icon_name(XFDASHBOARD_LABEL(actor), inIconName);
+
+	if(priv->viewMode==XFDASHBOARD_VIEW_MODE_LIST) actorText=g_markup_printf_escaped(priv->formatTitleDescription, inTitle, inDescription ? inDescription : "");
+		else actorText=g_markup_printf_escaped(priv->formatTitleOnly, inTitle);
+	xfdashboard_label_set_text(XFDASHBOARD_LABEL(actor), actorText);
+	g_free(actorText);
+
+	/* Add to view and layout */
+	_xfdashboard_applications_view_setup_actor_for_view_mode(self, CLUTTER_ACTOR(actor));
+	clutter_actor_add_child(CLUTTER_ACTOR(self), CLUTTER_ACTOR(actor));
+	clutter_actor_show(actor);
+
+	g_signal_connect_swapped(actor,
+								"clicked",
+								inCallback,
+								self);
+
+	/* Select button automatically if view has focus */
+	if(xfdashboard_view_has_focus(XFDASHBOARD_VIEW(self)))
+	{
+		xfdashboard_focusable_set_selection(XFDASHBOARD_FOCUSABLE(self), CLUTTER_ACTOR(actor));
+	}
+
+	return(actor);
+}
+
+/* Compare one app-info field case-insensitively (extracted from 5x sort) */
+static gint _cmp_app_field(GAppInfo *inLeft, GAppInfo *inRight, const gchar* (*inGetter)(GAppInfo*))
+{
+	gchar								*leftValue;
+	gchar								*rightValue;
+	gint								result;
+	const gchar							*leftRaw;
+	const gchar							*rightRaw;
+
+	g_return_val_if_fail(G_IS_APP_INFO(inLeft), 0);
+	g_return_val_if_fail(G_IS_APP_INFO(inRight), 0);
+	g_return_val_if_fail(inGetter, 0);
+
+	leftRaw=inGetter(inLeft);
+	rightRaw=inGetter(inRight);
+	leftValue=leftRaw ? g_utf8_strdown(leftRaw, -1) : NULL;
+	rightValue=rightRaw ? g_utf8_strdown(rightRaw, -1) : NULL;
+	result=g_strcmp0(leftValue, rightValue);
+	g_free(leftValue);
+	g_free(rightValue);
+
+	return(result);
 }
 
 
@@ -455,9 +528,16 @@ static gint _xfdashboard_applications_view_on_all_applications_sort_app_info(Xfd
 	GAppInfo		*rightAppInfo;
 	GFile			*leftFile;
 	GFile			*rightFile;
-	gchar			*leftValue;
-	gchar			*rightValue;
 	gint			result;
+	guint			i;
+	static const gchar* (*appFieldGetters[])(GAppInfo*)=
+	{
+		g_app_info_get_name,
+		g_app_info_get_display_name,
+		g_app_info_get_description,
+		g_app_info_get_executable,
+		g_app_info_get_commandline
+	};
 
 	g_return_val_if_fail(XFDASHBOARD_IS_DESKTOP_APP_INFO(inLeft), 1);
 	g_return_val_if_fail(XFDASHBOARD_IS_DESKTOP_APP_INFO(inRight), -1);
@@ -477,40 +557,11 @@ static gint _xfdashboard_applications_view_on_all_applications_sort_app_info(Xfd
 	leftAppInfo=G_APP_INFO(inLeft);
 	rightAppInfo=G_APP_INFO(inRight);
 
-	leftValue=g_utf8_strdown(g_app_info_get_name(leftAppInfo), -1);
-	rightValue=g_utf8_strdown(g_app_info_get_name(rightAppInfo), -1);
-	result=g_strcmp0(leftValue, rightValue);
-	g_free(rightValue);
-	g_free(leftValue);
-	if(result!=0) return(result);
-
-	leftValue=g_utf8_strdown(g_app_info_get_display_name(leftAppInfo), -1);
-	rightValue=g_utf8_strdown(g_app_info_get_display_name(rightAppInfo), -1);
-	result=g_strcmp0(leftValue, rightValue);
-	g_free(rightValue);
-	g_free(leftValue);
-	if(result!=0) return(result);
-
-	leftValue=g_utf8_strdown(g_app_info_get_description(leftAppInfo), -1);
-	rightValue=g_utf8_strdown(g_app_info_get_description(rightAppInfo), -1);
-	result=g_strcmp0(leftValue, rightValue);
-	g_free(rightValue);
-	g_free(leftValue);
-	if(result!=0) return(result);
-
-	leftValue=g_utf8_strdown(g_app_info_get_executable(leftAppInfo), -1);
-	rightValue=g_utf8_strdown(g_app_info_get_executable(rightAppInfo), -1);
-	result=g_strcmp0(leftValue, rightValue);
-	g_free(rightValue);
-	g_free(leftValue);
-	if(result!=0) return(result);
-
-	leftValue=g_utf8_strdown(g_app_info_get_commandline(leftAppInfo), -1);
-	rightValue=g_utf8_strdown(g_app_info_get_commandline(rightAppInfo), -1);
-	result=g_strcmp0(leftValue, rightValue);
-	g_free(rightValue);
-	g_free(leftValue);
-	if(result!=0) return(result);
+	for(i=0; i<G_N_ELEMENTS(appFieldGetters); i++)
+	{
+		result=_cmp_app_field(leftAppInfo, rightAppInfo, appFieldGetters[i]);
+		if(result!=0) return(result);
+	}
 
 	/* If we get here both desktop app infos are equal because all checks passed */
 	return(0);
@@ -526,7 +577,6 @@ static void _xfdashboard_applications_view_on_all_applications_menu_clicked(Xfda
 	XfdashboardApplicationDatabase		*appDB;
 	ClutterAction						*clickAction;
 	ClutterAction						*dragAction;
-	gchar								*actorText;
 
 	g_return_if_fail(XFDASHBOARD_IS_APPLICATIONS_VIEW(self));
 
@@ -537,31 +587,12 @@ static void _xfdashboard_applications_view_on_all_applications_menu_clicked(Xfda
 	xfdashboard_actor_destroy_all_children(CLUTTER_ACTOR(self));
 	clutter_layout_manager_layout_changed(priv->layout);
 
-	/* Create parent menu item */
-	actor=xfdashboard_button_new();
-
-	if(priv->parentMenuIcon) xfdashboard_label_set_icon_name(XFDASHBOARD_LABEL(actor), priv->parentMenuIcon);
-
-	if(priv->viewMode==XFDASHBOARD_VIEW_MODE_LIST) actorText=g_markup_printf_escaped(priv->formatTitleDescription, _("Back"), _("Go back to previous menu"));
-		else actorText=g_markup_printf_escaped(priv->formatTitleOnly, _("Back"));
-	xfdashboard_label_set_text(XFDASHBOARD_LABEL(actor), actorText);
-	g_free(actorText);
-
-	/* Add to view and layout */
-	_xfdashboard_applications_view_setup_actor_for_view_mode(self, CLUTTER_ACTOR(actor));
-	clutter_actor_add_child(CLUTTER_ACTOR(self), CLUTTER_ACTOR(actor));
-	clutter_actor_show(actor);
-
-	g_signal_connect_swapped(actor,
-								"clicked",
-								G_CALLBACK(_xfdashboard_applications_view_on_all_applications_menu_parent_menu_clicked),
-								self);
-
-	/* Select "parent menu" automatically */
-	if(xfdashboard_view_has_focus(XFDASHBOARD_VIEW(self)))
-	{
-		xfdashboard_focusable_set_selection(XFDASHBOARD_FOCUSABLE(self), CLUTTER_ACTOR(actor));
-	}
+	/* Create parent menu item (via helper) */
+	actor=_add_back_button(self,
+							priv->parentMenuIcon,
+							_("Back"),
+							_("Go back to previous menu"),
+							G_CALLBACK(_xfdashboard_applications_view_on_all_applications_menu_parent_menu_clicked));
 
 	/* Create menu items for all installed applications */
 	appDB=xfdashboard_core_get_application_database(NULL);
@@ -647,58 +678,23 @@ static void _xfdashboard_applications_view_on_filter_changed(XfdashboardApplicat
 	/* If menu element to filter by is not the root menu element, add an "up ..." entry */
 	if(parentMenu)
 	{
-		gchar					*actorText;
-
-		/* Create and adjust of "parent menu" button to application buttons */
-		actor=xfdashboard_button_new();
-
-		if(priv->parentMenuIcon) xfdashboard_label_set_icon_name(XFDASHBOARD_LABEL(actor), priv->parentMenuIcon);
-
-		if(priv->viewMode==XFDASHBOARD_VIEW_MODE_LIST) actorText=g_markup_printf_escaped(priv->formatTitleDescription, _("Back"), _("Go back to previous menu"));
-			else actorText=g_markup_printf_escaped(priv->formatTitleOnly, _("Back"));
-		xfdashboard_label_set_text(XFDASHBOARD_LABEL(actor), actorText);
-		g_free(actorText);
-
-		/* Add to view and layout */
-		_xfdashboard_applications_view_setup_actor_for_view_mode(self, CLUTTER_ACTOR(actor));
-		clutter_actor_add_child(CLUTTER_ACTOR(self), CLUTTER_ACTOR(actor));
-		clutter_actor_show(actor);
-
-		g_signal_connect_swapped(actor, "clicked", G_CALLBACK(_xfdashboard_applications_view_on_parent_menu_clicked), self);
-
-		/* Select "parent menu" automatically */
-		if(xfdashboard_view_has_focus(XFDASHBOARD_VIEW(self)))
-		{
-			xfdashboard_focusable_set_selection(XFDASHBOARD_FOCUSABLE(self), CLUTTER_ACTOR(actor));
-		}
+		/* Create "parent menu" button (via helper) */
+		actor=_add_back_button(self,
+									priv->parentMenuIcon,
+									_("Back"),
+									_("Go back to previous menu"),
+									G_CALLBACK(_xfdashboard_applications_view_on_parent_menu_clicked));
 	}
 
 	if(priv->showAllAppsMenu &&
 		(!priv->currentRootMenuElement || !parentMenu))
 	{
-		gchar					*actorText;
-
-		/* Create and adjust of "parent menu" button to application buttons */
-		actor=xfdashboard_button_new();
-		xfdashboard_label_set_icon_name(XFDASHBOARD_LABEL(actor), ALL_APPLICATIONS_MENU_ICON);
-
-		if(priv->viewMode==XFDASHBOARD_VIEW_MODE_LIST) actorText=g_markup_printf_escaped(priv->formatTitleDescription, _("All applications"), _("List of all installed applications"));
-			else actorText=g_markup_printf_escaped(priv->formatTitleOnly, _("All applications"));
-		xfdashboard_label_set_text(XFDASHBOARD_LABEL(actor), actorText);
-		g_free(actorText);
-
-		/* Add to view and layout */
-		_xfdashboard_applications_view_setup_actor_for_view_mode(self, CLUTTER_ACTOR(actor));
-		clutter_actor_add_child(CLUTTER_ACTOR(self), CLUTTER_ACTOR(actor));
-		clutter_actor_show(actor);
-
-		g_signal_connect_swapped(actor, "clicked", G_CALLBACK(_xfdashboard_applications_view_on_all_applications_menu_clicked), self);
-
-		/* Select "parent menu" automatically */
-		if(xfdashboard_view_has_focus(XFDASHBOARD_VIEW(self)))
-		{
-			xfdashboard_focusable_set_selection(XFDASHBOARD_FOCUSABLE(self), CLUTTER_ACTOR(actor));
-		}
+		/* Create "all applications" button (via helper) */
+		actor=_add_back_button(self,
+									ALL_APPLICATIONS_MENU_ICON,
+									_("All applications"),
+									_("List of all installed applications"),
+									G_CALLBACK(_xfdashboard_applications_view_on_all_applications_menu_clicked));
 	}
 
 	/* Iterate through (filtered) data model and create actor for each entry */
