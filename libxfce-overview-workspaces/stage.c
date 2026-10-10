@@ -1603,8 +1603,9 @@ static void xfce_overview_workspaces_stage_init(XfceOverviewWorkspacesStage *sel
 
 	clutter_stage_set_use_alpha(CLUTTER_STAGE(self), TRUE);
 	clutter_stage_set_user_resizable(CLUTTER_STAGE(self), TRUE);
-	/* Top-strip mode: only the 6 workspace squares at the top, never
-	 * fullscreen. The window is sized in _on_screen_size_changed.
+	/* Top-strip mode: only the workspace squares at the top (one per
+	 * workspace, following the Xfce workspace count), never fullscreen.
+	 * The window is sized in _on_screen_size_changed.
 	 */
 	clutter_stage_set_fullscreen(CLUTTER_STAGE(self), FALSE);
 

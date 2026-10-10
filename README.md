@@ -3,8 +3,9 @@
 # Xfce Overview Workspaces
 
 > Fork "workspace-overview": em vez do dashboard central estilo Exposé, este
-> branch mostra apenas uma **faixa no topo com 6 quadradinhos** (um por
-> workspace), cada um com **live preview / foto congelada / ícone** das janelas
+> branch mostra apenas uma **faixa no topo com um quadradinho por workspace**
+> (tantos quantos o Xfce tiver), cada um com **live preview / foto congelada /
+> ícone** das janelas
 > dele. Arrastar um programa de um quadradinho para outro **move a janela de
 > workspace**. A visão central (`viewpad`) foi removida dos 7 temas; o palco
 > nunca é fullscreen (largura da tela × ~22% da altura).
@@ -60,7 +61,7 @@ ou copiando `data/themes/*/` para `~/.local/share/themes/*/xfce-overview-workspa
 
 ### Toggle (mostra / esconde a faixa)
 
-    % xfce-overview-workspaces -t  # alterna a visibilidade da faixa dos 6 workspaces
+    % xfce-overview-workspaces -t  # alterna a visibilidade da faixa de workspaces
 
 A faixa fica no topo (largura da tela × ~22% da altura). Arrastar um programa
 de um quadradinho para outro move a janela de workspace.

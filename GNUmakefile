@@ -36,12 +36,18 @@ help:
 	@echo "Ex:  make install PREFIX=/usr SUDO=sudo"
 
 deps:
-	@if command -v pacman >/dev/null 2>&1; then \
+	@if [ -f /etc/arch-release ] || grep -qs '^ID=arch' /etc/os-release 2>/dev/null; then \
 		sudo pacman -S --needed git gcc meson ninja pkgconf \
 		  libwnck3 gtk3 garcon xfconf \
 		  libxfce4ui libxfce4util libx11 libxcomposite libxdamage \
 		  libxinerama; \
-		echo "No Arch, cogl/clutter/clutter-gtk sao AUR: yay -S cogl clutter clutter-gtk"; \
+		if command -v yay >/dev/null 2>&1; then \
+			yay -S --needed cogl clutter clutter-gtk; \
+		elif command -v paru >/dev/null 2>&1; then \
+			paru -S --needed cogl clutter clutter-gtk; \
+		else \
+			echo "No Arch, cogl/clutter/clutter-gtk sao AUR: instale yay ou paru e rode: yay -S cogl clutter clutter-gtk"; \
+		fi; \
 	else \
 		sudo apt install git gcc meson ninja-build pkg-config \
 		  libwnck-3-dev libgtk-3-dev libgarcon-1-0-dev libxfconf-0-dev \
