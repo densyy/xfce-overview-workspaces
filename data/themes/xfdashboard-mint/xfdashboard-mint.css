@@ -20,11 +20,6 @@ XfdashboardWindowsView
 	view-icon: "view-paged-symbolic";
 }
 
-XfdashboardApplicationsView
-{
-	view-icon: "view-list-symbolic";
-}
-
 /* colors */
 
 #notification, #tooltip
@@ -55,32 +50,6 @@ XfdashboardLiveWorkspace
 XfdashboardLiveWorkspace:active
 {
 	outline-color: #2CC248;
-}
-
-XfdashboardScrollbar
-{
-	slider-color: #66666660;
-}
-
-XfdashboardScrollbar:hover
-{
-	slider-color: #2CC248a0;
-}
-
-XfdashboardScrollbar:pressed
-{
-	slider-color: #2CC248ff;
-}
-
-XfdashboardApplicationsView XfdashboardButton:hover
-{
-	background-fill-color: #202020a0;
-}
-
-XfdashboardApplicationsView XfdashboardButton:selected
-{
-	background-fill-color: #202020;
-	outline-color: #202020;
 }
 
 XfdashboardLiveWindow

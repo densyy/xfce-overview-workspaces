@@ -58,6 +58,7 @@ libxfdashboard_la_headers = \
 	label.h \
 	live-window.h \
 	live-window-simple.h \
+	live-window-snapshot.h \
 	live-workspace.h \
 	model.h \
 	outline-effect.h \
@@ -132,6 +133,7 @@ libxfdashboard_la_SOURCES = \
 	label.c \
 	live-window.c \
 	live-window-simple.c \
+	live-window-snapshot.c \
 	live-workspace.c \
 	model.c \
 	outline-effect.c \
@@ -201,6 +203,8 @@ libxfdashboard_la_LDFLAGS = \
 	-no-undefined
 
 x11_headers = \
+	x11/thumbnail-cache.h \
+	x11/window-content-frozen.h \
 	x11/window-content-x11.h \
 	x11/window-tracker-x11.h \
 	x11/window-tracker-backend-x11.h \
@@ -209,6 +213,8 @@ x11_headers = \
 	x11/window-tracker-workspace-x11.h
 
 x11_sources = \
+	x11/thumbnail-cache.c \
+	x11/window-content-frozen.c \
 	x11/window-content-x11.c \
 	x11/window-tracker-x11.c \
 	x11/window-tracker-backend-x11.c \

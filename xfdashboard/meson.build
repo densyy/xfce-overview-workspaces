@@ -2,6 +2,10 @@ xfdashboard_sources = [
   'application.c',
   'application.h',
   'main.c',
+  'restart.c',
+  'restart.h',
+  'toolkit-init.c',
+  'toolkit-init.h',
   xfce_revision_h,
 ]
 

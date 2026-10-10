@@ -48,6 +48,7 @@
 #include <libxfdashboard/x11/window-tracker-x11.h>
 #include <libxfdashboard/x11/window-tracker-window-x11.h>
 #include <libxfdashboard/x11/thumbnail-cache.h>
+#include <libxfdashboard/x11/window-content-frozen.h>
 #include <libxfdashboard/core.h>
 #include <libxfdashboard/marshal.h>
 #include <libxfdashboard/stylable.h>
@@ -113,10 +114,10 @@ struct _XfdashboardWindowContentX11Private
 
 	XfdashboardSettings							*settings;
 
-	/* On-disk frozen cache key (client XID). Set in _save_frozen. */
+	/* On-disk frozen cache key (client XID). Set in window-content-frozen. */
 	Window										frozenCacheXID;
 
-	/* Throttle for damage-triggered frozen saves (monotonic usec). */
+	/* NOTE: throttle for damage-triggered frozen saves (monotonic usec). */
 	gint64										lastFrozenSaveUsec;
 };
 
@@ -469,7 +470,6 @@ static void _xfdashboard_window_content_x11_on_workaround_state_changed(Xfdashbo
 						CoglContext			*context;
 						CoglError			*error;
 
-						/* Get texture data to copy */
 						copyTextureSize=cogl_texture_get_data(priv->texture, textureFormat, 0, textureData);
 						if(copyTextureSize)
 						{
@@ -487,7 +487,6 @@ static void _xfdashboard_window_content_x11_on_workaround_state_changed(Xfdashbo
 
 							if(!copyTexture || error)
 							{
-								/* Show warning */
 								g_warning("Could not create copy of texture of mininized window '%s': %s",
 											xfdashboard_window_tracker_window_get_name(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window)),
 											(error && error->message) ? error->message : "Unknown error");
@@ -667,163 +666,7 @@ static void _xfdashboard_window_content_x11_check_extension(void)
 #endif
 }
 
-/* Save last live frame to on-disk frozen cache (best effort).
- * Only called on live success paths (isFallback==FALSE, texture set).
- * On readback failure does nothing and keeps fallback icon behaviour.
- */
-static void _xfdashboard_window_content_x11_pixbuf_free_data(guchar *inPixels, gpointer inUserData G_GNUC_UNUSED)
-{
-	g_free(inPixels);
-}
-
-static void _xfdashboard_window_content_x11_save_frozen(XfdashboardWindowContentX11 *self)
-{
-	XfdashboardWindowContentX11Private		*priv;
-	CoglTextureComponents					textureComponents;
-	CoglPixelFormat							textureFormat;
-	gboolean								hasAlpha;
-	guint									textureWidth;
-	guint									textureHeight;
-	gint									textureSize;
-	gint									gotSize;
-	guint8									*textureData;
-	GdkPixbuf								*pixbuf;
-
-	g_return_if_fail(XFDASHBOARD_IS_WINDOW_CONTENT_X11(self));
-
-	priv=self->priv;
-
-	/* Never save fallback (icon) frames */
-	if(priv->isFallback) return;
-	if(!priv->texture) return;
-	if(priv->xWindowID==None) return;
-
-	/* Key the on-disk cache by CLIENT xid (stable, matches the loader
-	 * lookup via wnck xid). priv->xWindowID may be the FRAME window when
-	 * the 'include-window-frame' style is set (our themes set it), which
-	 * would never match the loader and would orphan files.
-	 */
-	{
-		gulong						clientXID;
-
-		clientXID=0;
-		if(priv->window)
-		{
-			clientXID=(gulong)xfdashboard_window_tracker_window_x11_get_xid(priv->window);
-		}
-		if(clientXID==0) clientXID=(gulong)priv->xWindowID;
-
-		/* Stash key for the two save call sites below via priv */
-		priv->frozenCacheXID=(Window)clientXID;
-	}
-
-	textureComponents=cogl_texture_get_components(priv->texture);
-	hasAlpha=(textureComponents==COGL_TEXTURE_COMPONENTS_RGBA);
-	textureFormat=(hasAlpha ? COGL_PIXEL_FORMAT_RGBA_8888_PRE : COGL_PIXEL_FORMAT_RGB_888);
-	textureWidth=cogl_texture_get_width(priv->texture);
-	textureHeight=cogl_texture_get_height(priv->texture);
-	if(textureWidth==0 || textureHeight==0) return;
-
-	textureSize=cogl_texture_get_data(priv->texture, textureFormat, 0, NULL);
-	if(textureSize<=0) return;
-
-	textureData=g_try_malloc(textureSize);
-	if(!textureData) return;
-
-	gotSize=cogl_texture_get_data(priv->texture, textureFormat, 0, textureData);
-	if(gotSize<=0)
-	{
-		g_free(textureData);
-		return;
-	}
-
-	if(!hasAlpha)
-	{
-		if(textureSize<(gint)(textureWidth*textureHeight*3))
-		{
-			g_free(textureData);
-			return;
-		}
-
-		pixbuf=gdk_pixbuf_new_from_data(textureData,
-										GDK_COLORSPACE_RGB,
-										FALSE,
-										8,
-										textureWidth,
-										textureHeight,
-										textureWidth*3,
-										_xfdashboard_window_content_x11_pixbuf_free_data,
-										NULL);
-		if(!pixbuf)
-		{
-			g_free(textureData);
-			return;
-		}
-
-		xfdashboard_thumbnail_cache_save_pixbuf(pixbuf, (gulong)priv->frozenCacheXID);
-		g_object_unref(pixbuf);
-	}
-		else
-		{
-			guint8							*rgbData;
-			guint							x, y;
-
-			if(textureSize<(gint)(textureWidth*textureHeight*4))
-			{
-				g_free(textureData);
-				return;
-			}
-
-			/* JPEG has no alpha: strip (and unpremultiply) to RGB */
-			rgbData=g_try_malloc(textureWidth*textureHeight*3);
-			if(!rgbData)
-			{
-				g_free(textureData);
-				return;
-			}
-
-			for(y=0; y<textureHeight; y++)
-			{
-				for(x=0; x<textureWidth; x++)
-				{
-					guint8				r, g, b, a;
-
-					r=textureData[(y*textureWidth+x)*4+0];
-					g=textureData[(y*textureWidth+x)*4+1];
-					b=textureData[(y*textureWidth+x)*4+2];
-					a=textureData[(y*textureWidth+x)*4+3];
-					if(a!=0 && a!=255)
-					{
-						r=(guint8)MIN(255, (r*255)/a);
-						g=(guint8)MIN(255, (g*255)/a);
-						b=(guint8)MIN(255, (b*255)/a);
-					}
-					rgbData[(y*textureWidth+x)*3+0]=r;
-					rgbData[(y*textureWidth+x)*3+1]=g;
-					rgbData[(y*textureWidth+x)*3+2]=b;
-				}
-			}
-			g_free(textureData);
-
-			pixbuf=gdk_pixbuf_new_from_data(rgbData,
-											GDK_COLORSPACE_RGB,
-											FALSE,
-											8,
-											textureWidth,
-											textureHeight,
-											textureWidth*3,
-											_xfdashboard_window_content_x11_pixbuf_free_data,
-											NULL);
-			if(!pixbuf)
-			{
-				g_free(rgbData);
-				return;
-			}
-
-			xfdashboard_thumbnail_cache_save_pixbuf(pixbuf, (gulong)priv->frozenCacheXID);
-			g_object_unref(pixbuf);
-		}
-}
+/* Frozen frame persistence lives in window-content-frozen.[hc] */
 
 /* Suspension state of application changed */
 static void _xfdashboard_window_content_x11_on_core_suspended_changed(XfdashboardWindowContentX11 *self,
@@ -947,14 +790,9 @@ static void _xfdashboard_window_content_x11_handle_x_event(XfdashboardWindowCont
 		 * only save left them without any JPG while video windows kept
 		 * refreshing. Damage proves the pixmap is live-readable.
 		 */
+		if(xfdashboard_window_content_frozen_should_save_damage(&priv->lastFrozenSaveUsec))
 		{
-			gint64 now=g_get_monotonic_time();
-			if(priv->lastFrozenSaveUsec==0 ||
-				(now-priv->lastFrozenSaveUsec)>(5*G_USEC_PER_SEC))
-			{
-				priv->lastFrozenSaveUsec=now;
-				_xfdashboard_window_content_x11_save_frozen(self);
-			}
+			xfdashboard_window_content_frozen_save(priv->isFallback, priv->texture, priv->xWindowID, priv->window, &priv->frozenCacheXID);
 		}
 	}
 #endif
@@ -1010,7 +848,6 @@ static void _xfdashboard_window_content_x11_release_resources(XfdashboardWindowC
 	/* This live update will be suspended so remove it from queue */
 	_xfdashboard_window_content_x11_resume_on_idle_remove(self);
 
-	/* Get display as it used more than once ;) */
 	display=xfdashboard_window_tracker_x11_get_display();
 	if(G_UNLIKELY(display==None))
 	{
@@ -1099,7 +936,6 @@ static void _xfdashboard_window_content_x11_suspend(XfdashboardWindowContentX11 
 	/* This live update will be suspended so remove it from queue */
 	_xfdashboard_window_content_x11_resume_on_idle_remove(self);
 
-	/* Get display as it used more than once ;) */
 	display=xfdashboard_window_tracker_x11_get_display();
 	if(G_UNLIKELY(display==None))
 	{
@@ -1230,7 +1066,6 @@ static gboolean _xfdashboard_window_content_x11_resume_on_idle(gpointer inUserDa
 		return(doContinueSource);
 	}
 
-	/* Get display as it used more than once ;) */
 	display=xfdashboard_window_tracker_x11_get_display();
 	if(G_UNLIKELY(display==None))
 	{
@@ -1397,7 +1232,7 @@ static gboolean _xfdashboard_window_content_x11_resume_on_idle(gpointer inUserDa
 		/* Live capture succeeded: persist frozen frame (best effort).
 		 * Uses priv->xWindowID already set for this content.
 		 */
-		_xfdashboard_window_content_x11_save_frozen(self);
+		xfdashboard_window_content_frozen_save(priv->isFallback, priv->texture, priv->xWindowID, priv->window, &priv->frozenCacheXID);
 
 		/* Invalidate content to get it redrawn as soon as possible */
 		clutter_content_invalidate(CLUTTER_CONTENT(self));
@@ -1512,7 +1347,6 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 		}
 	}
 
-	/* Get display as it used more than once ;) */
 	display=xfdashboard_window_tracker_x11_get_display();
 	if(G_UNLIKELY(display==None))
 	{
@@ -1677,7 +1511,7 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 		/* Live capture succeeded: persist frozen frame (best effort).
 		 * Uses priv->xWindowID already set for this content.
 		 */
-		_xfdashboard_window_content_x11_save_frozen(self);
+		xfdashboard_window_content_frozen_save(priv->isFallback, priv->texture, priv->xWindowID, priv->window, &priv->frozenCacheXID);
 
 		/* Invalidate content to get it redrawn as soon as possible */
 		clutter_content_invalidate(CLUTTER_CONTENT(self));
@@ -1846,7 +1680,6 @@ static void _xfdashboard_window_content_x11_set_window(XfdashboardWindowContentX
 	/* Freeze notifications and collect them */
 	g_object_freeze_notify(G_OBJECT(self));
 
-	/* Get display as it used more than once ;) */
 	display=xfdashboard_window_tracker_x11_get_display();
 	if(G_UNLIKELY(display==None))
 	{
@@ -1882,7 +1715,6 @@ static void _xfdashboard_window_content_x11_set_window(XfdashboardWindowContentX
 
 	if(!priv->texture || error)
 	{
-		/* Show warning */
 		g_warning("Could not create fallback texture for window '%s': %s",
 					xfdashboard_window_tracker_window_get_name(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window)),
 					(error && error->message) ? error->message : "Unknown error");

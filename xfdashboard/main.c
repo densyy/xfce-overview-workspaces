@@ -1,24 +1,24 @@
 /*
  * main: Common functions, shared data and main entry point of application
- * 
+ *
  * Copyright 2012-2021 Stephan Haller <nomad@froevel.de>
- * 
+ *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation; either version 2 of the License, or
  * (at your option) any later version.
- * 
+ *
  * This program is distributed in the hope that it will be useful,
  * but WITHOUT ANY WARRANTY; without even the implied warranty of
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
- * 
+ *
  * You should have received a copy of the GNU General Public License
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston,
  * MA 02110-1301, USA.
- * 
- * 
+ *
+ *
  */
 
 #ifdef HAVE_CONFIG_H
@@ -31,216 +31,13 @@
 #ifdef CLUTTER_WINDOWING_X11
 #include <clutter/x11/clutter-x11.h>
 #endif
-#include <xfconf/xfconf.h>
 #include <libxfce4util/libxfce4util.h>
-#include <libxfdashboard/core.h>
 #include <libxfdashboard/window-tracker-backend.h>
 
 #include "application.h"
+#include "restart.h"
+#include "toolkit-init.h"
 
-
-/* IMPLEMENTATION: Private variables and methods */
-#define DEFAULT_RESTART_WAIT_TIMEOUT		2000	/* Timeout in milliseconds.
-													 * Time to wait for a running
-													 * instance to quit on restart.
-													 * Local quit via DBus is well
-													 * below 1s; 2s keeps the failure
-													 * path fast without cutting a
-													 * slow-but-healthy shutdown.
-													 */
-
-typedef struct _RestartData		RestartData;
-struct _RestartData
-{
-	GMainLoop				*mainLoop;
-	XfdashboardApplication	*application;
-	gboolean				appHasQuitted;
-};
-
-
-/* Timeout to wait for application to disappear has been reached */
-static gboolean _on_quit_timeout(gpointer inUserData)
-{
-	RestartData			*restartData;
-
-	g_return_val_if_fail(inUserData, G_SOURCE_REMOVE);
-
-	restartData=(RestartData*)inUserData;
-
-	/* Enforce flag that application has been disappeared to be unset */
-	restartData->appHasQuitted=FALSE;
-
-	 /* Return from main loop */
-	g_main_loop_quit(restartData->mainLoop);
-	g_debug("Timeout for waiting the application has been reached!");
-
-	/* Remove this source from main loop and prevent getting it called again */
-	return(G_SOURCE_REMOVE);
-}
-
-/* Idle callback for quitting application has been called */
-static gboolean _on_quit_idle(gpointer inUserData)
-{
-	RestartData			*restartData=(RestartData*)inUserData;
-
-	/* Quit primary instance via DBUS action. restartData is stack-allocated
-	 * in _restart() and stays alive while its main loop runs, so this is safe.
-	 */
-	if(restartData && restartData->application)
-	{
-		xfdashboard_application_quit_forced(restartData->application);
-	}
-		else
-		{
-			g_warning("Cannot quit running instance for restart: missing application");
-		}
-
-	/* Remove this source from main loop and prevent getting it called again */
-	return(G_SOURCE_REMOVE);
-}
-
-/* Requested name appeared at DBUS */
-static void _on_dbus_watcher_name_appeared(GDBusConnection *inConnection,
-											const gchar *inName,
-											const gchar *inOwner,
-											gpointer inUserData)
-{
-	RestartData			*restartData;
-	GSource				*quitIdleSource;
-
-	g_return_if_fail(inUserData);
-
-	restartData=(RestartData*)inUserData;
-
-	/* Add an idle source to main loop to quit running application _after_
-	 * the main loop is running and the DBUS watcher was set up.
-	 */
-	quitIdleSource=g_idle_source_new();
-	g_source_set_callback(quitIdleSource, _on_quit_idle, restartData, NULL);
-	g_source_attach(quitIdleSource, g_main_loop_get_context(restartData->mainLoop));
-	g_source_unref(quitIdleSource);
-
-	g_debug("Name %s appeared at DBUS and is owned by %s", inName, inOwner);
-}
-
-/* Requested name vanished from DBUS */
-static void _on_dbus_watcher_name_vanished(GDBusConnection *inConnection,
-											const gchar *inName,
-											gpointer inUserData)
-{
-	RestartData			*restartData;
-
-	g_return_if_fail(inUserData);
-
-	restartData=(RestartData*)inUserData;
-
-	/* Set flag that application disappeared */
-	restartData->appHasQuitted=TRUE;
-
-	/* Now the application is gone and we can safely restart application.
-	 * So return from main loop now.
-	 */
-	g_main_loop_quit(restartData->mainLoop);
-
-	g_debug("Name %s does not exist at DBUS or vanished", inName);
-}
-
-/* Quit running application and restart application */
-static gboolean _restart(XfdashboardApplication *inApplication)
-{
-	GMainLoop			*mainLoop;
-	guint				dbusWatcherID;
-	GSource				*timeoutSource;
-	RestartData			restartData;
-
-	g_return_val_if_fail(XFDASHBOARD_IS_APPLICATION(inApplication), FALSE);
-
-	/* Create main loop for watching DBUS for application to disappear */
-	mainLoop=g_main_loop_new(NULL, FALSE);
-
-	/* Set up user data for callbacks */
-	restartData.mainLoop=mainLoop;
-	restartData.application=inApplication;
-	restartData.appHasQuitted=FALSE;
-
-	/* Set up DBUS watcher to get noticed when application disappears
-	 * which means it is safe to start a new instance. But if it takes
-	 * too long assume that either application did not quit and is still
-	 * running or we did get notified although we set up DBUS watcher
-	 * before quitting application.
-	 */
-	dbusWatcherID=g_bus_watch_name(G_BUS_TYPE_SESSION,
-									g_application_get_application_id(G_APPLICATION(inApplication)),
-									G_BUS_NAME_WATCHER_FLAGS_NONE,
-									_on_dbus_watcher_name_appeared,
-									_on_dbus_watcher_name_vanished,
-									&restartData,
-									NULL);
-
-	/* Add an idle source to main loop to quit running application _after_
-	 * the main loop is running and the DBUS watcher was set up.
-	 */
-	timeoutSource=g_timeout_source_new(DEFAULT_RESTART_WAIT_TIMEOUT);
-	g_source_set_callback(timeoutSource, _on_quit_timeout, &restartData, NULL);
-	g_source_attach(timeoutSource, g_main_loop_get_context(mainLoop));
-	g_source_unref(timeoutSource);
-
-	/* Run main loop */
-	g_debug("Starting main loop for waiting the application to quit");
-	g_main_loop_run(mainLoop);
-	g_debug("Returned from main loop for waiting the application to quit");
-
-	/* Show warning if timeout had been reached */
-	if(!restartData.appHasQuitted)
-	{
-		g_warning("Cannot restart application: Failed to quit running instance");
-	}
-
-	/* Destroy DBUS watcher */
-	g_bus_unwatch_name(dbusWatcherID);
-
-	/* Return TRUE if application was quitted successfully
-	 * otherwise FALSE.
-	 */
-	return(restartData.appHasQuitted);
-}
-
-/* Initialize toolkit for primary instance (xfconf + GTK + Clutter).
- * Must be called exactly once in a process that will become primary.
- * Remote instances skip this for fast-path; a remote-turned-primary after
- * _restart() must call it before the second g_application_run().
- * Returns TRUE on success, FALSE on fatal error (xfconf/clutter).
- */
-static gboolean _init_toolkit_primary(int *ioArgc, char ***ioArgv)
-{
-	GError		*error=NULL;
-
-	/* Initialize Xfconf (primary instance only) */
-	if(G_UNLIKELY(!xfconf_init(&error)))
-	{
-		if(G_LIKELY(error))
-		{
-			g_error("Failed to initialize xfconf: %s",
-						error ? error->message : "Unknown error");
-			if(error) g_error_free(error);
-		}
-
-		return(FALSE);
-	}
-
-	/* Initialize GTK+ and Clutter (primary instance only) */
-	gtk_init(ioArgc, ioArgv);
-	if(!clutter_init(ioArgc, ioArgv))
-	{
-		g_error("Initializing clutter failed!");
-		return(FALSE);
-	}
-
-	/* Notify that application has started and main loop will be entered */
-	gdk_notify_startup_complete();
-
-	return(TRUE);
-}
 
 /* Main entry point */
 int main(int argc, char **argv)
@@ -274,9 +71,6 @@ int main(int argc, char **argv)
 		}
 
 #ifdef CLUTTER_WINDOWING_X11
-	/* Tell clutter to try to initialize an RGBA visual if the X11 backend is
-	 * used before fallback to default and use RGB visual without alpha channel.
-	 */
 	clutter_x11_set_use_argb_visual(TRUE);
 #endif
 
@@ -306,12 +100,9 @@ int main(int argc, char **argv)
 	if(isRemote) g_debug("Remote instance detected - skipping local toolkit initialization");
 		else
 		{
-			if(!_init_toolkit_primary(&argc, &argv)) return(1);
+			if(!xfdashboard_init_toolkit_primary(&argc, &argv)) return(1);
 		}
 
-	/* Start application as primary or remote instace.
-	 * On the remote path this only forwards arguments over DBUS and returns.
-	 */
 	status=g_application_run(G_APPLICATION(app), argc, argv);
 	/* NB: do NOT call g_application_get_is_remote() here: after g_application_run()
 	 * returns, a remote instance is no longer registered (GLib unregisters the
@@ -323,18 +114,13 @@ int main(int argc, char **argv)
 	if(status==XFDASHBOARD_APPLICATION_ERROR_RESTART &&
 		isRemote)
 	{
-		/* Wait for existing primary instance to quit */
-		if(_restart(app))
+		if(xfdashboard_restart(app))
 		{
 			g_debug("Reached clean state to restart application");
 
-			/* Destroy remote instance application object for restart */
 			g_object_unref(app);
 			app=NULL;
 
-			/* Create new application instance which should become
-			 * the new primary instance.
-			 */
 			app=xfdashboard_application_new();
 			if(!app)
 			{
@@ -348,7 +134,7 @@ int main(int argc, char **argv)
 			 * fast-path. It must initialize now before becoming primary,
 			 * otherwise core/stage init will crash (no GDK display, no xfconf).
 			 */
-			if(!_init_toolkit_primary(&argc, &argv))
+			if(!xfdashboard_init_toolkit_primary(&argc, &argv))
 			{
 				g_object_unref(app);
 				return(XFDASHBOARD_APPLICATION_ERROR_FAILED);
@@ -363,7 +149,6 @@ int main(int argc, char **argv)
 			}
 	}
 
-	/* Clean up, release allocated resources */
 	g_object_unref(app);
 
 	return(status);

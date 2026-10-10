@@ -2,6 +2,46 @@
 
 # xfdashboard
 
+> Fork "workspace-overview": em vez do dashboard central estilo Exposé, este
+> branch mostra apenas uma **faixa no topo com 6 quadradinhos** (um por
+> workspace), cada um com **live preview / foto congelada / ícone** das janelas
+> dele. Arrastar um programa de um quadradinho para outro **move a janela de
+> workspace**. A visão central (`viewpad`) foi removida dos 7 temas; o palco
+> nunca é fullscreen (largura da tela × ~22% da altura).
+
+## Arquitetura (responsabilidade única por arquivo)
+
+Novos módulos extraídos (cada um com um escopo):
+
+- `libxfdashboard/live-window-snapshot.[hc]` — obter snapshot de janela X11:
+  `is_viewable` (XGetWindowAttributes), `load_frozen` (`/tmp/xfdashboard/`),
+  `get_icon` (Wnck + fallback `application-x-executable`).
+- `libxfdashboard/live-window-simple.c` — só orquestra
+  live → frozen → ícone → conteúdo (nunca deixa o ator vazio).
+- `libxfdashboard/x11/thumbnail-cache.[hc]` — paths e JPG q75 via GdkPixbuf
+  em `/tmp/xfdashboard/win-<XID>.jpg` (chave = XID cliente), `0700`, sem purge
+  no boot; invalida no close/resize.
+- `libxfdashboard/x11/window-content-frozen.[hc]` — persistir o frame frozen
+  (resume + damage com throttle de 5s).
+- `libxfdashboard/x11/window-content-x11.c` — só live textures
+  (composite/damage/suspend-resume). No resume (`core` resumido) retoma
+  **todas** as janelas, não só `isMapped` — janelas pré-existentes (sem
+  `MapNotify`) também aparecem.
+- `xfdashboard/restart.[hc]` — restart `-r`/`-q` via dbus; `xfdashboard/toolkit-init.[hc]`
+  — init do toolkit; `xfdashboard/main.c` — só backend-env + run.
+
+## Rodando
+
+    % meson setup build
+    % meson compile -C build
+    % ./build/xfdashboard/xfdashboard -d   # daemon
+    % ./build/xfdashboard/xfdashboard -t   # mostra/esconde a faixa
+
+Temas ficam em `~/.local/share/themes/*/xfdashboard-1.0/` (sombreiam o
+instalado); após rebuild, `-q` + `-d` de novo.
+
+---
+
 Xfdashboard is maybe a Gnome shell and macOS Expose like dashboard for Xfce.
 
 **Xfdashboard** provides a GNOME shell dashboard and macOS Mission Control

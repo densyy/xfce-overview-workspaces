@@ -388,8 +388,8 @@ static void _xfdashboard_window_tracker_backend_x11_window_tracker_backend_show_
 		return;
 	}
 
-	/* Window of stage should always be above all other windows, pinned to all
-	 * workspaces, not be listed in window pager and set to fullscreen
+	/* Window of stage is a top strip: above all other windows, pinned to
+	 * all workspaces, not listed in pager/tasklist.
 	 */
 	if(!wnck_window_is_skip_tasklist(stageWnckWindow)) wnck_window_set_skip_tasklist(stageWnckWindow, TRUE);
 	if(!wnck_window_is_skip_pager(stageWnckWindow)) wnck_window_set_skip_pager(stageWnckWindow, TRUE);

@@ -27,6 +27,7 @@
 #endif
 
 #include <libxfdashboard/live-window-simple.h>
+#include <libxfdashboard/live-window-snapshot.h>
 
 #include <math.h>
 #include <glib/gi18n-lib.h>
@@ -38,49 +39,7 @@
 #include <libxfdashboard/enums.h>
 #include <libxfdashboard/debug.h>
 
-#include <clutter/x11/clutter-x11.h>
-#include <X11/Xlib.h>
 #include <gdk-pixbuf/gdk-pixbuf.h>
-#include <gtk/gtk.h>
-#include <libxfdashboard/x11/window-tracker-window-x11.h>
-#include <libxfdashboard/x11/window-tracker-x11.h>
-
-/* Fallback icon: Wnck icon if available, otherwise a themed default so the
- * actor is never left empty (which renders as an invisible 0x0 actor).
- */
-static GdkPixbuf* _xfdashboard_live_window_simple_get_icon_fallback(XfdashboardWindowTrackerWindow *inWindow)
-{
-	GdkPixbuf					*icon;
-
-	g_return_val_if_fail(XFDASHBOARD_IS_WINDOW_TRACKER_WINDOW(inWindow), NULL);
-
-	icon=xfdashboard_window_tracker_window_get_icon(inWindow);
-	if(icon)
-	{
-		/* Wnck icon is borrowed - take our own reference for uniform cleanup */
-		g_object_ref(icon);
-		return(icon);
-	}
-
-	/* Wnck has no icon (common for never-mapped windows): use themed default */
-	{
-		GtkIconTheme			*theme;
-		GError					*error;
-
-		theme=gtk_icon_theme_get_default();
-		if(!theme) return(NULL);
-
-		error=NULL;
-		icon=gtk_icon_theme_load_icon(theme,
-										"application-x-executable",
-										48,
-										GTK_ICON_LOOKUP_USE_BUILTIN,
-										&error);
-		if(error) g_error_free(error);
-	}
-
-	return(icon);
-}
 
 
 /* Define this class in GObject system */
@@ -299,85 +258,12 @@ static void _xfdashboard_live_window_simple_on_closed(XfdashboardLiveWindowSimpl
 	}
 }
 
-/* Load frozen snapshot from /tmp/xfdashboard/win-<XID>.jpg if available.
- * Returns a new ClutterContent (to be unrefed) or NULL when no file/error.
- */
-static ClutterContent* _xfdashboard_live_window_simple_load_frozen_for_window(XfdashboardWindowTrackerWindow *inWindow)
-{
-	gulong									xid;
-	gchar									*path;
-	GdkPixbuf								*pix;
-	GError									*error;
-	ClutterContent							*content;
-
-	g_return_val_if_fail(XFDASHBOARD_IS_WINDOW_TRACKER_WINDOW(inWindow), NULL);
-
-	/* Only X11 windows have an XID - safe cast with type check */
-	if(!XFDASHBOARD_IS_WINDOW_TRACKER_WINDOW_X11(inWindow)) return(NULL);
-
-	xid=xfdashboard_window_tracker_window_x11_get_xid(XFDASHBOARD_WINDOW_TRACKER_WINDOW_X11(inWindow));
-	if(xid==0) return(NULL);
-
-	path=g_strdup_printf("/tmp/xfdashboard/win-%lu.jpg", xid);
-	if(!g_file_test(path, G_FILE_TEST_EXISTS))
-	{
-		g_free(path);
-		return(NULL);
-	}
-
-	error=NULL;
-	pix=gdk_pixbuf_new_from_file(path, &error);
-	g_free(path);
-
-	if(!pix)
-	{
-		if(error) g_error_free(error);
-		return(NULL);
-	}
-
-	content=xfdashboard_image_content_new_for_pixbuf(pix);
-	g_object_unref(pix);
-
-	return(content);
-}
-
-/* Check if window is currently Viewable via XGetWindowAttributes.
- * Non-X11 windows are assumed viewable (keep live path).
- */
-static gboolean _xfdashboard_live_window_simple_is_viewable_now(XfdashboardWindowTrackerWindow *inWindow)
-{
-	gulong									xid;
-	Display									*display;
-	XWindowAttributes						attrs;
-	Status									status;
-	gint									trapError;
-
-	g_return_val_if_fail(XFDASHBOARD_IS_WINDOW_TRACKER_WINDOW(inWindow), FALSE);
-
-	if(!XFDASHBOARD_IS_WINDOW_TRACKER_WINDOW_X11(inWindow)) return(TRUE);
-
-	xid=xfdashboard_window_tracker_window_x11_get_xid(XFDASHBOARD_WINDOW_TRACKER_WINDOW_X11(inWindow));
-	if(xid==0) return(FALSE);
-
-	display=xfdashboard_window_tracker_x11_get_display();
-	if(!display) return(FALSE);
-
-	clutter_x11_trap_x_errors();
-	status=XGetWindowAttributes(display, (Window)xid, &attrs);
-	XSync(display, False);
-	trapError=clutter_x11_untrap_x_errors();
-
-	if(status==0 || trapError!=0) return(FALSE);
-
-	return(attrs.map_state==IsViewable);
-}
-
-/* Check if actor is in icon/fallback mode: displayType==ICON or LIVE_PREVIEW
- * without a real window content (content==NULL or plain image from icon
- * pixbuf). In this mode natural size must be icon size, never window
- * geometry, and the icon must stay small and centered, never stretched.
- * Full window geometry is only valid for LIVE_PREVIEW with a real
- * XFDASHBOARD_IS_WINDOW_CONTENT texture.
+/* Check if actor is in icon/fallback mode: LIVE_PREVIEW without a real
+ * window content (content==NULL or plain image from icon pixbuf). In this
+ * mode natural size must be icon size, never window geometry, and the icon
+ * must stay small and centered, never stretched. Full window geometry is
+ * only valid for LIVE_PREVIEW with a real XFDASHBOARD_IS_WINDOW_CONTENT
+ * texture.
  */
 static gboolean _xfdashboard_live_window_simple_is_icon_fallback(XfdashboardLiveWindowSimple *self)
 {
@@ -387,9 +273,6 @@ static gboolean _xfdashboard_live_window_simple_is_icon_fallback(XfdashboardLive
 	g_return_val_if_fail(XFDASHBOARD_IS_LIVE_WINDOW_SIMPLE(self), FALSE);
 
 	priv=self->priv;
-
-	/* Explicit icon mode is always fallback-sized */
-	if(priv->displayType==XFDASHBOARD_LIVE_WINDOW_SIMPLE_DISPLAY_TYPE_ICON) return(TRUE);
 
 	/* Frozen snapshot uses window geometry like live preview, never icon size.
 	 * It is an image content but must fill full allocation and stay interactive.
@@ -422,100 +305,66 @@ static void _xfdashboard_live_window_simple_setup_content(XfdashboardLiveWindowS
 
 	priv=self->priv;
 
-	/* Destroy old actor's content */
 	clutter_actor_set_content(priv->actorWindow, NULL);
 	priv->isFrozen=FALSE;
 	content=NULL;
 
-	/* If no window is set we cannot set up actor's content but only destroy the
-	 * old. So return here if no window is set.
-	 */
 	if(!priv->window) return;
 
-	/* Setup actor's content depending on display type.
-	 * LIVE_PREVIEW order: (a) Viewable now -> live window content;
-	 * (b) otherwise frozen snapshot from /tmp/xfdashboard/win-<XID>.jpg;
-	 * (c) otherwise window icon. ICON branch is never touched.
+	/* NOTE: order live->frozen->icon must be kept: live texture when viewable,
+	 * otherwise frozen snapshot, otherwise window icon.
 	 */
-	switch(priv->displayType)
+	if(xfdashboard_live_window_snapshot_is_viewable(priv->window))
 	{
-		case XFDASHBOARD_LIVE_WINDOW_SIMPLE_DISPLAY_TYPE_LIVE_PREVIEW:
-			priv->isFrozen=FALSE;
-			if(_xfdashboard_live_window_simple_is_viewable_now(priv->window))
-			{
-				content=xfdashboard_window_tracker_window_get_content(priv->window);
-				if(!content)
-				{
-					GdkPixbuf			*icon;
+		content=xfdashboard_window_tracker_window_get_content(priv->window);
+		if(!content)
+		{
+			GdkPixbuf			*icon;
 
-					icon=_xfdashboard_live_window_simple_get_icon_fallback(priv->window);
+			icon=xfdashboard_live_window_snapshot_get_icon(priv->window);
+			if(icon)
+			{
+				content=xfdashboard_image_content_new_for_pixbuf(icon);
+				g_object_unref(icon);
+			}
+		}
+		if(content)
+		{
+			clutter_actor_set_content(priv->actorWindow, content);
+			g_object_unref(content);
+		}
+	}
+		else
+		{
+			content=xfdashboard_live_window_snapshot_load_frozen(priv->window);
+			if(content)
+			{
+				clutter_actor_set_content(priv->actorWindow, content);
+				g_object_unref(content);
+				priv->isFrozen=TRUE;
+			}
+				else
+				{
+					GdkPixbuf *icon;
+
+					icon=xfdashboard_live_window_snapshot_get_icon(priv->window);
 					if(icon)
 					{
 						content=xfdashboard_image_content_new_for_pixbuf(icon);
 						g_object_unref(icon);
 					}
-				}
-				if(content)
-				{
-					clutter_actor_set_content(priv->actorWindow, content);
-					g_object_unref(content);
-				}
-			}
-				else
-				{
-					content=_xfdashboard_live_window_simple_load_frozen_for_window(priv->window);
+					/* NOTE: never leave the actor empty: fall back to the
+					 * live window content object which always exists
+					 * and carries its fallback texture.
+					 */
+					if(!content) content=xfdashboard_window_tracker_window_get_content(priv->window);
 					if(content)
 					{
 						clutter_actor_set_content(priv->actorWindow, content);
 						g_object_unref(content);
-						priv->isFrozen=TRUE;
 					}
-						else
-						{
-							GdkPixbuf *icon;
-
-							icon=_xfdashboard_live_window_simple_get_icon_fallback(priv->window);
-							if(icon)
-							{
-								content=xfdashboard_image_content_new_for_pixbuf(icon);
-								g_object_unref(icon);
-							}
-							/* Never leave the actor empty: fall back to the
-							 * live window content object which always exists
-							 * and carries its fallback texture.
-							 */
-							if(!content) content=xfdashboard_window_tracker_window_get_content(priv->window);
-							if(content)
-							{
-								clutter_actor_set_content(priv->actorWindow, content);
-								g_object_unref(content);
-							}
-						}
 				}
-			break;
-
-		case XFDASHBOARD_LIVE_WINDOW_SIMPLE_DISPLAY_TYPE_ICON:
-			{
-				GdkPixbuf				*icon;
-
-				icon=_xfdashboard_live_window_simple_get_icon_fallback(priv->window);
-				if(icon)
-				{
-					content=xfdashboard_image_content_new_for_pixbuf(icon);
-					g_object_unref(icon);
-				}
-			}
-			if(content)
-			{
-				clutter_actor_set_content(priv->actorWindow, content);
-				g_object_unref(content);
-			}
-			break;
-
-		default:
-			g_assert_not_reached();
-			break;
-	}
+		}
 
 	/* Content (live texture vs. small fallback icon) changed so preferred
 	 * size and allocation must be recomputed. This is especially important
