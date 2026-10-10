@@ -6,6 +6,7 @@
 				<property name="y-expand">true</property>
 				<property name="x">0</property>
 				<property name="y">8</property>
+				<property name="clip-to-allocation">true</property>
 
 				<constraint>
 					<object class="ClutterBindConstraint">
@@ -35,6 +36,9 @@
 					<object class="XfdashboardActor" id="middle">
 						<property name="x-expand">true</property>
 						<property name="y-expand">true</property>
+						<property name="x-fill">true</property>
+						<property name="y-fill">true</property>
+						<property name="clip-to-allocation">true</property>
 
 						<layout>
 							<object class="ClutterBoxLayout">
@@ -49,6 +53,8 @@
 								<property name="can-focus">true</property>
 								<property name="x-expand">true</property>
 								<property name="y-expand">true</property>
+								<property name="x-fill">true</property>
+								<property name="y-fill">true</property>
 							</object>
 						</child>
 					</object>
@@ -58,6 +64,10 @@
 					<object class="XfdashboardWorkspaceSelector" id="workspace-selector">
 						<property name="can-focus">true</property>
 						<property name="y-expand">true</property>
+						<property name="y-fill">true</property>
+						<property name="x-expand">false</property>
+						<property name="x-fill">false</property>
+						<property name="clip-to-allocation">true</property>
 						<property name="show-current-monitor-only">true</property>
 					</object>
 				</child>

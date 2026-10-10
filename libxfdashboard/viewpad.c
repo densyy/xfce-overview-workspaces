@@ -1377,6 +1377,7 @@ static void xfdashboard_viewpad_init(XfdashboardViewpad *self)
 
 	/* Set up this actor */
 	clutter_actor_set_reactive(CLUTTER_ACTOR(self), TRUE);
+	clutter_actor_set_clip_to_allocation(CLUTTER_ACTOR(self), TRUE);
 	g_signal_connect(self, "scroll-event", G_CALLBACK(_xfdashboard_viewpad_on_scroll_event), NULL);
 
 	/* Set up child actors */

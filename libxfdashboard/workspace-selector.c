@@ -812,7 +812,9 @@ static void _xfdashboard_workspace_selector_allocate(ClutterActor *inActor,
 		if(priv->orientation==CLUTTER_ORIENTATION_HORIZONTAL)
 		{
 			childHeight=availableHeight-(2*priv->spacing);
+			childHeight=MAX(0.0f, MIN(childHeight, availableHeight-(2*priv->spacing)));
 			clutter_actor_get_preferred_width(child, childHeight, NULL, &childWidth);
+			childWidth=MAX(0.0f, MIN(childWidth, availableWidth));
 
 			childAllocation.y1=ceil(MAX(((availableHeight-childHeight))/2.0f, priv->spacing));
 			childAllocation.y2=floor(childAllocation.y1+childHeight);
@@ -821,7 +823,9 @@ static void _xfdashboard_workspace_selector_allocate(ClutterActor *inActor,
 			else
 			{
 				childWidth=availableWidth-(2*priv->spacing);
+				childWidth=MAX(0.0f, MIN(childWidth, availableWidth-(2*priv->spacing)));
 				clutter_actor_get_preferred_height(child, childWidth, NULL, &childHeight);
+				childHeight=MAX(0.0f, MIN(childHeight, availableHeight));
 
 				childAllocation.x1=ceil(MAX(((availableWidth-childWidth))/2.0f, priv->spacing));
 				childAllocation.x2=floor(childAllocation.x1+childWidth);
@@ -1325,6 +1329,7 @@ static void xfdashboard_workspace_selector_init(XfdashboardWorkspaceSelector *se
 
 	/* Set up this actor */
 	clutter_actor_set_reactive(CLUTTER_ACTOR(self), TRUE);
+	clutter_actor_set_clip_to_allocation(CLUTTER_ACTOR(self), TRUE);
 
 	requestMode=(priv->orientation==CLUTTER_ORIENTATION_HORIZONTAL ? CLUTTER_REQUEST_HEIGHT_FOR_WIDTH : CLUTTER_REQUEST_WIDTH_FOR_HEIGHT);
 	clutter_actor_set_request_mode(CLUTTER_ACTOR(self), requestMode);

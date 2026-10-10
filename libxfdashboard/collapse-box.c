@@ -452,6 +452,8 @@ static void _xfdashboard_collapse_box_allocate(ClutterActor *inActor,
 				childWidth=w;
 				clutter_actor_get_preferred_height(priv->child, childWidth, NULL, &childHeight);
 			}
+		childWidth=MIN(childWidth, w);
+		childHeight=MIN(childHeight, h);
 		clutter_actor_box_set_size(&childBox, childWidth, childHeight);
 
 		clutter_actor_box_set_origin(&childBox, 0.0f, 0.0f);

@@ -43,6 +43,8 @@ XfdashboardWorkspaceSelector
 {
 	background-fill-color: #202020;
 	outline-color: #202020;
+	max-fraction: 0.20;
+	using-fraction: true;
 }
 
 XfdashboardLiveWorkspace
