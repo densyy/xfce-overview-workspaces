@@ -1034,8 +1034,15 @@ static gboolean _xfdashboard_window_content_x11_resume_on_idle(gpointer inUserDa
 		windowTexture=COGL_TEXTURE(cogl_texture_pixmap_x11_new(context, priv->pixmap, FALSE, &error));
 		if(!windowTexture || error)
 		{
-			/* Creating texture may fail if window is _NOT_ on active workspace
-			 * so display error message just as debug message (this time)
+			XfdashboardWindowTrackerWindowState		textureFailState=0;
+			gboolean								shouldSuspendAfterFail=FALSE;
+
+			/* Creating texture may fail. Only suspend for really unmapped
+			 * windows (minimized/hidden) or closed windows. In particular
+			 * do NOT suspend just because the window is not on the active
+			 * workspace: windows on inactive workspaces must keep the
+			 * chance for a live thumbnail (fallback stays until a later
+			 * resume can retry).
 			 */
 			XFDASHBOARD_DEBUG(self, WINDOWS,
 								"Could not create texture for window '%s': %s",
@@ -1053,8 +1060,37 @@ static gboolean _xfdashboard_window_content_x11_resume_on_idle(gpointer inUserDa
 				windowTexture=NULL;
 			}
 
-			/* Set flag to suspend window content after resuming because of error */
-			priv->suspendAfterResumeOnIdle=TRUE;
+			if(!priv->window) shouldSuspendAfterFail=TRUE;
+			else
+			{
+				textureFailState=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window));
+				if((textureFailState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED |
+										XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN))!=0)
+				{
+					shouldSuspendAfterFail=TRUE;
+				}
+			}
+
+			if(shouldSuspendAfterFail)
+			{
+				/* Set flag to suspend window content after resuming because of error */
+				priv->suspendAfterResumeOnIdle=TRUE;
+			}
+				else
+				{
+					/* Not a minimized/hidden/closed window (e.g. window on
+					 * inactive workspace): free the just-named pixmap to
+					 * avoid a leak and keep fallback texture without
+					 * suspending the live path. A later resume (Map,
+					 * Configure, workspace switch) can retry.
+					 */
+					if(priv->pixmap!=None)
+					{
+						XFreePixmap(display, priv->pixmap);
+						XSync(display, False);
+						priv->pixmap=None;
+					}
+				}
 
 			break;
 		}
@@ -1163,41 +1199,25 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 
 	/* Even with "immediate" creation priority, do not create the live
 	 * thumbnail (XCompositeNameWindowPixmap + XSync + texture + damage)
-	 * synchronously for windows outside the initial view: minimized,
-	 * hidden or paged-out windows and windows not on the active workspace.
-	 * They get the fallback icon texture now and the live texture from the
-	 * idle queue. Visible windows keep the synchronous path, so the first
-	 * frame is unchanged.
+	 * synchronously for really offscreen windows: minimized, hidden or
+	 * paged-out windows (MINIMIZED|HIDDEN|SKIP_PAGER|SKIP_TASKLIST).
+	 * Windows on inactive workspaces must still attempt synchronous
+	 * capture (NamePixmap + Damage) like windows on the active workspace,
+	 * so LiveWorkspace actors for all workspaces show live thumbnails
+	 * (GNOME style). Only truly offscreen windows get the fallback icon
+	 * texture now and the live texture from the idle queue. Visible
+	 * windows keep the synchronous path, so the first frame is unchanged.
 	 */
 	if(priv->windowTracker)
 	{
 		XfdashboardWindowTrackerWindowState		state;
-		XfdashboardWindowTrackerWorkspace		*activeWorkspace;
-		gboolean								isOffscreen;
 
 		state=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window));
-		isOffscreen=(state & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED |
-								XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN |
-								XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_SKIP_PAGER |
-								XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_SKIP_TASKLIST))!=0;
 
-		if(!isOffscreen &&
-			!xfdashboard_window_tracker_window_is_visible(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window)))
-		{
-			isOffscreen=TRUE;
-		}
-
-		if(!isOffscreen)
-		{
-			activeWorkspace=xfdashboard_window_tracker_get_active_workspace(priv->windowTracker);
-			if(activeWorkspace &&
-				!xfdashboard_window_tracker_window_is_on_workspace(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window), activeWorkspace))
-			{
-				isOffscreen=TRUE;
-			}
-		}
-
-		if(isOffscreen)
+		if((state & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED |
+						XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN |
+						XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_SKIP_PAGER |
+						XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_SKIP_TASKLIST))!=0)
 		{
 			_xfdashboard_window_content_x11_resume_on_idle_add(self);
 			return;
@@ -1242,8 +1262,14 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 		windowTexture=COGL_TEXTURE(cogl_texture_pixmap_x11_new(context, priv->pixmap, FALSE, &error));
 		if(!windowTexture || error)
 		{
-			/* Creating texture may fail if window is _NOT_ on active workspace
-			 * so display error message just as debug message (this time)
+			XfdashboardWindowTrackerWindowState		textureFailState=0;
+			gboolean								shouldSuspendAfterFail=FALSE;
+
+			/* Creating texture may fail. Only suspend for really unmapped
+			 * windows (minimized/hidden) or closed windows. In particular
+			 * do NOT suspend just because the window is not on the active
+			 * workspace: windows on inactive workspaces must keep the
+			 * chance for a live thumbnail.
 			 */
 			XFDASHBOARD_DEBUG(self, WINDOWS,
 								"Could not create texture for window '%s': %s",
@@ -1261,7 +1287,35 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 				windowTexture=NULL;
 			}
 
-			_xfdashboard_window_content_x11_suspend(self);
+			if(!priv->window) shouldSuspendAfterFail=TRUE;
+			else
+			{
+				textureFailState=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window));
+				if((textureFailState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED |
+										XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN))!=0)
+				{
+					shouldSuspendAfterFail=TRUE;
+				}
+			}
+
+			if(shouldSuspendAfterFail)
+			{
+				_xfdashboard_window_content_x11_suspend(self);
+			}
+				else
+				{
+					/* Not a minimized/hidden/closed window (e.g. window on
+					 * inactive workspace): free the just-named pixmap to
+					 * avoid a leak and keep fallback texture without
+					 * suspending the live path. A later resume can retry.
+					 */
+					if(priv->pixmap!=None)
+					{
+						XFreePixmap(display, priv->pixmap);
+						XSync(display, False);
+						priv->pixmap=None;
+					}
+				}
 
 			break;
 		}

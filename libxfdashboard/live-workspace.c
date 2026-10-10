@@ -106,7 +106,11 @@ static gboolean _xfdashboard_live_workspace_is_visible_window(XfdashboardLiveWor
 
 	priv=self->priv;
 
-	/* Determine if windows should be shown at workspace depending on its state */
+	/* Determine if windows should be shown at workspace depending on its state.
+	 * NOTE: Minimized windows are intentionally NOT excluded here. A minimized
+	 * window of this workspace must still get an actor showing its last known
+	 * (frozen) live image instead of disappearing or falling back to an icon.
+	 */
 	visible=TRUE;
 
 	state=xfdashboard_window_tracker_window_get_state(inWindow);
@@ -279,6 +283,7 @@ static ClutterActor* _xfdashboard_live_workspace_create_and_add_window_actor(Xfd
 	ClutterActor						*actor;
 	GList								*windows;
 	ClutterActor						*lastWindowActor;
+	ClutterActor						*existingActor;
 	XfdashboardWindowTrackerWindow		*window;
 	ClutterAction						*action;
 
@@ -288,23 +293,30 @@ static ClutterActor* _xfdashboard_live_workspace_create_and_add_window_actor(Xfd
 	priv=self->priv;
 
 	/* We cannot assume that each window newly opened or moved to this workspace
-	 * will be on top of all other windows. We need to respect window stacking.
-	 * Therefore we iterate through list of windows in reversed stacking order
-	 * and find the last window we have an actor for before we the window requested.
+	 * will be on top of all other windows. We need to respect window stacking
+	 * (get_windows_stacked() returns bottom-to-top, so children are painted in
+	 * that order with the top window last, just below the title actor).
+	 * Therefore we iterate through the stacked list from bottom to top and
+	 * remember the last window we already have an actor for *below* the
+	 * requested window. No culling is done: overlapping windows simply
+	 * overdraw, so only the top one remains visible.
 	 */
 	lastWindowActor=NULL;
 	windows=xfdashboard_window_tracker_get_windows_stacked(priv->windowTracker);
-	for(windows=g_list_last(windows) ; windows; windows=g_list_previous(windows))
+	for( ; windows; windows=g_list_next(windows))
 	{
 		/* Get window from list */
 		window=XFDASHBOARD_WINDOW_TRACKER_WINDOW(windows->data);
 		if(!window) continue;
 
+		/* Stop at requested window: only actors below it are predecessors */
+		if(window==inWindow) break;
+
 		/* We do not need to check if window would be visible on this workspace
 		 * as it should not have been created if it is not visible.
 		 */
-		lastWindowActor=_xfdashboard_live_workspace_find_by_window(self, window);
-		if(lastWindowActor) break;
+		existingActor=_xfdashboard_live_workspace_find_by_window(self, window);
+		if(existingActor) lastWindowActor=existingActor;
 	}
 
 	/* Check if we have to "move" an existing window actor or if we have to create
@@ -325,6 +337,17 @@ static ClutterActor* _xfdashboard_live_workspace_create_and_add_window_actor(Xfd
 								xfdashboard_window_tracker_window_get_name(xfdashboard_live_window_simple_get_window(XFDASHBOARD_LIVE_WINDOW_SIMPLE(lastWindowActor))),
 								xfdashboard_window_tracker_workspace_get_name(priv->workspace));
 		}
+			else if(priv->backgroundImageLayer)
+			{
+				/* No predecessor: window is bottommost, so place it right
+				 * above the background layer (bottom of window stack).
+				 */
+				clutter_actor_insert_child_above(CLUTTER_ACTOR(self), actor, priv->backgroundImageLayer);
+				XFDASHBOARD_DEBUG(self, ACTOR,
+									"Moved existing actor for window '%s' to bottom at live workspace '%s'",
+									xfdashboard_window_tracker_window_get_name(xfdashboard_live_window_simple_get_window(XFDASHBOARD_LIVE_WINDOW_SIMPLE(actor))),
+									xfdashboard_window_tracker_workspace_get_name(priv->workspace));
+			}
 			else
 			{
 				clutter_actor_insert_child_below(CLUTTER_ACTOR(self), actor, priv->actorTitle);
@@ -348,7 +371,10 @@ static ClutterActor* _xfdashboard_live_workspace_create_and_add_window_actor(Xfd
 			g_signal_connect(action, "drag-begin", G_CALLBACK(_xfdashboard_live_workspace_on_window_drag_begin), self);
 			g_signal_connect(action, "drag-end", G_CALLBACK(_xfdashboard_live_workspace_on_window_on_drag_end), self);
 
-			/* Add new actor at right stacking position */
+			/* Add new actor at right stacking position:
+		 * above its predecessor or, if it has none (bottommost window),
+		 * right above the background layer (bottom of window stack).
+		 */
 			if(lastWindowActor)
 			{
 				clutter_actor_insert_child_above(CLUTTER_ACTOR(self), actor, lastWindowActor);
@@ -358,6 +384,14 @@ static ClutterActor* _xfdashboard_live_workspace_create_and_add_window_actor(Xfd
 									xfdashboard_window_tracker_window_get_name(xfdashboard_live_window_simple_get_window(XFDASHBOARD_LIVE_WINDOW_SIMPLE(lastWindowActor))),
 									xfdashboard_window_tracker_workspace_get_name(priv->workspace));
 			}
+				else if(priv->backgroundImageLayer)
+				{
+					clutter_actor_insert_child_above(CLUTTER_ACTOR(self), actor, priv->backgroundImageLayer);
+					XFDASHBOARD_DEBUG(self, ACTOR,
+										"Created new actor for window '%s' to bottom at live workspace '%s'",
+										xfdashboard_window_tracker_window_get_name(xfdashboard_live_window_simple_get_window(XFDASHBOARD_LIVE_WINDOW_SIMPLE(actor))),
+										xfdashboard_window_tracker_workspace_get_name(priv->workspace));
+				}
 				else
 				{
 					clutter_actor_insert_child_below(CLUTTER_ACTOR(self), actor, priv->actorTitle);
@@ -426,11 +460,23 @@ static void _xfdashboard_live_workspace_on_window_geometry_changed(XfdashboardLi
 																	XfdashboardWindowTrackerWindow *inWindow,
 																	gpointer inUserData)
 {
+	ClutterActor		*windowActor;
+
 	g_return_if_fail(XFDASHBOARD_IS_LIVE_WORKSPACE(self));
 	g_return_if_fail(XFDASHBOARD_IS_WINDOW_TRACKER_WINDOW(inWindow));
 
-	/* Actor's allocation may change because of new geometry so relayout */
+	/* Actor's allocation may change because of new geometry so relayout
+	 * and redraw immediately to update the live photo without throttling.
+	 */
 	clutter_actor_queue_relayout(CLUTTER_ACTOR(self));
+	clutter_actor_queue_redraw(CLUTTER_ACTOR(self));
+
+	windowActor=_xfdashboard_live_workspace_find_by_window(self, inWindow);
+	if(windowActor)
+	{
+		clutter_actor_queue_relayout(windowActor);
+		clutter_actor_queue_redraw(windowActor);
+	}
 }
 
 /* Window stacking has changed */
@@ -449,8 +495,10 @@ static void _xfdashboard_live_workspace_on_window_stacking_changed(XfdashboardLi
 	/* Get stacked order of windows */
 	windows=xfdashboard_window_tracker_get_windows_stacked(priv->windowTracker);
 
-	/* Iterate through list of stacked window from beginning to end
-	 * and reinsert each window found to bottom of this actor
+	/* Iterate through list of stacked window from beginning (bottom) to end
+	 * (top) and reinsert each window found just below the title actor, so the
+	 * last painted window actor is the top window. No culling is done:
+	 * overlapping windows overdraw and only the top one stays visible.
 	 */
 	for( ; windows; windows=g_list_next(windows))
 	{
@@ -461,7 +509,9 @@ static void _xfdashboard_live_workspace_on_window_stacking_changed(XfdashboardLi
 		actor=_xfdashboard_live_workspace_find_by_window(self, window);
 		if(!actor) continue;
 
-		/* If we get here the window actor was found so move to bottom */
+		/* If we get here the window actor was found so move it just below
+		 * the title actor, preserving bottom-to-top paint order.
+		 */
 		g_object_ref(actor);
 		clutter_actor_remove_child(CLUTTER_ACTOR(self), actor);
 		clutter_actor_insert_child_below(CLUTTER_ACTOR(self), actor, priv->actorTitle);
@@ -502,9 +552,21 @@ static void _xfdashboard_live_workspace_on_window_state_changed(XfdashboardLiveW
 	newVisible=_xfdashboard_live_workspace_is_visible_window(self, inWindow);
 	if(newVisible!=currentVisible)
 	{
-		if(newVisible) _xfdashboard_live_workspace_create_and_add_window_actor(self, inWindow);
-			else if(windowActor) clutter_actor_destroy(windowActor);
+		if(newVisible) windowActor=_xfdashboard_live_workspace_create_and_add_window_actor(self, inWindow);
+			else if(windowActor)
+			{
+				clutter_actor_destroy(windowActor);
+				windowActor=NULL;
+			}
 	}
+
+	/* Refresh immediately (no new throttle): state changes such as
+	 * minimize/unminimize keep the actor but freeze/resume its live photo,
+	 * so relayout and redraw right away.
+	 */
+	clutter_actor_queue_relayout(CLUTTER_ACTOR(self));
+	clutter_actor_queue_redraw(CLUTTER_ACTOR(self));
+	if(windowActor) clutter_actor_queue_redraw(windowActor);
 }
 
 /* A window's workspace has changed */
@@ -821,7 +883,12 @@ static void _xfdashboard_live_workspace_allocate(ClutterActor *self,
 		/* Get real size of child */
 		xfdashboard_window_tracker_window_get_geometry(window, &x, &y, &w, &h);
 
-		/* Calculate translated position and size of child */
+		/* Calculate translated position and size of child from the exact
+		 * client geometry (no special-casing for fullscreen/split: a
+		 * fullscreen app naturally covers 100% of the thumbnail, two
+		 * side-by-side apps 50/50 each, and stacked apps overdraw with
+		 * only the top one visible).
+		 */
 		childAllocation.x1=x-visibleArea.x1;
 		childAllocation.x2=childAllocation.x1+w;
 		childAllocation.y1=y-visibleArea.y1;
@@ -830,6 +897,15 @@ static void _xfdashboard_live_workspace_allocate(ClutterActor *self,
 
 		/* Set allocation of child */
 		clutter_actor_allocate(child, &childAllocation, inFlags);
+
+		/* Clip each child to its own box so its live image cannot bleed
+		 * over a neighbouring window actor.
+		 */
+		clutter_actor_set_clip(child,
+								0.0f,
+								0.0f,
+								MAX(0.0f, clutter_actor_box_get_width(&childAllocation)),
+								MAX(0.0f, clutter_actor_box_get_height(&childAllocation)));
 	}
 
 	/* Set clip if a specific monitor should be shown only otherwise remove clip */

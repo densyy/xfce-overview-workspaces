@@ -793,6 +793,11 @@ static void _xfdashboard_workspace_selector_allocate(ClutterActor *inActor,
 	ClutterActor							*child;
 	ClutterActorIter						iter;
 	ClutterActorBox							childAllocation={ 0, };
+	gfloat									totalNeeded;
+	gfloat									scale;
+	gint									numberChildren;
+	gfloat									baseChildSize;
+	gfloat									tmpSize;
 
 	/* Chain up to store the allocation of the actor */
 	CLUTTER_ACTOR_CLASS(xfdashboard_workspace_selector_parent_class)->allocate(inActor, inBox, inFlags);
@@ -800,7 +805,65 @@ static void _xfdashboard_workspace_selector_allocate(ClutterActor *inActor,
 	/* Get available size */
 	clutter_actor_box_get_size(inBox, &availableWidth, &availableHeight);
 
-	/* Calculate new position and size of visible children */
+	/* Pre-pass: compute total needed space (sum of preferred sizes + spacings)
+	 * and a proportional shrink factor when it overflows the available box.
+	 * This keeps max-fraction/clamp logic untouched and avoids any scrollbar.
+	 */
+	scale=1.0f;
+	totalNeeded=0.0f;
+	numberChildren=0;
+	if(priv->orientation==CLUTTER_ORIENTATION_HORIZONTAL)
+	{
+		baseChildSize=availableHeight-(2*priv->spacing);
+		baseChildSize=MAX(0.0f, MIN(baseChildSize, availableHeight-(2*priv->spacing)));
+
+		clutter_actor_iter_init(&iter, CLUTTER_ACTOR(inActor));
+		while(clutter_actor_iter_next(&iter, &child))
+		{
+			if(!clutter_actor_is_visible(child)) continue;
+
+			tmpSize=0.0f;
+			clutter_actor_get_preferred_width(child, baseChildSize, NULL, &tmpSize);
+			tmpSize=MAX(0.0f, MIN(tmpSize, availableWidth));
+			totalNeeded+=tmpSize;
+			numberChildren++;
+		}
+
+		if(numberChildren>0) totalNeeded+=(numberChildren+1)*priv->spacing;
+			else totalNeeded=0.0f;
+
+		if(totalNeeded>availableWidth && totalNeeded>0.0f) scale=availableWidth/totalNeeded;
+	}
+		else
+		{
+			baseChildSize=availableWidth-(2*priv->spacing);
+			baseChildSize=MAX(0.0f, MIN(baseChildSize, availableWidth-(2*priv->spacing)));
+
+			clutter_actor_iter_init(&iter, CLUTTER_ACTOR(inActor));
+			while(clutter_actor_iter_next(&iter, &child))
+			{
+				if(!clutter_actor_is_visible(child)) continue;
+
+				tmpSize=0.0f;
+				clutter_actor_get_preferred_height(child, baseChildSize, NULL, &tmpSize);
+				tmpSize=MAX(0.0f, MIN(tmpSize, availableHeight));
+				totalNeeded+=tmpSize;
+				numberChildren++;
+			}
+
+			if(numberChildren>0) totalNeeded+=(numberChildren+1)*priv->spacing;
+				else totalNeeded=0.0f;
+
+			if(totalNeeded>availableHeight && totalNeeded>0.0f) scale=availableHeight/totalNeeded;
+		}
+
+	/* Calculate new position and size of visible children.
+	 * Each child gets exactly its slice (x1 starts at spacing, y chained)
+	 * and the frame only shrinks proportionally: aspect inside is preserved
+	 * because the other dimension is re-derived via get_preferred_* so the
+	 * internal geometry transform is never distorted. Never allocate beyond
+	 * the box: clamp each child to the remaining space.
+	 */
 	childAllocation.x1=childAllocation.y1=priv->spacing;
 	clutter_actor_iter_init(&iter, CLUTTER_ACTOR(inActor));
 	while(clutter_actor_iter_next(&iter, &child))
@@ -816,9 +879,31 @@ static void _xfdashboard_workspace_selector_allocate(ClutterActor *inActor,
 			clutter_actor_get_preferred_width(child, childHeight, NULL, &childWidth);
 			childWidth=MAX(0.0f, MIN(childWidth, availableWidth));
 
+			/* Proportional shrink when overflowing */
+			childWidth*=scale;
+			if(scale<1.0f)
+			{
+				gfloat aspectHeight=0.0f;
+
+				/* Keep aspect: derive height from shrunk width, only shrink frame */
+				clutter_actor_get_preferred_height(child, childWidth, NULL, &aspectHeight);
+				aspectHeight=MAX(0.0f, MIN(aspectHeight, availableHeight-(2*priv->spacing)));
+				childHeight=MIN(childHeight, aspectHeight);
+			}
+
+			/* Never allocate beyond the box: clamp to remaining width */
+			{
+				gfloat remainingWidth=availableWidth-childAllocation.x1-priv->spacing;
+				remainingWidth=MAX(0.0f, remainingWidth);
+				childWidth=MIN(childWidth, remainingWidth);
+				childHeight=MAX(0.0f, MIN(childHeight, availableHeight-(2*priv->spacing)));
+			}
+
 			childAllocation.y1=ceil(MAX(((availableHeight-childHeight))/2.0f, priv->spacing));
-			childAllocation.y2=floor(childAllocation.y1+childHeight);
-			childAllocation.x2=floor(childAllocation.x1+childWidth);
+			childAllocation.y2=floor(MIN(childAllocation.y1+childHeight, availableHeight-priv->spacing));
+			childAllocation.y2=MAX(childAllocation.y2, childAllocation.y1);
+			childAllocation.x2=floor(MIN(childAllocation.x1+childWidth, availableWidth-priv->spacing));
+			childAllocation.x2=MAX(childAllocation.x2, childAllocation.x1);
 		}
 			else
 			{
@@ -827,14 +912,35 @@ static void _xfdashboard_workspace_selector_allocate(ClutterActor *inActor,
 				clutter_actor_get_preferred_height(child, childWidth, NULL, &childHeight);
 				childHeight=MAX(0.0f, MIN(childHeight, availableHeight));
 
+				/* Proportional shrink when overflowing */
+				childHeight*=scale;
+				if(scale<1.0f)
+				{
+					gfloat aspectWidth=0.0f;
+
+					/* Keep aspect: derive width from shrunk height, only shrink frame */
+					clutter_actor_get_preferred_width(child, childHeight, NULL, &aspectWidth);
+					aspectWidth=MAX(0.0f, MIN(aspectWidth, availableWidth-(2*priv->spacing)));
+					childWidth=MIN(childWidth, aspectWidth);
+				}
+
+				/* Never allocate beyond the box: clamp to remaining height */
+				{
+					gfloat remainingHeight=availableHeight-childAllocation.y1-priv->spacing;
+					remainingHeight=MAX(0.0f, remainingHeight);
+					childHeight=MIN(childHeight, remainingHeight);
+					childWidth=MAX(0.0f, MIN(childWidth, availableWidth-(2*priv->spacing)));
+				}
+
 				childAllocation.x1=ceil(MAX(((availableWidth-childWidth))/2.0f, priv->spacing));
-				childAllocation.x2=floor(childAllocation.x1+childWidth);
+				childAllocation.x2=floor(MIN(childAllocation.x1+childWidth, availableWidth-priv->spacing));
+				childAllocation.x2=MAX(childAllocation.x2, childAllocation.x1);
 				childAllocation.y2=floor(childAllocation.y1+childHeight);
 			}
 
 		clutter_actor_allocate(child, &childAllocation, inFlags);
 
-		/* Set up for next child */
+		/* Set up for next child: y chained (vertical) / x chained (horizontal) */
 		if(priv->orientation==CLUTTER_ORIENTATION_HORIZONTAL) childAllocation.x1=floor(childAllocation.x1+childWidth+priv->spacing);
 			else childAllocation.y1=floor(childAllocation.y1+childHeight+priv->spacing);
 	}

@@ -274,13 +274,24 @@ static void _xfdashboard_live_window_simple_setup_content(XfdashboardLiveWindowS
 	 */
 	if(!priv->window) return;
 
-	/* Setup actor's content depending on display type */
+	/* Setup actor's content depending on display type.
+	 * LIVE_PREVIEW always prefers the live window content (which keeps the
+	 * last known image for minimized/unmapped windows) and only falls back
+	 * to the window icon if no live content is available.
+	 */
 	switch(priv->displayType)
 	{
 		case XFDASHBOARD_LIVE_WINDOW_SIMPLE_DISPLAY_TYPE_LIVE_PREVIEW:
 			content=xfdashboard_window_tracker_window_get_content(priv->window);
-			clutter_actor_set_content(priv->actorWindow, content);
-			g_object_unref(content);
+			if(!content)
+			{
+				content=xfdashboard_image_content_new_for_pixbuf(xfdashboard_window_tracker_window_get_icon(priv->window));
+			}
+			if(content)
+			{
+				clutter_actor_set_content(priv->actorWindow, content);
+				g_object_unref(content);
+			}
 			break;
 
 		case XFDASHBOARD_LIVE_WINDOW_SIMPLE_DISPLAY_TYPE_ICON:
