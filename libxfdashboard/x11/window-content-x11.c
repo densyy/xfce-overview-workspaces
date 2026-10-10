@@ -1161,6 +1161,49 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 		return;
 	}
 
+	/* Even with "immediate" creation priority, do not create the live
+	 * thumbnail (XCompositeNameWindowPixmap + XSync + texture + damage)
+	 * synchronously for windows outside the initial view: minimized,
+	 * hidden or paged-out windows and windows not on the active workspace.
+	 * They get the fallback icon texture now and the live texture from the
+	 * idle queue. Visible windows keep the synchronous path, so the first
+	 * frame is unchanged.
+	 */
+	if(priv->windowTracker)
+	{
+		XfdashboardWindowTrackerWindowState		state;
+		XfdashboardWindowTrackerWorkspace		*activeWorkspace;
+		gboolean								isOffscreen;
+
+		state=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window));
+		isOffscreen=(state & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED |
+								XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN |
+								XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_SKIP_PAGER |
+								XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_SKIP_TASKLIST))!=0;
+
+		if(!isOffscreen &&
+			!xfdashboard_window_tracker_window_is_visible(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window)))
+		{
+			isOffscreen=TRUE;
+		}
+
+		if(!isOffscreen)
+		{
+			activeWorkspace=xfdashboard_window_tracker_get_active_workspace(priv->windowTracker);
+			if(activeWorkspace &&
+				!xfdashboard_window_tracker_window_is_on_workspace(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window), activeWorkspace))
+			{
+				isOffscreen=TRUE;
+			}
+		}
+
+		if(isOffscreen)
+		{
+			_xfdashboard_window_content_x11_resume_on_idle_add(self);
+			return;
+		}
+	}
+
 	/* We need at least the X composite extension to display images of windows
 	 * if still images or live updated ones
 	 */

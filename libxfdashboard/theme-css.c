@@ -213,6 +213,18 @@ struct _XfdashboardThemeCSSPrivate
 	GHashTable	*registeredFunctions;
 
 	gint		offsetLine;
+
+	/* Startup I/O caches (no visual change, only skip repeated work):
+	 * - loadedFiles: absolute CSS paths already parsed (dedup @import
+	 *   cycles and duplicated Style entries -> cuts open+read+GScanner).
+	 * - iconMemo: icon-name -> found flag (cuts repeated g_file_test and
+	 *   gtk_icon_theme_has_icon scans when try_icons repeats).
+	 * - pathExistsMemo: full path -> exists flag (cuts repeated stat in
+	 *   @import resolution and try_icons relative checks).
+	 */
+	GHashTable	*loadedFiles;
+	GHashTable	*iconMemo;
+	GHashTable	*pathExistsMemo;
 };
 
 G_DEFINE_TYPE_WITH_PRIVATE(XfdashboardThemeCSS,
@@ -557,6 +569,37 @@ static gboolean _xfdashboard_theme_css_parse_string_to_color_component(Xfdashboa
 	return(TRUE);
 }
 
+/* Cached g_file_test wrapper. Cuts repeated stat() for the same full
+ * path during startup (imports + try_icons hit the same candidates for
+ * every actor). Semantics unchanged: first call stats, later calls reuse.
+ */
+static gboolean _xfdashboard_theme_css_cached_file_exists(XfdashboardThemeCSS *self,
+															const gchar *inPath)
+{
+	XfdashboardThemeCSSPrivate	*priv;
+	gpointer					value;
+	gboolean					exists;
+
+	g_return_val_if_fail(XFDASHBOARD_IS_THEME_CSS(self), FALSE);
+	g_return_val_if_fail(inPath && *inPath, FALSE);
+
+	priv=self->priv;
+	if(priv->pathExistsMemo &&
+		g_hash_table_lookup_extended(priv->pathExistsMemo, inPath, NULL, &value))
+	{
+		return(GPOINTER_TO_INT(value)!=0);
+	}
+
+	exists=g_file_test(inPath, G_FILE_TEST_EXISTS);
+	if(!priv->pathExistsMemo)
+	{
+		priv->pathExistsMemo=g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+	}
+	g_hash_table_insert(priv->pathExistsMemo, g_strdup(inPath), GINT_TO_POINTER(exists ? 1 : 0));
+
+	return(exists);
+}
+
 /* CSS function: try_icons(icon_name[, ...])
  * Takes a variable number of arguments. Each argument is a string containing
  * the icon name to lookup. The first one which could be found successfully
@@ -591,29 +634,55 @@ static gboolean _xfdashboard_theme_css_function_try_icons(XfdashboardThemeCSS *s
 	{
 		const gchar				*iconName;
 		gchar					*iconFilename;
+		gpointer				memoValue;
+		gboolean				memoFound;
 
 		/* Get icon name */
 		iconName=(const gchar*)inArguments->data;
 
+		/* Memoized per-icon result: same icon names repeat for every actor
+		 * styled, so skip all disk/GTK scans on repeats. No visual change.
+		 */
+		memoFound=FALSE;
+		if(priv->iconMemo &&
+			g_hash_table_lookup_extended(priv->iconMemo, iconName, NULL, &memoValue))
+		{
+			memoFound=(GPOINTER_TO_INT(memoValue)!=0);
+			if(memoFound)
+			{
+				g_value_set_string(outResult, iconName);
+				return(TRUE);
+			}
+			/* Known miss for this single name -> try next argument without stat */
+			inArguments=g_list_next(inArguments);
+			continue;
+		}
+
 		/* If icon name is an absolute path to a file then check if it exists */
 		if(g_path_is_absolute(iconName) &&
-			g_file_test(iconName, G_FILE_TEST_EXISTS))
+			_xfdashboard_theme_css_cached_file_exists(self, iconName))
 		{
 			/* Set up result */
 			g_value_set_string(outResult, iconName);
+
+			if(!priv->iconMemo) priv->iconMemo=g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+			g_hash_table_insert(priv->iconMemo, g_strdup(iconName), GINT_TO_POINTER(1));
 
 			return(TRUE);
 		}
 
 		/* Check if it is a relative path to a file and check if it exists */
 		iconFilename=g_build_filename(priv->themePath, iconName, NULL);
-		if(g_file_test(iconFilename, G_FILE_TEST_EXISTS))
+		if(_xfdashboard_theme_css_cached_file_exists(self, iconFilename))
 		{
 			/* Release allocated resources */
 			g_free(iconFilename);
 
 			/* Set up result */
 			g_value_set_string(outResult, iconName);
+
+			if(!priv->iconMemo) priv->iconMemo=g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+			g_hash_table_insert(priv->iconMemo, g_strdup(iconName), GINT_TO_POINTER(1));
 
 			return(TRUE);
 		}
@@ -627,7 +696,17 @@ static gboolean _xfdashboard_theme_css_function_try_icons(XfdashboardThemeCSS *s
 			/* Set up result */
 			g_value_set_string(outResult, iconName);
 
+			if(!priv->iconMemo) priv->iconMemo=g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+			g_hash_table_insert(priv->iconMemo, g_strdup(iconName), GINT_TO_POINTER(1));
+
 			return(TRUE);
+		}
+
+		/* Remember miss for this single icon name to skip future stats */
+		if(!priv->iconMemo) priv->iconMemo=g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+		if(!g_hash_table_contains(priv->iconMemo, iconName))
+		{
+			g_hash_table_insert(priv->iconMemo, g_strdup(iconName), GINT_TO_POINTER(0));
 		}
 
 		/* The icon name could not be found try next one */
@@ -2123,7 +2202,7 @@ G_GNUC_END_IGNORE_DEPRECATIONS
 			cssPath=g_path_get_dirname(inScanner->input_name);
 
 			tempFilename=g_build_filename(cssPath, filename, NULL);
-			if(g_file_test(tempFilename, G_FILE_TEST_EXISTS))
+			if(_xfdashboard_theme_css_cached_file_exists(self, tempFilename))
 			{
 				XFDASHBOARD_DEBUG(self, THEME,
 									"Resolved relative path '%s' to import to '%s' which is relative to current css file '%s'.",
@@ -2704,6 +2783,24 @@ static void _xfdashboard_theme_css_dispose(GObject *inObject)
 		priv->registeredFunctions=NULL;
 	}
 
+	if(priv->loadedFiles)
+	{
+		g_hash_table_destroy(priv->loadedFiles);
+		priv->loadedFiles=NULL;
+	}
+
+	if(priv->iconMemo)
+	{
+		g_hash_table_destroy(priv->iconMemo);
+		priv->iconMemo=NULL;
+	}
+
+	if(priv->pathExistsMemo)
+	{
+		g_hash_table_destroy(priv->pathExistsMemo);
+		priv->pathExistsMemo=NULL;
+	}
+
 	/* Call parent's class dispose method */
 	G_OBJECT_CLASS(xfdashboard_theme_css_parent_class)->dispose(inObject);
 }
@@ -2774,6 +2871,9 @@ void xfdashboard_theme_css_init(XfdashboardThemeCSS *self)
 	priv->names=NULL;
 	priv->registeredFunctions=NULL;
 	priv->offsetLine=0;
+	priv->loadedFiles=NULL;
+	priv->iconMemo=NULL;
+	priv->pathExistsMemo=NULL;
 
 	/* Register CSS functions */
 #define REGISTER_CSS_FUNC(name, callback) \
@@ -2859,6 +2959,23 @@ gboolean xfdashboard_theme_css_add_file(XfdashboardThemeCSS *self,
 	selectors=NULL;
 	styles=NULL;
 
+	/* Deduplicate: same CSS file listed twice or re-imported via @import
+	 * must not be re-opened and re-parsed with GScanner. Priority spacing
+	 * is preserved by caller (theme.c keeps incrementing counter), so
+	 * skipping here does not change cascade for already-loaded content.
+	 */
+	if(!priv->loadedFiles)
+	{
+		priv->loadedFiles=g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+	}
+	if(g_hash_table_contains(priv->loadedFiles, inPath))
+	{
+		XFDASHBOARD_DEBUG(self, THEME,
+							"Skipping already loaded CSS file '%s' (deduplicated, no re-parse)",
+							inPath);
+		return(TRUE);
+	}
+
 	/* Load and parse CSS file */
 	file=g_file_new_for_path(inPath);
 	if(!file)
@@ -2896,6 +3013,7 @@ gboolean xfdashboard_theme_css_add_file(XfdashboardThemeCSS *self,
 		g_propagate_error(outError, error);
 
 		/* Release allocated resources */
+		if(stream) g_object_unref(stream);
 		g_object_unref(file);
 
 		return(FALSE);
@@ -2906,6 +3024,7 @@ gboolean xfdashboard_theme_css_add_file(XfdashboardThemeCSS *self,
 	 * to list of selectors and styles in this theme and return TRUE
 	 */
 	priv->names=g_slist_prepend(priv->names, strdup(inPath));
+	g_hash_table_insert(priv->loadedFiles, g_strdup(inPath), GINT_TO_POINTER(1));
 
 	if(selectors)
 	{
@@ -2928,6 +3047,7 @@ gboolean xfdashboard_theme_css_add_file(XfdashboardThemeCSS *self,
 	}
 
 	/* Release allocated resources */
+	if(stream) g_object_unref(stream);
 	g_object_unref(file);
 
 	return(TRUE);

@@ -50,6 +50,21 @@ struct _XfdashboardWindowTrackerBackendX11Private
 	XfdashboardWindowTrackerX11		*windowTracker;
 };
 
+#ifdef HAVE_XINERAMA
+/* Cache for fullscreen-across-all-monitors spanning. show_stage_window runs
+ * on every resume and used to recompute the Xinerama edge monitors and
+ * re-send the _NET_WM_FULLSCREEN_MONITORS client message each time
+ * (X roundtrips + WM reconfigure). If screen size and monitor count did not
+ * change since the last spanning, the identical message would be sent again,
+ * so the query and the send are skipped. Any real change recomputes and
+ * resends, hence no visible behavior change.
+ */
+static gboolean _fsMonitorsCacheValid=FALSE;
+static gint _fsMonitorsCacheScreenWidth=0;
+static gint _fsMonitorsCacheScreenHeight=0;
+static gint _fsMonitorsCacheMonitorsCount=0;
+#endif
+
 G_DEFINE_TYPE_WITH_CODE(XfdashboardWindowTrackerBackendX11,
 						xfdashboard_window_tracker_backend_x11,
 						G_TYPE_OBJECT,
@@ -221,7 +236,24 @@ static void _xfdashboard_window_tracker_backend_x11_on_stage_screen_size_changed
 		return;
 	}
 
-	/* Get monitors from Xinerama */
+	/* Get monitors from Xinerama but skip the query and the client message
+	 * below if screen size and monitor count match the last spanning: the
+	 * identical _NET_WM_FULLSCREEN_MONITORS message was already sent.
+	 * Both values come from cached GDK/tracker state (no X roundtrip).
+	 */
+	xfdashboard_window_tracker_get_screen_size(inWindowTracker, &left, &top);
+	if(_fsMonitorsCacheValid &&
+		left==_fsMonitorsCacheScreenWidth &&
+		top==_fsMonitorsCacheScreenHeight &&
+		gdk_display_get_n_monitors(gdk_display_get_default())==_fsMonitorsCacheMonitorsCount)
+	{
+		XFDASHBOARD_DEBUG(inWindowTracker, WINDOWS,
+							"Skipping fullscreen-across-all-monitors spanning, screen is still %dx%d over %d monitors",
+							left, top,
+							_fsMonitorsCacheMonitorsCount);
+		return;
+	}
+
 	monitors=XineramaQueryScreens(GDK_DISPLAY_XDISPLAY(display), &monitorsCount);
 	if(monitorsCount<=0 || !monitors)
 	{
@@ -229,8 +261,13 @@ static void _xfdashboard_window_tracker_backend_x11_on_stage_screen_size_changed
 		return;
 	}
 
+	/* Remember screen size for the cache now because left/top are reused
+	 * as edge accumulators in the loop below.
+	 */
+	_fsMonitorsCacheScreenWidth=left;
+	_fsMonitorsCacheScreenHeight=top;
+
 	/* Get monitor indices for each corner of screen */
-	xfdashboard_window_tracker_get_screen_size(inWindowTracker, &left, &top);
 	bottom=0;
 	right=0;
 	topIndex=bottomIndex=leftIndex=rightIndex=0;
@@ -297,6 +334,10 @@ static void _xfdashboard_window_tracker_backend_x11_on_stage_screen_size_changed
 				False,
 				SubstructureRedirectMask | SubstructureNotifyMask,
 				&xEvent);
+
+	/* Remember spanning to skip identical work on next resume */
+	_fsMonitorsCacheValid=TRUE;
+	_fsMonitorsCacheMonitorsCount=monitorsCount;
 
 	/* Release allocated resources */
 	if(monitors) XFree(monitors);

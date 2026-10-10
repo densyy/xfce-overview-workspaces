@@ -539,7 +539,12 @@ static gboolean parse_opts(gint *ioArgc, gchar ***ioArgv, AppOpts *outOpts, GErr
 	g_snprintf(buf, sizeof(buf), _("A Gnome Shell like dashboard for Xfce4 - version %s"), VERSION_FULL);
 	g_option_context_set_summary(context, buf);
 	g_option_context_set_translation_domain(context, GETTEXT_PACKAGE);
-	g_option_context_add_group(context, gtk_get_option_group(TRUE));
+	/* Do not open the default display while parsing: the primary instance
+	 * already opened it via gtk_init() in main(), and a remote instance
+	 * (e.g. '-t'/'-q' forwarding) must never touch the display. TRUE would
+	 * make GOption call gtk_init-equivalent work during parse.
+	 */
+	g_option_context_add_group(context, gtk_get_option_group(FALSE));
 	g_option_context_add_group(context, clutter_get_option_group_without_init());
 	g_option_context_add_group(context, xfce_sm_client_get_option_group(*ioArgc, *ioArgv));
 	g_option_context_add_main_entries(context, entries, GETTEXT_PACKAGE);

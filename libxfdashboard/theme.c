@@ -133,6 +133,15 @@ struct _XfdashboardThemePrivate
 
 	gchar						*userThemeStyleFile;
 	gchar						*userGlobalStyleFile;
+
+	/* Deferred (non-first-frame) resources: effects/animations are
+	 * parsed after first frame to cut startup I/O. Lists are owned
+	 * copies of theme-relative entries stashed during initial load.
+	 */
+	gchar						**pendingEffectsFiles;
+	gchar						**pendingAnimationFiles;
+	guint						deferredIdleId;
+	gboolean					deferredLoaded;
 };
 
 G_DEFINE_TYPE_WITH_PRIVATE(XfdashboardTheme,
@@ -167,6 +176,17 @@ static GParamSpec* XfdashboardThemeProperties[PROP_LAST]={ 0, };
 #define XFDASHBOARD_THEME_GROUP_KEY_LAYOUT				"Layout"
 #define XFDASHBOARD_THEME_GROUP_KEY_EFFECTS				"Effects"
 #define XFDASHBOARD_THEME_GROUP_KEY_ANIMATIONS			"Animations"
+
+/* Memoized theme-name -> theme-path lookups. Avoids re-scanning all
+ * search paths (2×g_file_test per path) when theme object is recreated
+ * for an already-seen name. Process-lifetime cache; entries are
+ * short strings.
+ */
+static GHashTable				*_xfdashboard_theme_path_cache=NULL;
+
+/* Forward declarations for deferred loading */
+static void _xfdashboard_theme_ensure_deferred_loaded(XfdashboardTheme *self);
+static gboolean _xfdashboard_theme_load_deferred_idle(gpointer inUserData);
 
 /* Unified loader signature for a single theme resource file. The priority
  * is only used by CSS resources; other loaders ignore it but the shared
@@ -237,6 +257,7 @@ static gboolean _load_single_list(XfdashboardTheme *self,
 									const gchar *inDebugFormat,
 									gboolean inUsePriority,
 									gint *ioCounter,
+									GHashTable *inSeen,
 									GError **outError)
 {
 	XfdashboardThemePrivate		*priv;
@@ -262,6 +283,23 @@ static gboolean _load_single_list(XfdashboardTheme *self,
 		/* Get path and file for resource */
 		resourceFile=g_build_filename(priv->themePath, *iter, NULL);
 
+		/* Deduplicate: same absolute resource listed twice (e.g. in
+		 * Style list and via user CSS, or duplicated entries) must not
+		 * be re-read and re-parsed. Keep counter increment to preserve
+		 * CSS priority spacing for later files, so visual result is
+		 * unchanged while I/O + GScanner/GMarkup work is cut.
+		 */
+		if(inSeen && g_hash_table_contains(inSeen, resourceFile))
+		{
+			XFDASHBOARD_DEBUG(self, THEME,
+								"Skipping already loaded resource %s for theme %s (deduplicated)",
+								resourceFile,
+								priv->themeName);
+			g_free(resourceFile);
+			(*ioCounter)++;
+			continue;
+		}
+
 		/* Try to load resource (log first with identical messages) */
 		if(inUsePriority) debugMessage=g_strdup_printf(inDebugFormat, resourceFile, priv->themeName, *ioCounter);
 			else debugMessage=g_strdup_printf(inDebugFormat, resourceFile, priv->themeName);
@@ -269,6 +307,7 @@ static gboolean _load_single_list(XfdashboardTheme *self,
 		g_free(debugMessage);
 
 		success=inLoader(inLoaderInstance, resourceFile, *ioCounter, &error);
+		if(inSeen && success) g_hash_table_insert(inSeen, g_strdup(resourceFile), GINT_TO_POINTER(1));
 		g_free(resourceFile);
 
 		if(!success)
@@ -382,10 +421,12 @@ static gboolean _xfdashboard_theme_load_resources(XfdashboardTheme *self,
 		return(FALSE);
 	}
 
-	/* Load style, layout, effects and animation resources in fixed order.
+	/* Load style and layout synchronously (needed for first frame).
+	 * Effects and animations are deferred until after show (idle) and
+	 * also loaded on-demand via getters, so startup I/O (open+read) and
+	 * GMarkup parses for non-first-frame resources are cut.
 	 * Style and layout are required, effects and animations are optional.
-	 * The shared counter is used as CSS priority (and still increased for
-	 * the other lists to keep original semantics). User stylesheets
+	 * The shared counter is used as CSS priority. User stylesheets
 	 * ("global.css" and "user-[THEME_NAME].css" in this order) are loaded
 	 * right after the style list to allow user overrides.
 	 */
@@ -399,11 +440,17 @@ static gboolean _xfdashboard_theme_load_resources(XfdashboardTheme *self,
 				{ XFDASHBOARD_THEME_GROUP_KEY_ANIMATIONS, TRUE, _xfdashboard_theme_load_animation_resource, NULL, "Loading XML animation file %s for theme %s", FALSE },
 			};
 		guint								entryIndex;
+		GHashTable							*seen;
 
 		resourceEntries[0].instance=priv->styling;
 		resourceEntries[1].instance=priv->layout;
 		resourceEntries[2].instance=priv->effects;
 		resourceEntries[3].instance=priv->animation;
+
+		/* Deduplication set for absolute resource paths within this load.
+		 * Prevents re-read + re-parse when theme lists the same file twice.
+		 */
+		seen=g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
 
 		for(entryIndex=0; entryIndex<G_N_ELEMENTS(resourceEntries); entryIndex++)
 		{
@@ -432,10 +479,50 @@ static gboolean _xfdashboard_theme_load_resources(XfdashboardTheme *self,
 				g_propagate_error(outError, error);
 
 				/* Release allocated resources */
+				g_hash_table_destroy(seen);
 				if(themeKeyFile) g_key_file_free(themeKeyFile);
 
 				/* Return FALSE to indicate error */
 				return(FALSE);
+			}
+
+			/* Defer effects (index 2) and animations (index 3): stash
+			 * theme-relative entries and skip I/O + GMarkup parse now.
+			 * They will be loaded in idle after first frame or on first
+			 * use via xfdashboard_theme_get_effects/animation().
+			 */
+			if(entryIndex>=2)
+			{
+				gchar			**stashed;
+				gsize			len;
+				guint			i;
+
+				len=g_strv_length(resources);
+				stashed=g_new0(gchar*, len+1);
+				for(i=0; i<len; i++) stashed[i]=g_strdup(resources[i]);
+
+				if(entryIndex==2)
+				{
+					g_strfreev(priv->pendingEffectsFiles);
+					priv->pendingEffectsFiles=stashed;
+					XFDASHBOARD_DEBUG(self, THEME,
+										"Deferring %u effects file(s) for theme %s until after first frame",
+										(guint)len,
+										priv->themeName);
+				}
+					else
+					{
+						g_strfreev(priv->pendingAnimationFiles);
+						priv->pendingAnimationFiles=stashed;
+						XFDASHBOARD_DEBUG(self, THEME,
+											"Deferring %u animation file(s) for theme %s until after first frame",
+											(guint)len,
+											priv->themeName);
+					}
+
+				g_strfreev(resources);
+				resources=NULL;
+				continue;
 			}
 
 			if(!_load_single_list(self,
@@ -445,12 +532,14 @@ static gboolean _xfdashboard_theme_load_resources(XfdashboardTheme *self,
 									entry->debugFormat,
 									entry->usePriority,
 									&counter,
+									seen,
 									&error))
 			{
 				/* Set error */
 				g_propagate_error(outError, error);
 
 				/* Release allocated resources */
+				g_hash_table_destroy(seen);
 				if(resources) g_strfreev(resources);
 				if(themeKeyFile) g_key_file_free(themeKeyFile);
 
@@ -475,17 +564,28 @@ static gboolean _xfdashboard_theme_load_resources(XfdashboardTheme *self,
 											counter);
 
 					/* Load user's theme unrelated (global) stylesheet as it exists */
-					if(!xfdashboard_theme_css_add_file(priv->styling, priv->userGlobalStyleFile, counter, &error))
+					if(!g_hash_table_contains(seen, priv->userGlobalStyleFile))
 					{
-						/* Set error */
-						g_propagate_error(outError, error);
+						if(!xfdashboard_theme_css_add_file(priv->styling, priv->userGlobalStyleFile, counter, &error))
+						{
+							/* Set error */
+							g_propagate_error(outError, error);
 
-						/* Release allocated resources */
-						if(themeKeyFile) g_key_file_free(themeKeyFile);
+							/* Release allocated resources */
+							g_hash_table_destroy(seen);
+							if(themeKeyFile) g_key_file_free(themeKeyFile);
 
-						/* Return FALSE to indicate error */
-						return(FALSE);
+							/* Return FALSE to indicate error */
+							return(FALSE);
+						}
+						g_hash_table_insert(seen, g_strdup(priv->userGlobalStyleFile), GINT_TO_POINTER(1));
 					}
+						else
+						{
+							XFDASHBOARD_DEBUG(self, THEME,
+												"Skipping already loaded user global CSS %s",
+												priv->userGlobalStyleFile);
+						}
 
 					/* Increase counter used for CSS priority for next user CSS file */
 					counter++;
@@ -500,23 +600,35 @@ static gboolean _xfdashboard_theme_load_resources(XfdashboardTheme *self,
 											counter);
 
 					/* Load user's theme related stylesheet as it exists */
-					if(!xfdashboard_theme_css_add_file(priv->styling, priv->userThemeStyleFile, counter, &error))
+					if(!g_hash_table_contains(seen, priv->userThemeStyleFile))
 					{
-						/* Set error */
-						g_propagate_error(outError, error);
+						if(!xfdashboard_theme_css_add_file(priv->styling, priv->userThemeStyleFile, counter, &error))
+						{
+							/* Set error */
+							g_propagate_error(outError, error);
 
-						/* Release allocated resources */
-						if(themeKeyFile) g_key_file_free(themeKeyFile);
+							/* Release allocated resources */
+							g_hash_table_destroy(seen);
+							if(themeKeyFile) g_key_file_free(themeKeyFile);
 
-						/* Return FALSE to indicate error */
-						return(FALSE);
+							/* Return FALSE to indicate error */
+							return(FALSE);
+						}
+						g_hash_table_insert(seen, g_strdup(priv->userThemeStyleFile), GINT_TO_POINTER(1));
 					}
+						else
+						{
+							XFDASHBOARD_DEBUG(self, THEME,
+												"Skipping already loaded user theme CSS %s",
+												priv->userThemeStyleFile);
+						}
 
 					/* Increase counter used for CSS priority for next user CSS file */
 					counter++;
 				}
 			}
 		}
+		g_hash_table_destroy(seen);
 		resources=NULL;
 	}
 
@@ -525,6 +637,98 @@ static gboolean _xfdashboard_theme_load_resources(XfdashboardTheme *self,
 
 	/* Return TRUE to indicate success */
 	return(TRUE);
+}
+
+/* Load deferred effects/animations synchronously. Called from idle after
+ * first frame and on-demand from getters. Safe to call repeatedly; second
+ * and later calls are no-ops. Failures are logged but do not fail theme
+ * load (resources were optional in original synchronous path as well when
+ * key was missing; per-file failures here mirror original error text).
+ */
+static void _xfdashboard_theme_ensure_deferred_loaded(XfdashboardTheme *self)
+{
+	XfdashboardThemePrivate		*priv;
+	GError						*error;
+	gint						dummyCounter;
+	GHashTable					*seen;
+
+	g_return_if_fail(XFDASHBOARD_IS_THEME(self));
+
+	priv=self->priv;
+	if(priv->deferredLoaded) return;
+	if(!priv->loaded) return;
+
+	/* If nothing was deferred, just mark done */
+	if(!priv->pendingEffectsFiles && !priv->pendingAnimationFiles)
+	{
+		priv->deferredLoaded=TRUE;
+		return;
+	}
+
+	error=NULL;
+	dummyCounter=0;
+	seen=g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+
+	if(priv->pendingEffectsFiles)
+	{
+		if(!_load_single_list(self,
+								(const gchar**)priv->pendingEffectsFiles,
+								_xfdashboard_theme_load_effects_resource,
+								priv->effects,
+								"Loading XML effects file %s for theme %s",
+								FALSE,
+								&dummyCounter,
+								seen,
+								&error))
+		{
+			g_critical("Could not load deferred effects for theme '%s': %s",
+						priv->themeName,
+						(error && error->message) ? error->message : "unknown error");
+			if(error) g_error_free(error);
+			error=NULL;
+		}
+		g_strfreev(priv->pendingEffectsFiles);
+		priv->pendingEffectsFiles=NULL;
+	}
+
+	if(priv->pendingAnimationFiles)
+	{
+		if(!_load_single_list(self,
+								(const gchar**)priv->pendingAnimationFiles,
+								_xfdashboard_theme_load_animation_resource,
+								priv->animation,
+								"Loading XML animation file %s for theme %s",
+								FALSE,
+								&dummyCounter,
+								seen,
+								&error))
+		{
+			g_critical("Could not load deferred animations for theme '%s': %s",
+						priv->themeName,
+						(error && error->message) ? error->message : "unknown error");
+			if(error) g_error_free(error);
+			error=NULL;
+		}
+		g_strfreev(priv->pendingAnimationFiles);
+		priv->pendingAnimationFiles=NULL;
+	}
+
+	g_hash_table_destroy(seen);
+	priv->deferredLoaded=TRUE;
+}
+
+static gboolean _xfdashboard_theme_load_deferred_idle(gpointer inUserData)
+{
+	XfdashboardTheme			*self=XFDASHBOARD_THEME(inUserData);
+
+	/* No extra reference is held (theme is owned by core for app lifetime;
+	 * dispose cancels this idle). Clear ID before loading so a re-entrant
+	 * getter does not try to remove this already-dispatching source.
+	 */
+	self->priv->deferredIdleId=0;
+	_xfdashboard_theme_ensure_deferred_loaded(self);
+
+	return(G_SOURCE_REMOVE);
 }
 
 /* Lookup path for named theme.
@@ -541,6 +745,26 @@ static gchar* _xfdashboard_theme_lookup_path_for_theme(XfdashboardTheme *self,
 	g_return_val_if_fail(inThemeName!=NULL && *inThemeName!=0, FALSE);
 
 	themeFile=NULL;
+
+	/* Memoized lookup: avoid re-scanning search paths (up to 2 stats per
+	 * path) when the same theme name is requested again in this process
+	 * (e.g. theme switch back-and-forth or second window). Cache stores
+	 * theme-name -> theme-path strings.
+	 */
+	if(_xfdashboard_theme_path_cache)
+	{
+		const gchar		*cachedPath;
+
+		cachedPath=(const gchar*)g_hash_table_lookup(_xfdashboard_theme_path_cache, inThemeName);
+		if(cachedPath)
+		{
+			XFDASHBOARD_DEBUG(self, THEME,
+								"Theme '%s' path cache hit: %s (skipped search-path stats)",
+								inThemeName,
+								cachedPath);
+			return(g_strdup(cachedPath));
+		}
+	}
 
 	/* Get search path for themes */
 	settings=xfdashboard_core_get_settings(NULL);
@@ -594,9 +818,23 @@ static gchar* _xfdashboard_theme_lookup_path_for_theme(XfdashboardTheme *self,
 	if(themeFile)
 	{
 		gchar			*themePath;
+		gchar			*cachePath;
 
 		themePath=g_path_get_dirname(themeFile);
 		g_free(themeFile);
+
+		/* Remember successful lookup to skip future search-path stats */
+		if(!_xfdashboard_theme_path_cache)
+		{
+			_xfdashboard_theme_path_cache=g_hash_table_new_full(g_str_hash, g_str_equal, g_free, g_free);
+		}
+		cachePath=(gchar*)g_hash_table_lookup(_xfdashboard_theme_path_cache, inThemeName);
+		if(!cachePath)
+		{
+			g_hash_table_insert(_xfdashboard_theme_path_cache,
+								g_strdup(inThemeName),
+								g_strdup(themePath));
+		}
 
 		return(themePath);
 	}
@@ -700,6 +938,25 @@ static void _xfdashboard_theme_dispose(GObject *inObject)
 {
 	XfdashboardTheme			*self=XFDASHBOARD_THEME(inObject);
 	XfdashboardThemePrivate		*priv=self->priv;
+
+	/* Cancel pending deferred load */
+	if(priv->deferredIdleId)
+	{
+		g_source_remove(priv->deferredIdleId);
+		priv->deferredIdleId=0;
+	}
+
+	if(priv->pendingEffectsFiles)
+	{
+		g_strfreev(priv->pendingEffectsFiles);
+		priv->pendingEffectsFiles=NULL;
+	}
+
+	if(priv->pendingAnimationFiles)
+	{
+		g_strfreev(priv->pendingAnimationFiles);
+		priv->pendingAnimationFiles=NULL;
+	}
 
 	/* Release allocated resources */
 	if(priv->themeName)
@@ -888,6 +1145,10 @@ void xfdashboard_theme_init(XfdashboardTheme *self)
 	priv->layout=NULL;
 	priv->effects=NULL;
 	priv->animation=NULL;
+	priv->pendingEffectsFiles=NULL;
+	priv->pendingAnimationFiles=NULL;
+	priv->deferredIdleId=0;
+	priv->deferredLoaded=FALSE;
 }
 
 /* IMPLEMENTATION: Errors */
@@ -1029,6 +1290,21 @@ gboolean xfdashboard_theme_load(XfdashboardTheme *self,
 		return(FALSE);
 	}
 
+	/* Schedule deferred load of effects/animations after first frame.
+	 * Getters also ensure synchronous load on first use, so behavior is
+	 * identical but startup I/O + parses no longer block initial show.
+	 * No extra ref: theme is owned by core; dispose cancels idle.
+	 */
+	if(priv->pendingEffectsFiles || priv->pendingAnimationFiles)
+	{
+		priv->deferredLoaded=FALSE;
+		priv->deferredIdleId=g_idle_add_full(G_PRIORITY_LOW,
+												_xfdashboard_theme_load_deferred_idle,
+												self,
+												NULL);
+	}
+		else priv->deferredLoaded=TRUE;
+
 	/* If we found named themed and could load all resources successfully */
 	return(TRUE);
 }
@@ -1075,6 +1351,18 @@ XfdashboardThemeEffects* xfdashboard_theme_get_effects(XfdashboardTheme *self)
 {
 	g_return_val_if_fail(XFDASHBOARD_IS_THEME(self), NULL);
 
+	/* On-demand load if idle has not run yet (e.g. actor sets effects
+	 * before first frame). After that this is a no-op.
+	 */
+	_xfdashboard_theme_ensure_deferred_loaded(self);
+
+	/* If idle is still pending and we just loaded synchronously, cancel it */
+	if(self->priv->deferredLoaded && self->priv->deferredIdleId)
+	{
+		g_source_remove(self->priv->deferredIdleId);
+		self->priv->deferredIdleId=0;
+	}
+
 	return(self->priv->effects);
 }
 
@@ -1089,6 +1377,15 @@ XfdashboardThemeEffects* xfdashboard_theme_get_effects(XfdashboardTheme *self)
 XfdashboardThemeAnimation* xfdashboard_theme_get_animation(XfdashboardTheme *self)
 {
 	g_return_val_if_fail(XFDASHBOARD_IS_THEME(self), NULL);
+
+	/* On-demand load if idle has not run yet. After that no-op. */
+	_xfdashboard_theme_ensure_deferred_loaded(self);
+
+	if(self->priv->deferredLoaded && self->priv->deferredIdleId)
+	{
+		g_source_remove(self->priv->deferredIdleId);
+		self->priv->deferredIdleId=0;
+	}
 
 	return(self->priv->animation);
 }

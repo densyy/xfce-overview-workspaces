@@ -220,6 +220,12 @@ struct _XfdashboardThemeAnimationPrivate
 	/* Instance related */
 	GSList					*specs;
 	XfdashboardSettings		*settings;
+
+	/* Absolute XML paths already read+parsed. With deferred loading in
+	 * theme.c this is usually filled after first frame; dedup still cuts
+	 * re-read (open+read+stat) and re-parse (GMarkup) on duplicates.
+	 */
+	GHashTable				*loadedFiles;
 };
 
 G_DEFINE_TYPE_WITH_PRIVATE(XfdashboardThemeAnimation,
@@ -2380,6 +2386,12 @@ static void _xfdashboard_theme_animation_dispose(GObject *inObject)
 		priv->settings=NULL;
 	}
 
+	if(priv->loadedFiles)
+	{
+		g_hash_table_destroy(priv->loadedFiles);
+		priv->loadedFiles=NULL;
+	}
+
 	/* Call parent's class dispose method */
 	G_OBJECT_CLASS(xfdashboard_theme_animation_parent_class)->dispose(inObject);
 }
@@ -2408,6 +2420,7 @@ void xfdashboard_theme_animation_init(XfdashboardThemeAnimation *self)
 	/* Set default values */
 	priv->specs=NULL;
 	priv->settings=g_object_ref(xfdashboard_core_get_settings(NULL));
+	priv->loadedFiles=NULL;
 }
 
 
@@ -2460,6 +2473,23 @@ gboolean xfdashboard_theme_animation_add_file(XfdashboardThemeAnimation *self,
 	g_return_val_if_fail(inPath!=NULL && *inPath!=0, FALSE);
 	g_return_val_if_fail(outError==NULL || *outError==NULL, FALSE);
 
+	/* Deduplicate: same Animation XML listed twice must not be re-read
+	 * nor re-parsed. Combined with deferred loading in theme.c (files are
+	 * only read after first frame) this cuts startup I/O; duplicates would
+	 * otherwise double GMarkup work with identical visual result.
+	 */
+	if(!self->priv->loadedFiles)
+	{
+		self->priv->loadedFiles=g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+	}
+	if(g_hash_table_contains(self->priv->loadedFiles, inPath))
+	{
+		XFDASHBOARD_DEBUG(self, THEME,
+							"Skipping already loaded animation file '%s' (deduplicated, no re-parse)",
+							inPath);
+		return(TRUE);
+	}
+
 	/* Load XML file, parse it and build objects from file */
 	error=NULL;
 	if(!g_file_get_contents(inPath, &contents, &contentsLength, &error))
@@ -2479,6 +2509,8 @@ gboolean xfdashboard_theme_animation_add_file(XfdashboardThemeAnimation *self,
 
 	/* Release allocated resources */
 	g_free(contents);
+
+	g_hash_table_insert(self->priv->loadedFiles, g_strdup(inPath), GINT_TO_POINTER(1));
 
 	/* If we get here loading and parsing XML file was successful
 	 * so return TRUE here

@@ -260,6 +260,11 @@ struct _XfdashboardThemeLayoutPrivate
 	GSList								*interfaces;
 
 	XfdashboardThemeLayoutTagData		*focusSelected;
+
+	/* Absolute XML paths already read+parsed. Cuts re-read (open+read)
+	 * and re-parse (GMarkup) when theme lists same Layout file twice.
+	 */
+	GHashTable							*loadedFiles;
 };
 
 G_DEFINE_TYPE_WITH_PRIVATE(XfdashboardThemeLayout,
@@ -488,11 +493,27 @@ static void _xfdashboard_theme_layout_parse_set_error(XfdashboardThemeLayoutPars
 static GType _xfdashboard_theme_layout_resolve_type_lazy(const gchar *inTypeName)
 {
 	static GModule		*appModule=NULL;
+	static GHashTable	*typeCache=NULL;
 	GType				(*objectGetTypeFunc)(void);
 	GString				*symbolName=g_string_new("");
 	char				c, *symbol;
 	int					i;
 	GType				gtype=G_TYPE_INVALID;
+	gpointer			cachedValue;
+
+	/* Memoized GType per class name: XML repeats the same class strings
+	 * hundreds of times; skip repeated camel->snake + g_module_symbol.
+	 * No visual change, only CPU.
+	 */
+	if(!typeCache)
+	{
+		typeCache=g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+	}
+	if(g_hash_table_lookup_extended(typeCache, inTypeName, NULL, &cachedValue))
+	{
+		g_string_free(symbolName, TRUE);
+		return((GType)GPOINTER_TO_SIZE(cachedValue));
+	}
 
 	/* If it is the first call of this function get application as module */
 	if(!appModule) appModule=g_module_open(NULL, 0);
@@ -525,6 +546,9 @@ static GType _xfdashboard_theme_layout_resolve_type_lazy(const gchar *inTypeName
 	}
 
 	g_free (symbol);
+
+	/* Remember result (including INVALID for unknown classes) */
+	g_hash_table_insert(typeCache, g_strdup(inTypeName), GSIZE_TO_POINTER((gsize)gtype));
 
 	/* Return retrieved GType. Will be G_TYPE_INVALID in case of any error
 	 * or if *_get_type() function was unavailable.
@@ -2268,6 +2292,12 @@ static void _xfdashboard_theme_layout_dispose(GObject *inObject)
 		priv->interfaces=NULL;
 	}
 
+	if(priv->loadedFiles)
+	{
+		g_hash_table_destroy(priv->loadedFiles);
+		priv->loadedFiles=NULL;
+	}
+
 	/* Call parent's class dispose method */
 	G_OBJECT_CLASS(xfdashboard_theme_layout_parent_class)->dispose(inObject);
 }
@@ -2296,6 +2326,7 @@ void xfdashboard_theme_layout_init(XfdashboardThemeLayout *self)
 	/* Set default values */
 	priv->interfaces=NULL;
 	priv->focusSelected=NULL;
+	priv->loadedFiles=NULL;
 }
 
 
@@ -2347,6 +2378,22 @@ gboolean xfdashboard_theme_layout_add_file(XfdashboardThemeLayout *self,
 	g_return_val_if_fail(inPath!=NULL && *inPath!=0, FALSE);
 	g_return_val_if_fail(outError==NULL || *outError==NULL, FALSE);
 
+	/* Deduplicate: same Layout XML listed twice must not be re-read
+	 * (g_file_get_contents = open+read+stat) nor re-parsed (GMarkup).
+	 * Needed for first frame, but duplicates are pure waste.
+	 */
+	if(!self->priv->loadedFiles)
+	{
+		self->priv->loadedFiles=g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
+	}
+	if(g_hash_table_contains(self->priv->loadedFiles, inPath))
+	{
+		XFDASHBOARD_DEBUG(self, THEME,
+							"Skipping already loaded layout file '%s' (deduplicated, no re-parse)",
+							inPath);
+		return(TRUE);
+	}
+
 	/* Load XML file, parse it and build objects from file */
 	error=NULL;
 	if(!g_file_get_contents(inPath, &contents, &contentsLength, &error))
@@ -2365,6 +2412,8 @@ gboolean xfdashboard_theme_layout_add_file(XfdashboardThemeLayout *self,
 
 	/* Release allocated resources */
 	g_free(contents);
+
+	g_hash_table_insert(self->priv->loadedFiles, g_strdup(inPath), GINT_TO_POINTER(1));
 
 	/* If we get here loading and parsing XML file was successful
 	 * so return TRUE here

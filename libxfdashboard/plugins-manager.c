@@ -425,23 +425,37 @@ static void _xfdashboard_plugins_manager_on_enabled_plugins_changed(XfdashboardP
 
 /* Application was fully initialized so enabled all loaded plugin except the
  * ones which are already enabled, e.g. plugins which requested early initialization.
+ *
+ * To keep the first frame fast, the remaining (non-early) plugins are enabled
+ * in a low-priority idle callback instead of synchronously: enabling a plugin
+ * may run its initial window sweep (e.g. autopin-windows iterates all windows
+ * doing X roundtrips per window), register views and load CSS. None of that is
+ * needed for the first frame because early-initialization plugins are already
+ * enabled and plugin-provided views get added lazily via "registered".
  */
-static void _xfdashboard_plugins_manager_on_application_initialized(XfdashboardPluginsManager *self,
-																	gpointer inUserData)
+static gboolean _xfdashboard_plugins_manager_deferred_enable_idle(gpointer inUserData)
 {
-	XfdashboardPluginsManagerPrivate	*priv;
+	XfdashboardPluginsManager			*self;
+	XfdashboardPluginsManagerPrivate		*priv;
 	GList								*iter;
 	XfdashboardPlugin					*plugin;
 
-	g_return_if_fail(XFDASHBOARD_IS_PLUGINS_MANAGER(self));
-	g_return_if_fail(XFDASHBOARD_IS_CORE(inUserData));
+	g_return_val_if_fail(XFDASHBOARD_IS_PLUGINS_MANAGER(inUserData), G_SOURCE_REMOVE);
 
+	self=XFDASHBOARD_PLUGINS_MANAGER(inUserData);
 	priv=self->priv;
+
+	/* Skip enabling if application is already shutting down */
+	if(xfdashboard_core_has_default() &&
+		xfdashboard_core_is_quitting(xfdashboard_core_get_default()))
+	{
+		return(G_SOURCE_REMOVE);
+	}
 
 	/* Iterate through all loaded plugins and enable all plugins which are
 	 * not enabled yet.
 	 */
-	XFDASHBOARD_DEBUG(self, PLUGINS, "Plugin manager will now enable all remaining plugins because application is fully initialized now");
+	XFDASHBOARD_DEBUG(self, PLUGINS, "Plugin manager will now enable all remaining plugins from idle callback because application is fully initialized now");
 	for(iter=priv->plugins; iter; iter=g_list_next(iter))
 	{
 		/* Get plugin */
@@ -458,6 +472,22 @@ static void _xfdashboard_plugins_manager_on_application_initialized(XfdashboardP
 		}
 	}
 
+	/* Do not call this callback again. The extra reference taken when the
+	 * idle source was created is released automatically via destroy notify.
+	 */
+	return(G_SOURCE_REMOVE);
+}
+
+static void _xfdashboard_plugins_manager_on_application_initialized(XfdashboardPluginsManager *self,
+																	gpointer inUserData)
+{
+	XfdashboardPluginsManagerPrivate	*priv;
+
+	g_return_if_fail(XFDASHBOARD_IS_PLUGINS_MANAGER(self));
+	g_return_if_fail(XFDASHBOARD_IS_CORE(inUserData));
+
+	priv=self->priv;
+
 	/* Disconnect signal handler as this signal is emitted only once */
 	if(priv->core)
 	{
@@ -469,6 +499,16 @@ static void _xfdashboard_plugins_manager_on_application_initialized(XfdashboardP
 
 		priv->core=NULL;
 	}
+
+	/* Defer enabling of remaining plugins to a low-priority idle callback
+	 * so the first frame can be presented without waiting for plugin
+	 * initialization (including dlopen'd initial sweeps like autopin).
+	 * Early-initialization plugins were already enabled on load.
+	 */
+	g_idle_add_full(G_PRIORITY_LOW,
+					_xfdashboard_plugins_manager_deferred_enable_idle,
+					g_object_ref(self),
+					g_object_unref);
 }
 
 /* IMPLEMENTATION: GObject */

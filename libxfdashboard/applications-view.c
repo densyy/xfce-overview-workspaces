@@ -197,28 +197,88 @@ static ClutterActor* _add_back_button(XfdashboardApplicationsView *self,
 	return(actor);
 }
 
-/* Compare one app-info field case-insensitively (extracted from 5x sort) */
-static gint _cmp_app_field(GAppInfo *inLeft, GAppInfo *inRight, const gchar* (*inGetter)(GAppInfo*))
+/* Sort entry with precomputed lower-cased keys for "all applications".
+ * The original code called g_utf8_strdown() on every comparison (plus
+ * g_file_equal on every comparison), i.e. O(n log n) allocations for the
+ * click on "All applications". Precomputing the keys once per application
+ * reduces this to O(n) allocations with plain strcmp in the comparator and
+ * does not change the resulting order.
+ */
+typedef struct _AllAppsSortEntry		AllAppsSortEntry;
+struct _AllAppsSortEntry
 {
-	gchar								*leftValue;
-	gchar								*rightValue;
-	gint								result;
-	const gchar							*leftRaw;
-	const gchar							*rightRaw;
+	XfdashboardDesktopAppInfo		*appInfo;
+	gchar							*keys[5];
+};
 
-	g_return_val_if_fail(G_IS_APP_INFO(inLeft), 0);
-	g_return_val_if_fail(G_IS_APP_INFO(inRight), 0);
-	g_return_val_if_fail(inGetter, 0);
+static const gchar* (*_all_apps_field_getters[])(GAppInfo*)=
+{
+	g_app_info_get_name,
+	g_app_info_get_display_name,
+	g_app_info_get_description,
+	g_app_info_get_executable,
+	g_app_info_get_commandline
+};
 
-	leftRaw=inGetter(inLeft);
-	rightRaw=inGetter(inRight);
-	leftValue=leftRaw ? g_utf8_strdown(leftRaw, -1) : NULL;
-	rightValue=rightRaw ? g_utf8_strdown(rightRaw, -1) : NULL;
-	result=g_strcmp0(leftValue, rightValue);
-	g_free(leftValue);
-	g_free(rightValue);
+static AllAppsSortEntry* _all_apps_sort_entry_new(XfdashboardDesktopAppInfo *inAppInfo)
+{
+	AllAppsSortEntry				*entry;
+	guint						i;
 
-	return(result);
+	g_return_val_if_fail(XFDASHBOARD_IS_DESKTOP_APP_INFO(inAppInfo), NULL);
+
+	entry=g_new0(AllAppsSortEntry, 1);
+	entry->appInfo=inAppInfo; /* Takes over the reference from the input list */
+
+	for(i=0; i<G_N_ELEMENTS(_all_apps_field_getters); i++)
+	{
+		const gchar				*raw;
+
+		raw=_all_apps_field_getters[i](G_APP_INFO(inAppInfo));
+		entry->keys[i]=raw ? g_utf8_strdown(raw, -1) : NULL;
+	}
+
+	return(entry);
+}
+
+static void _all_apps_sort_entry_free(AllAppsSortEntry *inEntry)
+{
+	guint						i;
+
+	if(!inEntry) return;
+
+	for(i=0; i<G_N_ELEMENTS(inEntry->keys); i++) g_free(inEntry->keys[i]);
+	if(inEntry->appInfo) g_object_unref(inEntry->appInfo);
+	g_free(inEntry);
+}
+
+/* Compare two precomputed sort entries (extracted from 5x inlined sort) */
+static gint _cmp_all_apps_sort_entry(gconstpointer inLeft, gconstpointer inRight)
+{
+	const AllAppsSortEntry		*left=(const AllAppsSortEntry*)inLeft;
+	const AllAppsSortEntry		*right=(const AllAppsSortEntry*)inRight;
+	GFile						*leftFile;
+	GFile						*rightFile;
+	guint						i;
+	gint						result;
+
+	/* Invalid entries sort last (same semantics as before) */
+	if(!xfdashboard_desktop_app_info_is_valid(left->appInfo)) return(1);
+	if(!xfdashboard_desktop_app_info_is_valid(right->appInfo)) return(-1);
+
+	/* Entries sharing the same desktop file are equal */
+	leftFile=xfdashboard_desktop_app_info_get_file(left->appInfo);
+	rightFile=xfdashboard_desktop_app_info_get_file(right->appInfo);
+	if(leftFile && rightFile && g_file_equal(leftFile, rightFile)) return(0);
+
+	/* Compare precomputed lower-cased keys in order */
+	for(i=0; i<G_N_ELEMENTS(left->keys); i++)
+	{
+		result=g_strcmp0(left->keys[i], right->keys[i]);
+		if(result!=0) return(result);
+	}
+
+	return(0);
 }
 
 
@@ -521,50 +581,46 @@ static void _xfdashboard_applications_view_on_all_applications_menu_parent_menu_
 	g_signal_emit_by_name(priv->apps, "filter-changed");
 }
 
-/* Show sub-menu with all installed applications */
-static gint _xfdashboard_applications_view_on_all_applications_sort_app_info(XfdashboardDesktopAppInfo *inLeft, XfdashboardDesktopAppInfo *inRight)
+/* Show sub-menu with all installed applications.
+ * The list is sorted with precomputed lower-cased keys (see above) instead of
+ * allocating lower-cased strings on each comparison.
+ */
+static GList* _xfdashboard_applications_view_sort_all_applications(GList *inAllApps)
 {
-	GAppInfo		*leftAppInfo;
-	GAppInfo		*rightAppInfo;
-	GFile			*leftFile;
-	GFile			*rightFile;
-	gint			result;
-	guint			i;
-	static const gchar* (*appFieldGetters[])(GAppInfo*)=
+	GList								*entries;
+	GList								*iter;
+	GList								*sortedApps;
+
+	/* Decorate each application with its precomputed sort keys */
+	entries=NULL;
+	for(iter=inAllApps; iter; iter=g_list_next(iter))
 	{
-		g_app_info_get_name,
-		g_app_info_get_display_name,
-		g_app_info_get_description,
-		g_app_info_get_executable,
-		g_app_info_get_commandline
-	};
-
-	g_return_val_if_fail(XFDASHBOARD_IS_DESKTOP_APP_INFO(inLeft), 1);
-	g_return_val_if_fail(XFDASHBOARD_IS_DESKTOP_APP_INFO(inRight), -1);
-
-	/* Check if both desktop app info are valid */
-	if(!xfdashboard_desktop_app_info_is_valid(inLeft)) return(1);
-	if(!xfdashboard_desktop_app_info_is_valid(inRight)) return(-1);
-
-	/* If both desktop app info share the same file they are equal */
-	leftFile=xfdashboard_desktop_app_info_get_file(inLeft);
-	rightFile=xfdashboard_desktop_app_info_get_file(inRight);
-	if(g_file_equal(leftFile, rightFile)) return(0);
-
-	/* Both desktop app info have different files so check if they differ in
-	 * name, display name, description or command.
-	 */
-	leftAppInfo=G_APP_INFO(inLeft);
-	rightAppInfo=G_APP_INFO(inRight);
-
-	for(i=0; i<G_N_ELEMENTS(appFieldGetters); i++)
-	{
-		result=_cmp_app_field(leftAppInfo, rightAppInfo, appFieldGetters[i]);
-		if(result!=0) return(result);
+		/* Takes over the reference of the input list item */
+		entries=g_list_prepend(entries, _all_apps_sort_entry_new(XFDASHBOARD_DESKTOP_APP_INFO(iter->data)));
 	}
 
-	/* If we get here both desktop app infos are equal because all checks passed */
-	return(0);
+	/* The input list container is not needed anymore as all references
+	 * were transferred to the sort entries.
+	 */
+	g_list_free(inAllApps);
+
+	/* Sort entries by precomputed keys */
+	entries=g_list_sort(entries, (GCompareFunc)_cmp_all_apps_sort_entry);
+
+	/* Undecorate back to a sorted application list, keeping references */
+	sortedApps=NULL;
+	for(iter=entries; iter; iter=g_list_next(iter))
+	{
+		AllAppsSortEntry				*entry=(AllAppsSortEntry*)iter->data;
+
+		sortedApps=g_list_prepend(sortedApps, g_object_ref(entry->appInfo));
+	}
+	sortedApps=g_list_reverse(sortedApps);
+
+	/* Release sort entries and their taken-over references */
+	g_list_free_full(entries, (GDestroyNotify)_all_apps_sort_entry_free);
+
+	return(sortedApps);
 }
 
 static void _xfdashboard_applications_view_on_all_applications_menu_clicked(XfdashboardApplicationsView *self, gpointer inUserData)
@@ -598,7 +654,7 @@ static void _xfdashboard_applications_view_on_all_applications_menu_clicked(Xfda
 	appDB=xfdashboard_core_get_application_database(NULL);
 
 	allApps=xfdashboard_application_database_get_all_applications(appDB);
-	allApps=g_list_sort(allApps, (GCompareFunc)_xfdashboard_applications_view_on_all_applications_sort_app_info);
+	allApps=_xfdashboard_applications_view_sort_all_applications(allApps);
 
 	for(iter=allApps; iter; iter=g_list_next(iter))
 	{

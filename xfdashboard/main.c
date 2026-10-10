@@ -40,7 +40,14 @@
 
 
 /* IMPLEMENTATION: Private variables and methods */
-#define DEFAULT_RESTART_WAIT_TIMEOUT		5000	/* Timeout in milliseconds */
+#define DEFAULT_RESTART_WAIT_TIMEOUT		2000	/* Timeout in milliseconds.
+													 * Time to wait for a running
+													 * instance to quit on restart.
+													 * Local quit via DBus is well
+													 * below 1s; 2s keeps the failure
+													 * path fast without cutting a
+													 * slow-but-healthy shutdown.
+													 */
 
 typedef struct _RestartData		RestartData;
 struct _RestartData
@@ -194,22 +201,10 @@ int main(int argc, char **argv)
 	gint						status;
 	const gchar					*backend;
 	GError						*error=NULL;
+	gboolean					isRemote=FALSE;
 
 	/* Set up localization */
 	xfce_textdomain(GETTEXT_PACKAGE, PACKAGE_LOCALE_DIR, "UTF-8");
-
-	/* Initialize Xfconf */
-	if(G_UNLIKELY(!xfconf_init(&error)))
-	{
-		if(G_LIKELY(error))
-		{
-			g_error("Failed to initialize xfconf: %s",
-						error ? error->message : "Unknown error");
-			if(error) g_error_free(error);
-		}
-
-		return(1);
-	}
 
 	/* Enforce X11 backend in Clutter if no specific backend was requested via
 	 * the XFDASHBOARD_BACKEND environment variable. If this environment variable
@@ -217,6 +212,7 @@ int main(int argc, char **argv)
 	 *
 	 * This function must be called before any API function call at libxfdashboard
 	 * or other library API function like the one of Clutter, GTK+ etc.
+	 * It is cheap (no display round-trip) so it stays on both paths.
 	 */
 	backend=g_getenv("XFDASHBOARD_BACKEND");
 	if(backend)
@@ -237,18 +233,14 @@ int main(int argc, char **argv)
 	clutter_x11_set_use_argb_visual(TRUE);
 #endif
 
-	/* Initialize GTK+ and Clutter */
-	gtk_init(&argc, &argv);
-	if(!clutter_init(&argc, &argv))
-	{
-		g_error("Initializing clutter failed!");
-		return(1);
-	}
-
-	/* Notify that application has started and main loop will be entered */
-	gdk_notify_startup_complete();
-
-	/* Start application as primary or remote instace */
+	/* Create application instance early and register on DBUS _before_ any
+	 * heavy toolkit initialization. g_application_register() is idempotent,
+	 * so the later g_application_run() re-registers cheaply from cache.
+	 * A remote instance (e.g. '-t'/'--toggle' or '-q'/'--quit' while the
+	 * daemon runs) only forwards its arguments to the primary instance and
+	 * never needs xfconf, GTK+, Clutter or core initialization, so all of
+	 * that is skipped on the remote path below.
+	 */
 	app=xfdashboard_application_new();
 	if(!app)
 	{
@@ -256,6 +248,45 @@ int main(int argc, char **argv)
 		return(XFDASHBOARD_APPLICATION_ERROR_FAILED);
 	}
 
+	if(g_application_register(G_APPLICATION(app), NULL, NULL))
+	{
+		isRemote=g_application_get_is_remote(G_APPLICATION(app));
+	}
+	/* If registration failed (e.g. no session bus) keep isRemote FALSE so the
+	 * normal path runs and reports the error in local_command_line. The extra
+	 * failed round-trip here is negligible next to process start-up.
+	 */
+	if(isRemote) g_debug("Remote instance detected - skipping local toolkit initialization");
+		else
+		{
+			/* Initialize Xfconf (primary instance only) */
+			if(G_UNLIKELY(!xfconf_init(&error)))
+			{
+				if(G_LIKELY(error))
+				{
+					g_error("Failed to initialize xfconf: %s",
+								error ? error->message : "Unknown error");
+					if(error) g_error_free(error);
+				}
+
+				return(1);
+			}
+
+			/* Initialize GTK+ and Clutter (primary instance only) */
+			gtk_init(&argc, &argv);
+			if(!clutter_init(&argc, &argv))
+			{
+				g_error("Initializing clutter failed!");
+				return(1);
+			}
+
+			/* Notify that application has started and main loop will be entered */
+			gdk_notify_startup_complete();
+		}
+
+	/* Start application as primary or remote instace.
+	 * On the remote path this only forwards arguments over DBUS and returns.
+	 */
 	status=g_application_run(G_APPLICATION(app), argc, argv);
 	if(status==XFDASHBOARD_APPLICATION_ERROR_RESTART &&
 		g_application_get_is_remote(G_APPLICATION(app)))

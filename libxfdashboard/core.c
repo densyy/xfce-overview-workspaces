@@ -305,6 +305,35 @@ static void _xfdashboard_core_gvalue_transform_string_flags(const GValue *inSour
 	g_type_class_unref(flagsClass);
 }
 
+/* Welcome notification in an idle callback.
+ * xfdashboard_notify() traverses the whole actor tree looking for the stage
+ * interface (CSS selector + full traversal) and resolves the notification
+ * icon. None of that is needed before the first frame, so it is deferred to
+ * a low-priority idle callback instead of running synchronously at the end
+ * of initialization. The notification itself appears a main-loop tick later
+ * which is not perceivable.
+ */
+static gboolean _xfdashboard_core_welcome_notify_idle(gpointer inUserData)
+{
+	g_return_val_if_fail(XFDASHBOARD_IS_CORE(inUserData), G_SOURCE_REMOVE);
+
+	/* Skip notification if core is already shutting down (stage may be gone,
+	 * notify would only emit a critical warning).
+	 */
+	if(xfdashboard_core_is_quitting(XFDASHBOARD_CORE(inUserData))) return(G_SOURCE_REMOVE);
+
+#ifdef DEBUG
+	xfdashboard_notify(NULL, NULL, _("Welcome to %s (%s)!"), PACKAGE_NAME, VERSION_FULL);
+#else
+	xfdashboard_notify(NULL, NULL, _("Welcome to %s!"), PACKAGE_NAME);
+#endif
+
+	/* Extra reference taken when the idle source was created is released
+	 * automatically via destroy notify.
+	 */
+	return(G_SOURCE_REMOVE);
+}
+
 /* Action "exit" was called at application */
 static gboolean _xfdashboard_core_action_exit(XfdashboardCore *self,
 												XfdashboardFocusable *inSource,
@@ -1226,14 +1255,16 @@ gboolean xfdashboard_core_initialize(XfdashboardCore *self, GError **outError)
 	/* Emit signal 'theme-changed' to get current theme loaded at each stage created */
 	g_signal_emit(self, XfdashboardCoreSignals[SIGNAL_THEME_CHANGED], 0, priv->theme);
 
-	/* Initialization was successful so send signal and return TRUE */
+	/* Initialization was successful so send signal and return TRUE.
+	 * The welcome notification is deferred to an idle callback (see above)
+	 * to keep tree traversal and icon lookup off the first-frame path.
+	 */
 	g_signal_emit(self, XfdashboardCoreSignals[SIGNAL_INITIALIZED], 0);
 
-#ifdef DEBUG
-	xfdashboard_notify(NULL, NULL, _("Welcome to %s (%s)!"), PACKAGE_NAME, VERSION_FULL);
-#else
-	xfdashboard_notify(NULL, NULL, _("Welcome to %s!"), PACKAGE_NAME);
-#endif
+	g_idle_add_full(G_PRIORITY_LOW,
+					_xfdashboard_core_welcome_notify_idle,
+					g_object_ref(self),
+					g_object_unref);
 
 	return(TRUE);
 }
