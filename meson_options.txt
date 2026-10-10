@@ -32,10 +32,3 @@ option(
   value: '',
   description: 'Path to GNOME shell search provider (default: $datadir/gnome-shell/search-providers)',
 )
-
-option(
-  'example-search-provider',
-  type: 'boolean',
-  value: false,
-  description: 'Build example search provider plugin (development purpose only)',
-)

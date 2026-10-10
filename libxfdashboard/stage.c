@@ -35,13 +35,7 @@
 
 #include <libxfdashboard/core.h>
 #include <libxfdashboard/viewpad.h>
-#include <libxfdashboard/view-selector.h>
 #include <libxfdashboard/text-box.h>
-#include <libxfdashboard/quicklaunch.h>
-#include <libxfdashboard/applications-view.h>
-#include <libxfdashboard/windows-view.h>
-#include <libxfdashboard/search-view.h>
-#include <libxfdashboard/toggle-button.h>
 #include <libxfdashboard/workspace-selector.h>
 #include <libxfdashboard/collapse-box.h>
 #include <libxfdashboard/tooltip-action.h>
@@ -69,11 +63,8 @@ struct _XfdashboardStagePrivate
 	ClutterActor							*backgroundColorLayer;
 
 	gpointer								primaryInterface;
-	gpointer								quicklaunch;
-	gpointer								searchbox;
 	gpointer								workspaces;
 	gpointer								viewpad;
-	gpointer								viewSelector;
 	gpointer								notification;
 	gpointer								tooltip;
 
@@ -81,9 +72,6 @@ struct _XfdashboardStagePrivate
 	XfdashboardWindowTracker				*windowTracker;
 	XfdashboardWindowTrackerWindow			*stageWindow;
 
-	gboolean								searchActive;
-	gint									lastSearchTextLength;
-	XfdashboardView							*viewBeforeSearch;
 	gchar									*switchToView;
 	gpointer								focusActorOnShow;
 
@@ -117,10 +105,6 @@ static GParamSpec* XfdashboardStageProperties[PROP_LAST]={ 0, };
 enum
 {
 	SIGNAL_ACTOR_CREATED,
-
-	SIGNAL_SEARCH_STARTED,
-	SIGNAL_SEARCH_CHANGED,
-	SIGNAL_SEARCH_ENDED,
 
 	SIGNAL_SHOW_TOOLTIP,
 	SIGNAL_HIDE_TOOLTIP,
@@ -178,22 +162,11 @@ static gboolean _xfdashboard_stage_event(ClutterActor *inActor, ClutterEvent *in
 		/* Handle key */
 		switch(inEvent->key.keyval)
 		{
-			/* Handle ESC key to clear search box or quit/suspend application */
+			/* Handle ESC key to quit/suspend application */
 			case CLUTTER_KEY_Escape:
 			{
-				/* If search is active then end search by clearing search box ... */
-				if(priv->searchbox &&
-					!xfdashboard_text_box_is_empty(XFDASHBOARD_TEXT_BOX(priv->searchbox)))
-				{
-					xfdashboard_text_box_set_text(XFDASHBOARD_TEXT_BOX(priv->searchbox), NULL);
-					return(CLUTTER_EVENT_STOP);
-				}
-					/* ... otherwise request core to quit */
-					else
-					{
-						xfdashboard_core_quit(NULL);
-						return(CLUTTER_EVENT_STOP);
-					}
+				xfdashboard_core_quit(NULL);
+				return(CLUTTER_EVENT_STOP);
 			}
 			break;
 
@@ -207,25 +180,6 @@ static gboolean _xfdashboard_stage_event(ClutterActor *inActor, ClutterEvent *in
 	result=xfdashboard_focus_manager_handle_key_event(priv->focusManager, inEvent, NULL);
 	if(result==CLUTTER_EVENT_STOP) return(result);
 
-	/* If even focus manager did not handle this event send this event to searchbox */
-	if(priv->searchbox &&
-		XFDASHBOARD_IS_FOCUSABLE(priv->searchbox) &&
-		xfdashboard_focus_manager_is_registered(priv->focusManager, XFDASHBOARD_FOCUSABLE(priv->searchbox)))
-	{
-		/* Ask search to handle this event if it has not the focus currently
-		 * because in this case it has already handled the event and we do
-		 * not to do this twice.
-		 */
-		if(xfdashboard_focus_manager_get_focus(priv->focusManager)!=XFDASHBOARD_FOCUSABLE(priv->searchbox))
-		{
-			result=xfdashboard_focus_manager_handle_key_event(priv->focusManager, inEvent, XFDASHBOARD_FOCUSABLE(priv->searchbox));
-			if(result==CLUTTER_EVENT_STOP) return(result);
-		}
-	}
-
-	/* If we get here there was no searchbox or it could not handle the event
-	 * so stop further processing.
-	 */
 	return(CLUTTER_EVENT_STOP);
 }
 
@@ -297,18 +251,9 @@ static void _xfdashboard_stage_set_focus(XfdashboardStage *self)
 	{
 		XfdashboardFocusable	*focusable;
 
-		/* First try to set focus to searchbox ... */
-		if(XFDASHBOARD_IS_FOCUSABLE(priv->searchbox) &&
-			xfdashboard_focusable_can_focus(XFDASHBOARD_FOCUSABLE(priv->searchbox)))
-		{
-			xfdashboard_focus_manager_set_focus(priv->focusManager, XFDASHBOARD_FOCUSABLE(priv->searchbox));
-		}
-			/* ... then lookup first focusable actor */
-			else
-			{
-				focusable=xfdashboard_focus_manager_get_next_focusable(priv->focusManager, NULL);
-				if(focusable) xfdashboard_focus_manager_set_focus(priv->focusManager, focusable);
-			}
+		/* Lookup first focusable actor */
+		focusable=xfdashboard_focus_manager_get_next_focusable(priv->focusManager, NULL);
+		if(focusable) xfdashboard_focus_manager_set_focus(priv->focusManager, focusable);
 	}
 }
 
@@ -400,214 +345,6 @@ static gboolean _xfdashboard_stage_on_notification_timeout(gpointer inUserData)
 
 	/* Tell main context to remove this source */
 	return(G_SOURCE_REMOVE);
-}
-
-/* App-button was toggled */
-static void _xfdashboard_stage_on_quicklaunch_apps_button_toggled(XfdashboardStage *self, gpointer inUserData)
-{
-	XfdashboardStagePrivate		*priv;
-	XfdashboardToggleButton		*appsButton;
-	gboolean					state;
-	XfdashboardView				*view;
-
-	g_return_if_fail(XFDASHBOARD_IS_STAGE(self));
-	g_return_if_fail(XFDASHBOARD_IS_TOGGLE_BUTTON(inUserData));
-
-	priv=self->priv;
-	appsButton=XFDASHBOARD_TOGGLE_BUTTON(inUserData);
-
-	/* Get state of apps button */
-	state=xfdashboard_toggle_button_get_toggle_state(appsButton);
-
-	/* Depending on state activate views */
-	if(state==FALSE)
-	{
-		/* Find "windows-view" view and activate */
-		view=xfdashboard_viewpad_find_view_by_type(XFDASHBOARD_VIEWPAD(priv->viewpad), XFDASHBOARD_TYPE_WINDOWS_VIEW);
-		if(view) xfdashboard_viewpad_set_active_view(XFDASHBOARD_VIEWPAD(priv->viewpad), view);
-	}
-		else
-		{
-			/* Find "applications" or "search" view and activate */
-			if(!priv->searchActive) view=xfdashboard_viewpad_find_view_by_type(XFDASHBOARD_VIEWPAD(priv->viewpad), XFDASHBOARD_TYPE_APPLICATIONS_VIEW);
-				else view=xfdashboard_viewpad_find_view_by_type(XFDASHBOARD_VIEWPAD(priv->viewpad), XFDASHBOARD_TYPE_SEARCH_VIEW);
-			if(view) xfdashboard_viewpad_set_active_view(XFDASHBOARD_VIEWPAD(priv->viewpad), view);
-		}
-}
-
-/* Text in search text-box has changed */
-static void _xfdashboard_stage_on_searchbox_text_changed(XfdashboardStage *self,
-															gchar *inText,
-															gpointer inUserData)
-{
-	XfdashboardStagePrivate		*priv;
-	XfdashboardTextBox			*textBox=XFDASHBOARD_TEXT_BOX(inUserData);
-	XfdashboardView				*searchView;
-	gint						textLength;
-	const gchar					*text;
-	XfdashboardToggleButton		*appsButton;
-
-	g_return_if_fail(XFDASHBOARD_IS_STAGE(self));
-	g_return_if_fail(XFDASHBOARD_IS_TEXT_BOX(inUserData));
-
-	priv=self->priv;
-
-	/* Get search view */
-	searchView=xfdashboard_viewpad_find_view_by_type(XFDASHBOARD_VIEWPAD(priv->viewpad), XFDASHBOARD_TYPE_SEARCH_VIEW);
-	if(searchView==NULL)
-	{
-		g_critical("Cannot perform search because search view was not found in viewpad.");
-		return;
-	}
-
-	/* Get text and length of text in text-box */
-	text=xfdashboard_text_box_get_text(textBox);
-	textLength=xfdashboard_text_box_get_length(textBox);
-
-	/* Get apps button of quicklaunch */
-	appsButton=xfdashboard_quicklaunch_get_apps_button(XFDASHBOARD_QUICKLAUNCH(priv->quicklaunch));
-
-	/* Check if current text length if greater than zero and previous text length
-	 * was zero. If check is successful it marks the start of a search. Emit the
-	 * "search-started" signal. There is no need to start a search a search over
-	 * all search providers as it will be done later by updating search criteria.
-	 * There is also no need to activate search view because we will ensure that
-	 * search view is activate on any change in search text box but we enable that
-	 * view to be able to activate it ;)
-	 */
-	if(textLength>0 && priv->lastSearchTextLength==0)
-	{
-		/* Remember current active view to restore it when search ended */
-		priv->viewBeforeSearch=XFDASHBOARD_VIEW(g_object_ref(xfdashboard_viewpad_get_active_view(XFDASHBOARD_VIEWPAD(priv->viewpad))));
-
-		/* Enable search view and set focus to viewpad which will show the
-		 * search view so this search view will get the focus finally
-		 */
-		xfdashboard_view_set_enabled(searchView, TRUE);
-		if(priv->viewpad && priv->focusManager)
-		{
-			xfdashboard_focus_manager_set_focus(priv->focusManager, XFDASHBOARD_FOCUSABLE(priv->viewpad));
-		}
-
-		/* Activate "clear" button on text box */
-		xfdashboard_stylable_add_class(XFDASHBOARD_STYLABLE(priv->searchbox), "search-active");
-
-		/* Change apps button appearance */
-		if(appsButton) xfdashboard_stylable_add_class(XFDASHBOARD_STYLABLE(appsButton), "search-active");
-
-		/* Emit "search-started" signal */
-		g_signal_emit(self, XfdashboardStageSignals[SIGNAL_SEARCH_STARTED], 0);
-		priv->searchActive=TRUE;
-	}
-
-	/* Ensure that search view is active, emit signal for text changed,
-	 * update search criteria and set active toggle state at apps button
-	 */
-	xfdashboard_viewpad_set_active_view(XFDASHBOARD_VIEWPAD(priv->viewpad), searchView);
-	xfdashboard_search_view_update_search(XFDASHBOARD_SEARCH_VIEW(searchView), text);
-	g_signal_emit(self, XfdashboardStageSignals[SIGNAL_SEARCH_CHANGED], 0, text);
-
-	if(appsButton) xfdashboard_toggle_button_set_toggle_state(appsButton, TRUE);
-
-	/* Check if current text length is zero and previous text length was greater
-	 * than zero. If check is successful it marks the end of current search. Emit
-	 * the "search-ended" signal, reactivate view before search was started and
-	 * disable search view.
-	 */
-	if(textLength==0 && priv->lastSearchTextLength>0)
-	{
-		/* Reactivate active view before search has started */
-		if(priv->viewBeforeSearch)
-		{
-			xfdashboard_viewpad_set_active_view(XFDASHBOARD_VIEWPAD(priv->viewpad), priv->viewBeforeSearch);
-			g_object_unref(priv->viewBeforeSearch);
-			priv->viewBeforeSearch=NULL;
-		}
-
-		/* Deactivate "clear" button on text box */
-		xfdashboard_stylable_remove_class(XFDASHBOARD_STYLABLE(priv->searchbox), "search-active");
-
-		/* Disable search view */
-		xfdashboard_view_set_enabled(searchView, FALSE);
-
-		/* Change apps button appearance */
-		if(appsButton) xfdashboard_stylable_remove_class(XFDASHBOARD_STYLABLE(appsButton), "search-active");
-
-		/* Emit "search-ended" signal */
-		g_signal_emit(self, XfdashboardStageSignals[SIGNAL_SEARCH_ENDED], 0);
-		priv->searchActive=FALSE;
-	}
-
-	/* Trace text length changes */
-	priv->lastSearchTextLength=textLength;
-}
-
-/* Secondary icon ("clear") on text box was clicked */
-static void _xfdashboard_stage_on_searchbox_secondary_icon_clicked(XfdashboardStage *self, gpointer inUserData)
-{
-	XfdashboardTextBox			*textBox;
-
-	g_return_if_fail(XFDASHBOARD_IS_STAGE(self));
-	g_return_if_fail(XFDASHBOARD_IS_TEXT_BOX(inUserData));
-
-	textBox=XFDASHBOARD_TEXT_BOX(inUserData);
-
-	/* Clear search text box */
-	xfdashboard_text_box_set_text(textBox, NULL);
-}
-
-/* Active view in viewpad has changed */
-static void _xfdashboard_stage_on_view_activated(XfdashboardStage *self, XfdashboardView *inView, gpointer inUserData)
-{
-	XfdashboardStagePrivate		*priv;
-	XfdashboardViewpad			*viewpad G_GNUC_UNUSED;
-	XfdashboardToggleButton		*appsButton;
-
-	g_return_if_fail(XFDASHBOARD_IS_STAGE(self));
-	g_return_if_fail(XFDASHBOARD_IS_VIEWPAD(inUserData));
-
-	priv=self->priv;
-	viewpad=XFDASHBOARD_VIEWPAD(inUserData);
-
-	/* If we have remembered a view "before-search" then a search is going on.
-	 * If user switches between views while a search is going on remember the
-	 * last one activated to restore it when search ends but do not remember
-	 * the search view!
-	 */
-	if(priv->viewBeforeSearch &&
-		G_OBJECT_TYPE(inView)!=XFDASHBOARD_TYPE_SEARCH_VIEW)
-	{
-		/* Release old remembered view */
-		g_object_unref(priv->viewBeforeSearch);
-
-		/* Remember new active view */
-		priv->viewBeforeSearch=XFDASHBOARD_VIEW(g_object_ref(inView));
-	}
-
-	/* Toggle application button in quicklaunch */
-	appsButton=xfdashboard_quicklaunch_get_apps_button(XFDASHBOARD_QUICKLAUNCH(priv->quicklaunch));
-	if(appsButton)
-	{
-		/* Block our signal handler at stage which is called when apps button's
-		 * state changes because it will enforce a specific view depending on its 
-		 * state which may not be the view which is going to be activated.
-		 */
-		g_signal_handlers_block_by_func(appsButton, _xfdashboard_stage_on_quicklaunch_apps_button_toggled, self);
-
-		/* Update toggle state of apps button */
-		if(G_OBJECT_TYPE(inView)==XFDASHBOARD_TYPE_SEARCH_VIEW ||
-			G_OBJECT_TYPE(inView)==XFDASHBOARD_TYPE_APPLICATIONS_VIEW)
-		{
-			xfdashboard_toggle_button_set_toggle_state(appsButton, TRUE);
-		}
-			else
-			{
-				xfdashboard_toggle_button_set_toggle_state(appsButton, FALSE);
-			}
-
-		/* Unblock any handler we blocked before */
-		g_signal_handlers_unblock_by_func(appsButton, _xfdashboard_stage_on_quicklaunch_apps_button_toggled, self);
-	}
 }
 
 /* A window was closed
@@ -756,60 +493,16 @@ static void _xfdashboard_stage_on_application_resume(XfdashboardStage *self, gpo
 	/* If stage window is known just show it again ... */
 	if(priv->stageWindow)
 	{
-		gboolean						doResetSearch;
-		XfdashboardView					*searchView;
 		XfdashboardView					*resumeView;
-
-		/* Get configured options */
-		doResetSearch=xfdashboard_settings_get_reset_search_on_resume(priv->settings);
-
-		/* Find search view */
-		searchView=xfdashboard_viewpad_find_view_by_type(XFDASHBOARD_VIEWPAD(priv->viewpad), XFDASHBOARD_TYPE_SEARCH_VIEW);
-		if(!searchView) g_critical("Cannot find search view in viewpad to reset view.");
 
 		/* Find view to switch to if requested */
 		resumeView=_xfdashboard_stage_get_view_to_switch_to(self);
 
-		/* If view to switch to is the search view behave like we did not find the view
-		 * because it does not make sense to switch to a view which might be hidden,
-		 * e.g. when resetting search on resume which causes the search view to be hidden
-		 * and the previous view to be shown.
-		 */
-		if(resumeView &&
-			searchView &&
-			resumeView==searchView)
+		/* Switch to view if requested */
+		if(resumeView)
 		{
-			resumeView=NULL;
+			xfdashboard_viewpad_set_active_view(XFDASHBOARD_VIEWPAD(priv->viewpad), resumeView);
 		}
-
-		/* If search is active then end search by clearing search box if requested ... */
-		if(priv->searchbox &&
-			doResetSearch &&
-			!xfdashboard_text_box_is_empty(XFDASHBOARD_TEXT_BOX(priv->searchbox)))
-		{
-			/* If user wants to switch to a specific view set it as "previous" view now.
-			 * It will be restored automatically when search box is cleared.
-			 */
-			if(resumeView)
-			{
-				/* Release old remembered view */
-				if(priv->viewBeforeSearch) g_object_unref(priv->viewBeforeSearch);
-
-				/* Remember new active view */
-				priv->viewBeforeSearch=XFDASHBOARD_VIEW(g_object_ref(resumeView));
-			}
-
-			/* Reset search in search view */
-			if(searchView) xfdashboard_search_view_reset_search(XFDASHBOARD_SEARCH_VIEW(searchView));
-
-			/* Reset text in search box */
-			xfdashboard_text_box_set_text(XFDASHBOARD_TEXT_BOX(priv->searchbox), NULL);
-		}
-			/* ... otherwise just switch to view if requested */
-			else if(resumeView)
-			{
-				xfdashboard_viewpad_set_active_view(XFDASHBOARD_VIEWPAD(priv->viewpad), resumeView);
-			}
 
 		/* Now move focus to actor if user requested to refocus preselected actor
 		 * as specified by theme.
@@ -1040,7 +733,7 @@ static void _xfdashboard_stage_on_application_theme_changed(XfdashboardStage *se
 		}
 
 	/* Destroy all interfaces from stage.
-	 * There is no need to reset pointer variables to quicklaunch, searchbox etc.
+	 * There is no need to reset pointer variables
 	 * because they should be set NULL to by calling _xfdashboard_stage_reset_reference_on_destroy
 	 * when stage actor was destroyed.
 	 */
@@ -1066,8 +759,8 @@ static void _xfdashboard_stage_on_application_theme_changed(XfdashboardStage *se
 		/* Add interface to stage */
 		clutter_actor_add_child(CLUTTER_ACTOR(self), interface->actor);
 
-		/* Only check children, set up pointer variables to quicklaunch, searchbox etc.
-		 * and connect signals for primary monitor.
+		/* Only check children and set up pointer variables
+		 * for primary monitor.
 		 */
 		monitor=xfdashboard_stage_interface_get_monitor(XFDASHBOARD_STAGE_INTERFACE(interface->actor));
 		if(!monitor || xfdashboard_window_tracker_monitor_is_primary(monitor))
@@ -1080,63 +773,13 @@ static void _xfdashboard_stage_on_application_theme_changed(XfdashboardStage *se
 			}
 				else g_critical("Invalid multiple stages for primary monitor");
 
-			/* Get children from built stage and connect signals */
-			priv->viewSelector=NULL;
-			child=xfdashboard_find_actor_by_name(CLUTTER_ACTOR(self), "view-selector");
-			if(child && XFDASHBOARD_IS_VIEW_SELECTOR(child))
-			{
-				priv->viewSelector=child;
-				g_object_add_weak_pointer(G_OBJECT(priv->viewSelector), &priv->viewSelector);
-
-				/* Register this focusable actor if it is focusable */
-				if(!interface->focusables && XFDASHBOARD_IS_FOCUSABLE(priv->viewSelector))
-				{
-					xfdashboard_focus_manager_register(priv->focusManager,
-														XFDASHBOARD_FOCUSABLE(priv->viewSelector));
-				}
-			}
-
-			priv->searchbox=NULL;
-			child=xfdashboard_find_actor_by_name(CLUTTER_ACTOR(self), "searchbox");
-			if(child && XFDASHBOARD_IS_TEXT_BOX(child))
-			{
-				priv->searchbox=child;
-				g_object_add_weak_pointer(G_OBJECT(priv->searchbox), &priv->searchbox);
-
-				/* If no hint-text was defined, set default one */
-				if(!xfdashboard_text_box_is_hint_text_set(XFDASHBOARD_TEXT_BOX(priv->searchbox)))
-				{
-					xfdashboard_text_box_set_hint_text(XFDASHBOARD_TEXT_BOX(priv->searchbox),
-														_("Just type to search..."));
-				}
-
-				/* Connect signals */
-				g_signal_connect_swapped(priv->searchbox,
-											"text-changed",
-											G_CALLBACK(_xfdashboard_stage_on_searchbox_text_changed),
-											self);
-				g_signal_connect_swapped(priv->searchbox,
-											"secondary-icon-clicked",
-											G_CALLBACK(_xfdashboard_stage_on_searchbox_secondary_icon_clicked),
-											self);
-
-				/* Register this focusable actor if it is focusable */
-				if(!interface->focusables && XFDASHBOARD_IS_FOCUSABLE(priv->searchbox))
-				{
-					xfdashboard_focus_manager_register(priv->focusManager,
-														XFDASHBOARD_FOCUSABLE(priv->searchbox));
-				}
-			}
-
+			/* Get children from built stage and set up pointer variables */
 			priv->viewpad=NULL;
 			child=xfdashboard_find_actor_by_name(CLUTTER_ACTOR(self), "viewpad");
 			if(child && XFDASHBOARD_IS_VIEWPAD(child))
 			{
 				priv->viewpad=child;
 				g_object_add_weak_pointer(G_OBJECT(priv->viewpad), &priv->viewpad);
-
-				/* Connect signals */
-				g_signal_connect_swapped(priv->viewpad, "view-activated", G_CALLBACK(_xfdashboard_stage_on_view_activated), self);
 
 				/* Register this focusable actor if it is focusable */
 				if(!interface->focusables && XFDASHBOARD_IS_FOCUSABLE(priv->viewpad))
@@ -1149,33 +792,6 @@ static void _xfdashboard_stage_on_application_theme_changed(XfdashboardStage *se
 					 * views registered before first use of any function of focus manager.
 					 */
 					xfdashboard_focusable_can_focus(XFDASHBOARD_FOCUSABLE(priv->viewpad));
-				}
-			}
-
-			priv->quicklaunch=NULL;
-			child=xfdashboard_find_actor_by_name(CLUTTER_ACTOR(self), "quicklaunch");
-			if(child && XFDASHBOARD_IS_QUICKLAUNCH(child))
-			{
-				XfdashboardToggleButton		*appsButton;
-
-				priv->quicklaunch=child;
-				g_object_add_weak_pointer(G_OBJECT(priv->quicklaunch), &priv->quicklaunch);
-
-				/* Connect signals */
-				appsButton=xfdashboard_quicklaunch_get_apps_button(XFDASHBOARD_QUICKLAUNCH(priv->quicklaunch));
-				if(appsButton)
-				{
-					g_signal_connect_swapped(appsButton,
-												"toggled",
-												G_CALLBACK(_xfdashboard_stage_on_quicklaunch_apps_button_toggled),
-												self);
-				}
-
-				/* Register this focusable actor if it is focusable */
-				if(!interface->focusables && XFDASHBOARD_IS_FOCUSABLE(priv->quicklaunch))
-				{
-					xfdashboard_focus_manager_register(priv->focusManager,
-														XFDASHBOARD_FOCUSABLE(priv->quicklaunch));
 				}
 			}
 
@@ -1646,28 +1262,10 @@ static void _xfdashboard_stage_dispose(GObject *inObject)
 		priv->tooltip=NULL;
 	}
 
-	if(priv->quicklaunch)
-	{
-		clutter_actor_destroy(priv->quicklaunch);
-		priv->quicklaunch=NULL;
-	}
-
-	if(priv->searchbox)
-	{
-		clutter_actor_destroy(priv->searchbox);
-		priv->searchbox=NULL;
-	}
-
 	if(priv->workspaces)
 	{
 		clutter_actor_destroy(priv->workspaces);
 		priv->workspaces=NULL;
-	}
-
-	if(priv->viewSelector)
-	{
-		clutter_actor_destroy(priv->viewSelector);
-		priv->viewSelector=NULL;
 	}
 
 	if(priv->viewpad)
@@ -1680,12 +1278,6 @@ static void _xfdashboard_stage_dispose(GObject *inObject)
 	{
 		clutter_actor_destroy(priv->primaryInterface);
 		priv->primaryInterface=NULL;
-	}
-
-	if(priv->viewBeforeSearch)
-	{
-		g_object_unref(priv->viewBeforeSearch);
-		priv->viewBeforeSearch=NULL;
 	}
 
 	if(priv->backgroundImageLayer)
@@ -1830,40 +1422,6 @@ static void xfdashboard_stage_class_init(XfdashboardStageClass *klass)
 						1,
 						CLUTTER_TYPE_ACTOR);
 
-	XfdashboardStageSignals[SIGNAL_SEARCH_STARTED]=
-		g_signal_new("search-started",
-						G_TYPE_FROM_CLASS(klass),
-						G_SIGNAL_RUN_LAST,
-						G_STRUCT_OFFSET(XfdashboardStageClass, search_started),
-						NULL,
-						NULL,
-						g_cclosure_marshal_VOID__VOID,
-						G_TYPE_NONE,
-						0);
-
-	XfdashboardStageSignals[SIGNAL_SEARCH_CHANGED]=
-		g_signal_new("search-changed",
-						G_TYPE_FROM_CLASS(klass),
-						G_SIGNAL_RUN_LAST,
-						G_STRUCT_OFFSET(XfdashboardStageClass, search_changed),
-						NULL,
-						NULL,
-						g_cclosure_marshal_VOID__STRING,
-						G_TYPE_NONE,
-						1,
-						G_TYPE_STRING);
-
-	XfdashboardStageSignals[SIGNAL_SEARCH_ENDED]=
-		g_signal_new("search-ended",
-						G_TYPE_FROM_CLASS(klass),
-						G_SIGNAL_RUN_LAST,
-						G_STRUCT_OFFSET(XfdashboardStageClass, search_ended),
-						NULL,
-						NULL,
-						g_cclosure_marshal_VOID__VOID,
-						G_TYPE_NONE,
-						0);
-
 	XfdashboardStageSignals[SIGNAL_SHOW_TOOLTIP]=
 		g_signal_new("show-tooltip",
 						G_TYPE_FROM_CLASS(klass),
@@ -1907,16 +1465,10 @@ static void xfdashboard_stage_init(XfdashboardStage *self)
 	priv->windowTracker=xfdashboard_core_get_window_tracker(NULL);
 	priv->stageWindow=NULL;
 	priv->primaryInterface=NULL;
-	priv->quicklaunch=NULL;
-	priv->searchbox=NULL;
 	priv->workspaces=NULL;
 	priv->viewpad=NULL;
-	priv->viewSelector=NULL;
 	priv->notification=NULL;
 	priv->tooltip=NULL;
-	priv->lastSearchTextLength=0;
-	priv->viewBeforeSearch=NULL;
-	priv->searchActive=FALSE;
 	priv->notificationTimeoutID=0;
 	priv->backgroundType=XFDASHBOARD_STAGE_BACKGROUND_IMAGE_TYPE_NONE;
 	priv->backgroundColor=NULL;

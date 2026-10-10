@@ -51,8 +51,6 @@
 #include <libxfdashboard/types.h>
 #include <libxfdashboard/applications-view.h>
 #include <libxfdashboard/windows-view.h>
-#include <libxfdashboard/search-view.h>
-#include <libxfdashboard/applications-search-provider.h>
 #include <libxfdashboard/utils.h>
 #include <libxfdashboard/theme.h>
 #include <libxfdashboard/marshal.h>
@@ -87,7 +85,6 @@ struct _XfdashboardCorePrivate
 
 	XfdashboardStage					*stage;
 	XfdashboardViewManager				*viewManager;
-	XfdashboardSearchManager			*searchManager;
 	XfdashboardFocusManager				*focusManager;
 
 	XfdashboardTheme					*theme;
@@ -488,13 +485,6 @@ static void _xfdashboard_core_dispose(GObject *inObject)
 		/* Unregisters all remaining registered views - no need to unregister them here */
 		g_object_unref(priv->viewManager);
 		priv->viewManager=NULL;
-	}
-
-	if(priv->searchManager)
-	{
-		/* Unregisters all remaining registered providers - no need to unregister them here */
-		g_object_unref(priv->searchManager);
-		priv->searchManager=NULL;
 	}
 
 	if(priv->focusManager)
@@ -937,7 +927,6 @@ static void xfdashboard_core_init(XfdashboardCore *self)
 	priv->settings=NULL;
 	priv->stage=NULL;
 	priv->viewManager=NULL;
-	priv->searchManager=NULL;
 	priv->focusManager=NULL;
 	priv->theme=NULL;
 	priv->themeChangedBinding=NULL;
@@ -969,7 +958,7 @@ GQuark xfdashboard_core_error_quark(void)
  * @outError: A return location for a #GError or %NULL
  *
  * Initializes the core instance at @self and sets up all other components
- * like plugin manager, search manager, window tracker manager etc.
+ * like plugin manager, window tracker manager etc.
  *
  * If initialization fails, the error message will be placed inside error
  * at @outError (if not %NULL) instead of being printed on the display.
@@ -1176,12 +1165,6 @@ gboolean xfdashboard_core_initialize(XfdashboardCore *self, GError **outError)
 
 	xfdashboard_view_manager_register(priv->viewManager, "builtin.windows", XFDASHBOARD_TYPE_WINDOWS_VIEW);
 	xfdashboard_view_manager_register(priv->viewManager, "builtin.applications", XFDASHBOARD_TYPE_APPLICATIONS_VIEW);
-	xfdashboard_view_manager_register(priv->viewManager, "builtin.search", XFDASHBOARD_TYPE_SEARCH_VIEW);
-
-	/* Register built-in search providers */
-	priv->searchManager=XFDASHBOARD_SEARCH_MANAGER(g_object_new(XFDASHBOARD_TYPE_SEARCH_MANAGER, NULL));
-
-	xfdashboard_search_manager_register(priv->searchManager, "builtin.applications", XFDASHBOARD_TYPE_APPLICATIONS_SEARCH_PROVIDER);
 
 	/* Create single-instance of focus manager to keep it alive while
 	 * application is running.
@@ -1675,35 +1658,6 @@ XfdashboardPluginsManager* xfdashboard_core_get_plugins_manager(XfdashboardCore 
 	if(pluginsManager) g_object_ref(pluginsManager);
 
 	return(pluginsManager);
-}
-
-/**
- * xfdashboard_core_get_search_manager:
- *
- * Retrieves the singleton instance of #XfdashboardSearchManager from
- * core instance at @self.
- *
- * Return value: (transfer full): The instance of #XfdashboardSearchManager.
- *   Use g_object_unref() when done.
- */
-XfdashboardSearchManager* xfdashboard_core_get_search_manager(XfdashboardCore *self)
-{
-	XfdashboardSearchManager			*searchManager;
-
-	g_return_val_if_fail(self==NULL || XFDASHBOARD_IS_CORE(self), NULL);
-
-	searchManager=NULL;
-
-	/* Get default single instance if NULL is requested */
-	if(!self) self=_xfdashboard_core;
-
-	/* Get search manager */
-	if(G_LIKELY(self)) searchManager=self->priv->searchManager;
-
-	/* Take extra reference on object */
-	if(searchManager) g_object_ref(searchManager);
-
-	return(searchManager);
 }
 
 /**

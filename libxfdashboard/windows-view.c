@@ -36,7 +36,6 @@
 #include <libxfdashboard/core.h>
 #include <libxfdashboard/view.h>
 #include <libxfdashboard/drop-action.h>
-#include <libxfdashboard/quicklaunch.h>
 #include <libxfdashboard/application-button.h>
 #include <libxfdashboard/window-tracker.h>
 #include <libxfdashboard/image-content.h>
@@ -483,15 +482,6 @@ static gboolean _xfdashboard_windows_view_on_drop_begin(XfdashboardWindowsView *
 	dragSource=xfdashboard_drag_action_get_source(inDragAction);
 	draggedActor=xfdashboard_drag_action_get_actor(inDragAction);
 
-	/* We can handle dragged actor if it is an application button and its source
-	 * is quicklaunch.
-	 */
-	if(XFDASHBOARD_IS_QUICKLAUNCH(dragSource) &&
-		XFDASHBOARD_IS_APPLICATION_BUTTON(draggedActor))
-	{
-		canHandle=TRUE;
-	}
-
 	/* We can handle dragged actor if it is a live window and its source
 	 * is windows view.
 	 */
@@ -526,7 +516,6 @@ static void _xfdashboard_windows_view_on_drop_drop(XfdashboardWindowsView *self,
 	XfdashboardWindowsViewPrivate		*priv;
 	ClutterActor						*dragSource;
 	ClutterActor						*draggedActor;
-	GAppLaunchContext					*context;
 
 	g_return_if_fail(XFDASHBOARD_IS_WINDOWS_VIEW(self));
 	g_return_if_fail(XFDASHBOARD_IS_DRAG_ACTION(inDragAction));
@@ -537,19 +526,6 @@ static void _xfdashboard_windows_view_on_drop_drop(XfdashboardWindowsView *self,
 	/* Get source where dragging started and actor being dragged */
 	dragSource=xfdashboard_drag_action_get_source(inDragAction);
 	draggedActor=xfdashboard_drag_action_get_actor(inDragAction);
-
-	/* Handle drop of an application button from quicklaunch */
-	if(XFDASHBOARD_IS_QUICKLAUNCH(dragSource) &&
-		XFDASHBOARD_IS_APPLICATION_BUTTON(draggedActor))
-	{
-		/* Launch application being dragged here */
-		context=xfdashboard_create_app_context(priv->workspace);
-		xfdashboard_application_button_execute(XFDASHBOARD_APPLICATION_BUTTON(draggedActor), context);
-		g_object_unref(context);
-
-		/* Drop action handled so return here */
-		return;
-	}
 
 	/* Handle drop of an window from another windows view */
 	if(XFDASHBOARD_IS_WINDOWS_VIEW(dragSource) &&

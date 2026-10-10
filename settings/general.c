@@ -40,15 +40,12 @@ struct _XfdashboardSettingsGeneralPrivate
 	XfdashboardSettings		*settings;
 
 	/* Instance related */
-	GtkWidget				*widgetResetSearchOnResume;
 	GtkWidget				*widgetSwitchToViewOnResume;
 	GtkWidget				*widgetMinNotificationTimeout;
 	GtkWidget				*widgetEnableUnmappedWindowWorkaround;
 	GtkWidget				*widgetWindowCreationPriority;
-	GtkWidget				*widgetAlwaysLaunchNewInstance;
 	GtkWidget				*widgetShowAllApps;
 	GtkWidget				*widgetScrollEventChangesWorkspace;
-	GtkWidget				*widgetDelaySearchTimeout;
 	GtkWidget				*widgetAllowSubwindows;
 	GtkWidget				*widgetEnableAnimations;
 };
@@ -271,62 +268,6 @@ static gchar* _xfdashboard_settings_general_on_format_notification_timeout_value
 	return(text);
 }
 
-/* Setting '/components/search-view/delay-search-timeout' changed either at widget or at xfconf property */
-static void _xfdashboard_settings_general_delay_search_timeout_changed_by_widget(XfdashboardSettingsGeneral *self,
-																					GtkRange *inRange)
-{
-	XfdashboardSettingsGeneralPrivate		*priv;
-	guint									value;
-
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(self));
-	g_return_if_fail(GTK_IS_RANGE(inRange));
-
-	priv=self->priv;
-
-	/* Get value from widget */
-	value=floor(gtk_range_get_value(inRange));
-
-	/* Set value at xfconf property */
-	xfdashboard_settings_set_delay_search_timeout(priv->settings, value);
-}
-
-static void _xfdashboard_settings_general_delay_search_timeout_changed_by_settings(XfdashboardSettingsGeneral *self,
-																					GParamSpec *inParamSpec,
-																					GObject *inObject)
-{
-	XfdashboardSettingsGeneralPrivate		*priv;
-	guint									newValue;
-
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(self));
-
-	priv=self->priv;
-
-	/* Get new value to set at widget */
-	newValue=xfdashboard_settings_get_delay_search_timeout(priv->settings);
-
-	/* Set new value at widget */
-	gtk_range_set_value(GTK_RANGE(priv->widgetDelaySearchTimeout), (gdouble)newValue);
-}
-
-/* Format value to show in delay search timeout slider */
-static gchar* _xfdashboard_settings_general_on_format_delay_search_timeout_value(GtkScale *inWidget,
-																					gdouble inValue,
-																					gpointer inUserData)
-{
-	gchar		*text;
-
-	if(inValue>0.0)
-	{
-		text=g_strdup_printf("%u %s", (guint)inValue, _("ms"));
-	}
-		else
-		{
-			text=g_strdup(_("Immediately"));
-		}
-
-	return(text);
-}
-
 /* Set up this tab */
 static void _xfdashboard_settings_general_setup(XfdashboardSettingsGeneral *self)
 {
@@ -347,13 +288,6 @@ static void _xfdashboard_settings_general_setup(XfdashboardSettingsGeneral *self
 	setupDone=TRUE;
 
 	/* Get widgets from builder */
-	priv->widgetResetSearchOnResume=GTK_WIDGET(gtk_builder_get_object(priv->builder, "reset-search-on-resume"));
-	g_object_bind_property(priv->settings,
-							"reset-search-on-resume",
-							priv->widgetResetSearchOnResume,
-							"active",
-							G_BINDING_BIDIRECTIONAL | G_BINDING_SYNC_CREATE);
-
 	priv->widgetSwitchToViewOnResume=GTK_WIDGET(gtk_builder_get_object(priv->builder, "switch-to-view-on-resume"));
 	if(priv->widgetSwitchToViewOnResume)
 	{
@@ -448,13 +382,6 @@ static void _xfdashboard_settings_general_setup(XfdashboardSettingsGeneral *self
 							"active",
 							G_BINDING_BIDIRECTIONAL | G_BINDING_SYNC_CREATE);
 
-	priv->widgetAlwaysLaunchNewInstance=GTK_WIDGET(gtk_builder_get_object(priv->builder, "always-launch-new-instance"));
-	g_object_bind_property(priv->settings,
-							"always-launch-new-instance",
-							priv->widgetAlwaysLaunchNewInstance,
-							"active",
-							G_BINDING_BIDIRECTIONAL | G_BINDING_SYNC_CREATE);
-
 	priv->widgetShowAllApps=GTK_WIDGET(gtk_builder_get_object(priv->builder, "show-all-apps"));
 	g_object_bind_property(priv->settings,
 							"show-all-applications",
@@ -468,37 +395,6 @@ static void _xfdashboard_settings_general_setup(XfdashboardSettingsGeneral *self
 							priv->widgetScrollEventChangesWorkspace,
 							"active",
 							G_BINDING_BIDIRECTIONAL | G_BINDING_SYNC_CREATE);
-
-	priv->widgetDelaySearchTimeout=GTK_WIDGET(gtk_builder_get_object(priv->builder, "delay-search-timeout"));
-	if(priv->widgetDelaySearchTimeout)
-	{
-		GtkAdjustment								*adjustment;
-		gdouble										defaultValue;
-
-		/* Get default value */
-		defaultValue=xfdashboard_settings_get_delay_search_timeout(priv->settings);
-
-		/* Set up scaling settings of widget */
-		adjustment=GTK_ADJUSTMENT(gtk_builder_get_object(priv->builder, "delay-search-timeout-adjustment"));
-		gtk_range_set_adjustment(GTK_RANGE(priv->widgetDelaySearchTimeout), adjustment);
-
-		/* Set up default value */
-		gtk_range_set_value(GTK_RANGE(priv->widgetDelaySearchTimeout), defaultValue);
-
-		/* Connect signals */
-		g_signal_connect(priv->widgetDelaySearchTimeout,
-							"format-value",
-							G_CALLBACK(_xfdashboard_settings_general_on_format_delay_search_timeout_value),
-							NULL);
-		g_signal_connect_swapped(priv->widgetDelaySearchTimeout,
-									"value-changed",
-									G_CALLBACK(_xfdashboard_settings_general_delay_search_timeout_changed_by_widget),
-									self);
-		g_signal_connect_swapped(priv->settings,
-									"notify::delay-search-timeout",
-									G_CALLBACK(_xfdashboard_settings_general_delay_search_timeout_changed_by_settings),
-									self);
-	}
 
 	priv->widgetWindowCreationPriority=GTK_WIDGET(gtk_builder_get_object(priv->builder, "window-creation-priority"));
 	if(priv->widgetWindowCreationPriority)
@@ -620,14 +516,11 @@ static void _xfdashboard_settings_general_dispose(GObject *inObject)
 	XfdashboardSettingsGeneralPrivate	*priv=self->priv;
 
 	/* Release allocated resouces */
-	priv->widgetResetSearchOnResume=NULL;
 	priv->widgetSwitchToViewOnResume=NULL;
 	priv->widgetMinNotificationTimeout=NULL;
 	priv->widgetEnableUnmappedWindowWorkaround=NULL;
 	priv->widgetWindowCreationPriority=NULL;
-	priv->widgetAlwaysLaunchNewInstance=NULL;
 	priv->widgetScrollEventChangesWorkspace=NULL;
-	priv->widgetDelaySearchTimeout=NULL;
 
 	if(priv->builder)
 	{
@@ -737,14 +630,11 @@ static void xfdashboard_settings_general_init(XfdashboardSettingsGeneral *self)
 	priv->builder=NULL;
 	priv->settings=NULL;
 
-	priv->widgetResetSearchOnResume=NULL;
 	priv->widgetSwitchToViewOnResume=NULL;
 	priv->widgetMinNotificationTimeout=NULL;
 	priv->widgetEnableUnmappedWindowWorkaround=NULL;
 	priv->widgetWindowCreationPriority=NULL;
-	priv->widgetAlwaysLaunchNewInstance=NULL;
 	priv->widgetScrollEventChangesWorkspace=NULL;
-	priv->widgetDelaySearchTimeout=NULL;
 }
 
 /* IMPLEMENTATION: Public API */

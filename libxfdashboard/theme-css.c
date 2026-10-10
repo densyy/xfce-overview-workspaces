@@ -56,8 +56,8 @@
  * The keyword `!important` is not supported. Elements in CSS relate to the
  * class name of the corresponding #GObject in case-sensitive manner, e.g.
  * #XfdashboardButton. IDs in CSS relate to actor names as set in property `name`
- * at #ClutterActor or set with clutter_actor_set_name(), e.g. "#quicklaunch"
- * for quicklaunch actor.. Classes and pseudo-classes are used as expected.
+ * at #ClutterActor or set with clutter_actor_set_name(), e.g. "#viewpad"
+ * for viewpad actor. Classes and pseudo-classes are used as expected.
  *
  * For a list of actor names which can used as ID in CSS file, see section <link
  * linkend="XfdashboardThemeLayout.Layout">Layout</link>.

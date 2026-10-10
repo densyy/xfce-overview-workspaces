@@ -33,7 +33,6 @@ libxfdashboard_la_headers = \
 	application-database.h \
 	application-tracker.h \
 	applications-menu-model.h \
-	applications-search-provider.h \
 	applications-view.h \
 	background.h \
 	binding.h \
@@ -69,14 +68,8 @@ libxfdashboard_la_headers = \
 	popup-menu-item.h \
 	popup-menu-item-button.h \
 	popup-menu-item-separator.h \
-	quicklaunch.h \
 	scaled-table-layout.h \
 	scrollbar.h \
-	search-manager.h \
-	search-provider.h \
-	search-result-container.h \
-	search-result-set.h \
-	search-view.h \
 	settings.h \
 	stage.h \
 	stage-interface.h \
@@ -94,7 +87,6 @@ libxfdashboard_la_headers = \
 	utils.h \
 	view.h \
 	view-manager.h \
-	view-selector.h \
 	viewpad.h \
 	window-content.h \
 	window-tracker.h \
@@ -115,7 +107,6 @@ libxfdashboard_la_SOURCES = \
 	application-database.c \
 	application-tracker.c \
 	applications-menu-model.c \
-	applications-search-provider.c \
 	applications-view.c \
 	background.c \
 	binding.c \
@@ -151,14 +142,8 @@ libxfdashboard_la_SOURCES = \
 	popup-menu-item.c \
 	popup-menu-item-button.c \
 	popup-menu-item-separator.c \
-	quicklaunch.c \
 	scaled-table-layout.c \
 	scrollbar.c \
-	search-manager.c \
-	search-provider.c \
-	search-result-container.c \
-	search-result-set.c \
-	search-view.c \
 	settings.c \
 	stage.c \
 	stage-interface.c \
@@ -175,7 +160,6 @@ libxfdashboard_la_SOURCES = \
 	utils.c \
 	view.c \
 	view-manager.c \
-	view-selector.c \
 	viewpad.c \
 	window-content.c \
 	window-tracker.c \

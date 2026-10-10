@@ -36,6 +36,7 @@
 
 #include <common/xfconf-settings.h>
 
+#include <clutter/clutter.h>
 #include <libxfce4ui/libxfce4ui.h>
 #include <xfconf/xfconf.h>
 
@@ -65,41 +66,12 @@ G_DEFINE_TYPE_WITH_PRIVATE(XfdashboardXfconfSettings,
 // OLD: #define THEME_NAME_XFCONF_PROP		"/theme"
 #define THEME_NAME_XFCONF_PROP				"theme" -> "xfdashboard" (G_TYPE_STRING)
 
-// OLD: #define SORT_MODE_XFCONF_PROP		"/components/applications-search-provider/sort-mode"
-#define SORT_MODE_XFCONF_PROP				"applications-search-sort-mode" -> XFDASHBOARD_APPLICATIONS_SEARCH_PROVIDER_SORT_MODE_NONE (enum)
-
 // OLD: #define SHOW_ALL_APPS_XFCONF_PROP	"/components/applications-view/show-all-apps"
 #define SHOW_ALL_APPS_XFCONF_PROP			"show-all-applications" -> FALSE (G_TYPE_BOOLEAN)
 
 #define ALLOW_SUBWINDOWS_XFCONF_PROP		"allow-subwindows" -> TRUE (G_TYPE_BOOLEAN)
 
 #define ENABLED_PLUGINS_XFCONF_PROP			"enabled-plugins" -> [] (Type: G_TYPE_STRV - G_TYPE_BOXED)
-
-#if LIBXFCE4UI_CHECK_VERSION(4, 21, 0)
-#define FAVOURITES_XFCONF_PROP				"favourites" -> [ "xfce-web-browser.desktop", "xfce-mail-reader.desktop", "xfce-file-manager.desktop", "xfce-terminal-emulator.desktop" ]  (Type: G_TYPE_STRV - G_TYPE_BOXED)
-static const gchar*	_xfdashboard_xfconf_settings_default_favourites[]=	{
-																	"xfce-web-browser.desktop",
-																	"xfce-mail-reader.desktop",
-																	"xfce-file-manager.desktop",
-																	"xfce-terminal-emulator.desktop",
-																	NULL
-																};
-#else
-#define FAVOURITES_XFCONF_PROP				"favourites" -> [ "exo-web-browser.desktop", "exo-mail-reader.desktop", "exo-file-manager.desktop", "exo-terminal-emulator.desktop" ]  (Type: G_TYPE_STRV - G_TYPE_BOXED)
-static const gchar*	_xfdashboard_xfconf_settings_default_favourites[]=	{
-																	"exo-web-browser.desktop",
-																	"exo-mail-reader.desktop",
-																	"exo-file-manager.desktop",
-																	"exo-terminal-emulator.desktop",
-																	NULL
-																};
-#endif
-
-#define LAUNCH_NEW_INSTANCE_XFCONF_PROP		"always-launch-new-instance" -> TRUE (G_TYPE_BOOLEAN)
-
-// OLD: #define DELAY_SEARCH_TIMEOUT_XFCONF_PROP	"/components/search-view/delay-search-timeout"
-#define DELAY_SEARCH_TIMEOUT_XFCONF_PROP			"delay-search-timeout" -> 0 (G_TYPE_UINT)
-#define DEFAULT_DELAY_SEARCH_TIMEOUT				0
 
 // OLD: #define SCROLL_EVENT_CHANGES_WORKSPACE_XFCONF_PROP		"/components/windows-view/scroll-event-changes-workspace"
 #define SCROLL_EVENT_CHANGES_WORKSPACE_XFCONF_PROP				"scroll-event-changes-workspace" -> FALSE (G_TYPE_BOOLEAN)
@@ -111,7 +83,6 @@ static const gchar*	_xfdashboard_xfconf_settings_default_favourites[]=	{
 #define ENABLE_ANIMATIONS_XFCONF_PROP		"enable-animations"
 
 #define NOTIFICATION_TIMEOUT_XFCONF_PROP				"min-notification-timeout"
-#define RESET_SEARCH_ON_RESUME_XFCONF_PROP				"reset-search-on-resume"
 #define SWITCH_VIEW_ON_RESUME_XFCONF_PROP				"switch-to-view-on-resume"
 #define RESELECT_THEME_FOCUS_ON_RESUME_XFCONF_PROP		"reselect-theme-focus-on-resume"
 
@@ -135,9 +106,7 @@ struct _XfdashboardXfconfSettingsMapping
 
 static XfdashboardXfconfSettingsMapping		_xfdashboard_xfconf_settings_mapping[]=
 												{
-													{ NULL, "applications-search-sort-mode", "/components/applications-search-provider/sort-mode" },
 													{ NULL, "show-all-applications", "/components/applications-view/show-all-apps" },
-													{ NULL, "delay-search-timeout", "/components/search-view/delay-search-timeout" },
 													{ NULL, "scroll-event-changes-workspace", "/components/windows-view/scroll-event-changes-workspace" },
 													{ NULL, NULL, NULL }
 													

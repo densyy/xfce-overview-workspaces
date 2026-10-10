@@ -2,11 +2,6 @@
 <!-- Generated with glade 3.22.1 -->
 <interface domain="xfdashboard">
   <requires lib="gtk+" version="3.2"/>
-  <object class="GtkAdjustment" id="delay-search-timeout-adjustment">
-    <property name="upper">1000</property>
-    <property name="step_increment">10</property>
-    <property name="page_increment">100</property>
-  </object>
   <object class="GtkAdjustment" id="notification-timeout-adjustment">
     <property name="lower">1</property>
     <property name="upper">30</property>
@@ -224,25 +219,6 @@ Configure xfdashboard</property>
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkCheckButton" id="reset-search-on-resume">
-                    <property name="label" translatable="yes">Reset search view when resumed</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">False</property>
-                    <property name="tooltip_markup" translatable="yes">If enabled the search view will be resetted when xfdashboard is resumed. That means the active view is switched back to last view active before last search was started and search box will be emptied.
-
-&lt;b&gt;NOTE:&lt;/b&gt; This setting only takes effect if xfdashboard is running in daemon mode. </property>
-                    <property name="margin_left">8</property>
-                    <property name="xalign">0</property>
-                    <property name="draw_indicator">True</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">1</property>
-                  </packing>
-                </child>
-                <child>
                   <object class="GtkBox" id="box6">
                     <property name="visible">True</property>
                     <property name="can_focus">False</property>
@@ -403,24 +379,6 @@ The duration is calculated by the length of the text to show in notification. Th
                   </packing>
                 </child>
                 <child>
-                  <object class="GtkCheckButton" id="always-launch-new-instance">
-                    <property name="label" translatable="yes">Always start a new instance for application</property>
-                    <property name="visible">True</property>
-                    <property name="can_focus">True</property>
-                    <property name="receives_default">False</property>
-                    <property name="tooltip_markup" translatable="yes">When enabled and an icon in quicklaunch is clicked it will always start a new instance of the application.
-
-When not enabled it will select the last known active window of the running application instance. If application is not running, a new instance will be started.</property>
-                    <property name="xalign">0</property>
-                    <property name="draw_indicator">True</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">7</property>
-                  </packing>
-                </child>
-                <child>
                   <object class="GtkCheckButton" id="enable-animations">
                     <property name="label" translatable="yes">Enable animations</property>
                     <property name="visible">True</property>
@@ -497,58 +455,6 @@ When not enabled it will select the last known active window of the running appl
                     <property name="expand">False</property>
                     <property name="fill">True</property>
                     <property name="position">12</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkLabel" id="label9">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <property name="margin_top">16</property>
-                    <property name="label" translatable="yes">&lt;b&gt;Search view:&lt;/b&gt;</property>
-                    <property name="use_markup">True</property>
-                    <property name="xalign">0</property>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">13</property>
-                  </packing>
-                </child>
-                <child>
-                  <object class="GtkBox" id="box1">
-                    <property name="visible">True</property>
-                    <property name="can_focus">False</property>
-                    <child>
-                      <object class="GtkLabel" id="label10">
-                        <property name="visible">True</property>
-                        <property name="can_focus">False</property>
-                        <property name="tooltip_markup" translatable="yes">Sets the interval the search should be delayed by after the first character was entered.</property>
-                        <property name="label" translatable="yes">Delay initial search interval:</property>
-                      </object>
-                      <packing>
-                        <property name="expand">False</property>
-                        <property name="fill">True</property>
-                        <property name="position">0</property>
-                      </packing>
-                    </child>
-                    <child>
-                      <object class="GtkScale" id="delay-search-timeout">
-                        <property name="visible">True</property>
-                        <property name="can_focus">True</property>
-                        <property name="tooltip_markup" translatable="yes">Sets the interval the search should be delayed by after the first character was entered.</property>
-                        <property name="round_digits">1</property>
-                      </object>
-                      <packing>
-                        <property name="expand">True</property>
-                        <property name="fill">True</property>
-                        <property name="position">1</property>
-                      </packing>
-                    </child>
-                  </object>
-                  <packing>
-                    <property name="expand">False</property>
-                    <property name="fill">True</property>
-                    <property name="position">14</property>
                   </packing>
                 </child>
               </object>

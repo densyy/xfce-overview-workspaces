@@ -40,7 +40,6 @@
 #include <libxfdashboard/bindings-pool.h>
 #include <libxfdashboard/focus-manager.h>
 #include <libxfdashboard/plugins-manager.h>
-#include <libxfdashboard/search-manager.h>
 #include <libxfdashboard/view-manager.h>
 #include <libxfdashboard/window-tracker-backend.h>
 #include <libxfdashboard/window-tracker.h>
@@ -172,7 +171,6 @@ XfdashboardApplicationTracker* xfdashboard_core_get_application_tracker(Xfdashbo
 XfdashboardBindingsPool* xfdashboard_core_get_bindings_pool(XfdashboardCore *self);
 XfdashboardFocusManager* xfdashboard_core_get_focus_manager(XfdashboardCore *self);
 XfdashboardPluginsManager* xfdashboard_core_get_plugins_manager(XfdashboardCore *self);
-XfdashboardSearchManager* xfdashboard_core_get_search_manager(XfdashboardCore *self);
 XfdashboardViewManager* xfdashboard_core_get_view_manager(XfdashboardCore *self);
 XfdashboardWindowTracker* xfdashboard_core_get_window_tracker(XfdashboardCore *self);
 XfdashboardWindowTrackerBackend* xfdashboard_core_get_window_tracker_backend(XfdashboardCore *self);

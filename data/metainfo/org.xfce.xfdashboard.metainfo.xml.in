@@ -13,8 +13,6 @@
 		<p>It can be configured to run to any keyboard shortcut and
 		when executed provides an overview of applications currently
 		open enabling the user to switch between different applications.
-		The search feature works like Xfce's app finder which makes
-		it convenient to search for and start applications.
 		</p>
 	</description>
 
@@ -25,10 +23,6 @@
 		<screenshot>
 			<caption>Browsing applications</caption>
 			<image>https://docs.xfce.org/_media/apps/xfdashboard/applications-view.png</image>
-		</screenshot>
-		<screenshot>
-			<caption>Searching applications</caption>
-			<image>https://docs.xfce.org/_media/apps/xfdashboard/search-view.png</image>
 		</screenshot>
 	</screenshots>
 
@@ -56,8 +50,6 @@
 		<keyword>window management</keyword>
 		<keyword>application management</keyword>
 		<keyword>organize</keyword>
-		<keyword>search tool</keyword>
-		<keyword>search</keyword>
 	</keywords>
 
 	<releases>

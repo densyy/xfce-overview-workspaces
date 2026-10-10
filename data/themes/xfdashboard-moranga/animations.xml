@@ -55,17 +55,6 @@
 		</timeline>
 	</trigger>
 
-	<trigger id="quicklaunch-item-moved" sender="XfdashboardQuicklaunch XfdashboardApplicationButton" signal="move-resize">
-		<timeline delay="0" duration="100" mode="linear">
-			<apply>
-				<property name="x" />
-				<property name="y" />
-				<property name="width" />
-				<property name="height" />
-			</apply>
-		</timeline>
-	</trigger>
-
 	<trigger id="window-destroyed" sender="XfdashboardLiveWindowSimple" signal="destroy">
 		<timeline delay="0" duration="200" mode="linear">
 			<apply>

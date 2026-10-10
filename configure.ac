@@ -318,11 +318,8 @@ libxfdashboard/Makefile
 plugins/Makefile
 plugins/autopin-windows/Makefile
 plugins/clock-view/Makefile
-plugins/example-search-provider/Makefile
-plugins/gnome-shell-search-provider/Makefile
 plugins/hot-corner/Makefile
 plugins/middle-click-window-close/Makefile
-plugins/recently-used-search-provider/Makefile
 po/Makefile.in
 settings/Makefile
 xfdashboard/Makefile

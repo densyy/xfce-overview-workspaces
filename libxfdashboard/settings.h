@@ -30,7 +30,6 @@
 
 #include <glib-object.h>
 
-#include <libxfdashboard/applications-search-provider.h>
 #include <libxfdashboard/plugin.h>
 
 G_BEGIN_DECLS
@@ -99,12 +98,6 @@ void xfdashboard_settings_set_allow_subwindows(XfdashboardSettings *self, gboole
 const gchar** xfdashboard_settings_get_enabled_plugins(XfdashboardSettings *self);
 void xfdashboard_settings_set_enabled_plugins(XfdashboardSettings *self, const gchar **inEnabledPlugins);
 
-const gchar** xfdashboard_settings_get_favourites(XfdashboardSettings *self);
-void xfdashboard_settings_set_favourites(XfdashboardSettings *self, const gchar **inFavourites);
-
-gboolean xfdashboard_settings_get_always_launch_new_instance(XfdashboardSettings *self);
-void xfdashboard_settings_set_always_launch_new_instance(XfdashboardSettings *self, gboolean inAlwaysLaunchNewInstance);
-
 gboolean xfdashboard_settings_get_enable_workaround_unmapped_window(XfdashboardSettings *self);
 void xfdashboard_settings_set_enable_workaround_unmapped_window(XfdashboardSettings *self, gboolean inEnableWorkaroundUnmappedWindow);
 
@@ -117,23 +110,14 @@ void xfdashboard_settings_set_enable_animations(XfdashboardSettings *self, gbool
 guint xfdashboard_settings_get_notification_timeout(XfdashboardSettings *self);
 void xfdashboard_settings_set_notification_timeout(XfdashboardSettings *self, guint inNotificationTimeout);
 
-gboolean xfdashboard_settings_get_reset_search_on_resume(XfdashboardSettings *self);
-void xfdashboard_settings_set_reset_search_on_resume(XfdashboardSettings *self, gboolean inResetSearchOnResume);
-
 const gchar* xfdashboard_settings_get_switch_to_view_on_resume(XfdashboardSettings *self);
 void xfdashboard_settings_set_switch_to_view_on_resume(XfdashboardSettings *self, const gchar *inSwitchToViewOnResume);
 
 gboolean xfdashboard_settings_get_reselect_theme_focus_on_resume(XfdashboardSettings *self);
 void xfdashboard_settings_set_reselect_theme_focus_on_resume(XfdashboardSettings *self, gboolean inReselectThemeFocusOnResume);
 
-XfdashboardApplicationsSearchProviderSortMode xfdashboard_settings_get_applications_search_sort_mode(XfdashboardSettings *self);
-void xfdashboard_settings_set_applications_search_sort_mode(XfdashboardSettings *self, XfdashboardApplicationsSearchProviderSortMode inApplicationsSearchProviderSortMode);
-
 gboolean xfdashboard_settings_get_show_all_applications(XfdashboardSettings *self);
 void xfdashboard_settings_set_show_all_applications(XfdashboardSettings *self, gboolean inApplicationsViewShowAllApps);
-
-guint xfdashboard_settings_get_delay_search_timeout(XfdashboardSettings *self);
-void xfdashboard_settings_set_delay_search_timeout(XfdashboardSettings *self, guint inSearchViewDelaySearchTimeout);
 
 gboolean xfdashboard_settings_get_scroll_event_changes_workspace(XfdashboardSettings *self);
 void xfdashboard_settings_set_scroll_event_changes_workspace(XfdashboardSettings *self, gboolean inWindowsViewScrollEventChangesWorkspace);

@@ -8,8 +8,7 @@ Xfdashboard is maybe a Gnome shell and macOS Expose like dashboard for Xfce.
 (e.g. Exposé and Spaces) like interface for use with the Xfce desktop. It can
 be configured to run with any keyboard shortcut and when executed provides an
 overview of applications currently open enabling the user to switch between
-different applications. The search feature works like Xfce's app finder which
-makes it convenient to search for and start applications.
+different applications.
 
 ----
 

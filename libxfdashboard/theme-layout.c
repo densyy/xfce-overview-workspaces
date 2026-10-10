@@ -186,17 +186,13 @@
  * `xfdashboard` expects that it describes at least the child objects with the
  * following names set in attribute `id`:
  *
- *   * `quicklaunch` of class #XfdashboardQuicklaunch
+ *   * `viewpad` of class #XfdashboardViewpad
  *
- *     The quicklauch
+ *     The viewpad showing the views
  *
  *   * `workspace-selector` of class #XfdashboardWorkspaceSelector
  *
  *     The workspace selector
- *
- *   * `searchbox` of class #XfdashboardTextBox
- *
- *     The text box used to enter keywords for search
  *
  *   * `notification` of class #XfdashboardTextBox
  *
@@ -211,12 +207,6 @@
  *         the tooltip needs to float on stage freely.
  *       </para>
  *      </note>
- *
- * The following child object is optional in an interface with ID `primary`:
- *
- *   * `view-selector` of class #XfdashboardViewSelector
- *
- *     The view selector to switch between available and enabled views.
  *
  * ## Interface 'secondary'
  *
@@ -238,18 +228,7 @@
  *
  * ## Reserved actor names
  *
- * An object of class #XfdashboardQuicklaunch creates the following named actors
- * by itself:
- *
- *   * `applications-button` of class #XfdashboardToggleButton
- *
- *     The application button in quicklaunch to switch between windows view
- *     and applications/search view.
- *
- *   * `trash-button` of class #XfdashboardToggleButton
- *
- *     The trash button in quicklaunch which will be shown when reordering the
- *     favourites in quicklaunch.
+ * Currently no reserved actor names are defined.
  */
 
 #ifdef HAVE_CONFIG_H

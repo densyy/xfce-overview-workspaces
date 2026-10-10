@@ -38,7 +38,6 @@
 
 #include <glib/gi18n-lib.h>
 
-#include <libxfdashboard/applications-search-provider.h>
 #include <libxfdashboard/utils.h>
 #include <libxfdashboard/marshal.h>
 #include <libxfdashboard/enums.h>
@@ -52,24 +51,15 @@ struct _XfdashboardSettingsPrivate
 	gchar											*theme;
 	gboolean										allowSubwindows;
 	gchar											**enabledPlugins;
-	gchar											**favourites;
-	gboolean										alwaysLaunchNewInstance;
 	gboolean										enableWorkaroundUnmappedWindow;
 	gchar											*windowContentCreationPriority;
 	gboolean										enableAnimations;
 	guint											notificationTimeout;
-	gboolean										resetSearchOnResume;
 	gchar											*switchToViewOnResume;
 	gboolean										reselectThemeFocusOnResume;
 
-	/* Application search provider settings */
-	XfdashboardApplicationsSearchProviderSortMode	applicationsSearchProviderSortMode;
-
 	/* Applications view provider settings */
 	gboolean										applicationsViewShowAllApps;
-
-	/* Search view settings */
-	guint											searchViewDelaySearchTimeout;
 
 	/* Windows view settings */
 	gboolean										windowsViewScrollEventChangesWorkspace;
@@ -98,24 +88,15 @@ enum
 	PROP_THEME,
 	PROP_ALLOW_SUBWINDOWS,
 	PROP_ENABLED_PLUGINS,
-	PROP_FAVOURITES,
-	PROP_ALWAYS_LAUNCH_NEW_INSTANCE,
 	PROP_ENABLE_WORKAROUND_UNMAPPED_WINDOW,
 	PROP_WINDOW_CONTENT_CREATION_PRIORITY,
 	PROP_ENABLE_ANIMATIONS,
 	PROP_NOTIFICATION_TIMEOUT,
-	PROP_RESET_SEARCH_ON_RESUME,
 	PROP_SWITCH_TO_VIEW_ON_RESUME,
 	PROP_RESELECT_THEME_FOCUS_ON_RESUME,
 
-	/* Application search provider settings */
-	PROP_APPLICATIONS_SEARCH_PROVIDER_SORT_MODE,
-
 	/* Applications view provider settings */
 	PROP_APPLICATIONS_VIEW_SHOW_ALL_APPS,
-
-	/* Search view settings */
-	PROP_SEARCH_VIEW_DELAY_SEARCH_TIMEOUT,
 
 	/* Windows view settings */
 	PROP_WINDOWS_VIEW_SCROLL_EVENT_CHANGES_WORKSPACE,
@@ -146,17 +127,13 @@ static guint XfdashboardSettingsSignals[SIGNAL_LAST]={ 0, };
 /* IMPLEMENTATION: Private variables and methods */
 #define DEFAULT_THEME											"xfdashboard"
 #define DEFAULT_ALLOW_SUBWINDOWS								TRUE
-#define DEFAULT_ALWAYS_LAUNCH_NEW_INSTANCE						TRUE
 #define DEFAULT_ENABLE_WORKAROUND_UNMAPPED_WINDOW				FALSE
 #define DEFAULT_WINDOW_CONTENT_CREATION_PRIORITY				"immediate"
 #define DEFAULT_ENABLE_ANIMATIONS								TRUE
 #define DEFAULT_NOTIFICATION_TIMEOUT							3000
-#define DEFAULT_RESET_SEARCH_ON_RESUME							TRUE
 #define DEFAULT_SWITCH_TO_VIEW_ON_RESUME						NULL
 #define DEFAULT_RESELECT_THEME_FOCUS_ON_RESUME					FALSE
-#define DEFAULT_APPLICATIONS_SEARCH_PROVIDER_SORT_MODE			XFDASHBOARD_APPLICATIONS_SEARCH_PROVIDER_SORT_MODE_NONE
 #define DEFAULT_APPLICATIONS_VIEW_SHOW_ALL_APPS					FALSE
-#define DEFAULT_SEARCH_VIEW_DELAY_SEARCH_TIMEOUT				0
 #define DEFAULT_WINDOWS_VIEW_SCROLL_EVENT_CHANGES_WORKSPACE		FALSE
 
 typedef struct _XfdashboardSettingsPluginEntry					XfdashboardSettingsPluginEntry;
@@ -442,12 +419,6 @@ static void _xfdashboard_settings_dispose(GObject *inObject)
 		priv->enabledPlugins=NULL;
 	}
 
-	if(priv->favourites)
-	{
-		g_strfreev(priv->favourites);
-		priv->favourites=NULL;
-	}
-
 	if(priv->windowContentCreationPriority)
 	{
 		g_free(priv->windowContentCreationPriority);
@@ -493,14 +464,6 @@ static void _xfdashboard_settings_set_property(GObject *inObject,
 			xfdashboard_settings_set_enabled_plugins(self, (const gchar**)g_value_get_boxed(inValue));
 			break;
 
-		case PROP_FAVOURITES:
-			xfdashboard_settings_set_favourites(self, (const gchar**)g_value_get_boxed(inValue));
-			break;
-
-		case PROP_ALWAYS_LAUNCH_NEW_INSTANCE:
-			xfdashboard_settings_set_always_launch_new_instance(self, g_value_get_boolean(inValue));
-			break;
-
 		case PROP_ENABLE_WORKAROUND_UNMAPPED_WINDOW:
 			xfdashboard_settings_set_enable_workaround_unmapped_window(self, g_value_get_boolean(inValue));
 			break;
@@ -517,10 +480,6 @@ static void _xfdashboard_settings_set_property(GObject *inObject,
 			xfdashboard_settings_set_notification_timeout(self, g_value_get_uint(inValue));
 			break;
 
-		case PROP_RESET_SEARCH_ON_RESUME:
-			xfdashboard_settings_set_reset_search_on_resume(self, g_value_get_boolean(inValue));
-			break;
-
 		case PROP_SWITCH_TO_VIEW_ON_RESUME:
 			xfdashboard_settings_set_switch_to_view_on_resume(self, g_value_get_string(inValue));
 			break;
@@ -529,19 +488,9 @@ static void _xfdashboard_settings_set_property(GObject *inObject,
 			xfdashboard_settings_set_reselect_theme_focus_on_resume(self, g_value_get_boolean(inValue));
 			break;
 
-		/* Applications search provider settings */
-		case PROP_APPLICATIONS_SEARCH_PROVIDER_SORT_MODE:
-			xfdashboard_settings_set_applications_search_sort_mode(self, g_value_get_flags(inValue));
-			break;
-
 		/* Applications view provider settings */
 		case PROP_APPLICATIONS_VIEW_SHOW_ALL_APPS:
 			xfdashboard_settings_set_show_all_applications(self, g_value_get_boolean(inValue));
-			break;
-
-		/* Search view settings */
-		case PROP_SEARCH_VIEW_DELAY_SEARCH_TIMEOUT:
-			xfdashboard_settings_set_delay_search_timeout(self, g_value_get_uint(inValue));
 			break;
 
 		/* Windows view settings */
@@ -599,14 +548,6 @@ static void _xfdashboard_settings_get_property(GObject *inObject,
 			g_value_set_boxed(outValue, self->priv->enabledPlugins);
 			break;
 
-		case PROP_FAVOURITES:
-			g_value_set_boxed(outValue, self->priv->favourites);
-			break;
-
-		case PROP_ALWAYS_LAUNCH_NEW_INSTANCE:
-			g_value_set_boolean(outValue, self->priv->alwaysLaunchNewInstance);
-			break;
-
 		case PROP_ENABLE_WORKAROUND_UNMAPPED_WINDOW:
 			g_value_set_boolean(outValue, self->priv->enableWorkaroundUnmappedWindow);
 			break;
@@ -623,10 +564,6 @@ static void _xfdashboard_settings_get_property(GObject *inObject,
 			g_value_set_uint(outValue, self->priv->notificationTimeout);
 			break;
 
-		case PROP_RESET_SEARCH_ON_RESUME:
-			g_value_set_boolean(outValue, self->priv->resetSearchOnResume);
-			break;
-
 		case PROP_SWITCH_TO_VIEW_ON_RESUME:
 			g_value_set_string(outValue, self->priv->switchToViewOnResume);
 			break;
@@ -635,19 +572,9 @@ static void _xfdashboard_settings_get_property(GObject *inObject,
 			g_value_set_boolean(outValue, self->priv->reselectThemeFocusOnResume);
 			break;
 
-		/* Application search provider settings */
-		case PROP_APPLICATIONS_SEARCH_PROVIDER_SORT_MODE:
-			g_value_set_flags(outValue, self->priv->applicationsSearchProviderSortMode);
-			break;
-
 		/* Applications view provider settings */
 		case PROP_APPLICATIONS_VIEW_SHOW_ALL_APPS:
 			g_value_set_boolean(outValue, self->priv->applicationsViewShowAllApps);
-			break;
-
-		/* Search view settings */
-		case PROP_SEARCH_VIEW_DELAY_SEARCH_TIMEOUT:
-			g_value_set_uint(outValue, self->priv->searchViewDelaySearchTimeout);
 			break;
 
 		/* Windows view settings */
@@ -738,34 +665,6 @@ static void xfdashboard_settings_class_init(XfdashboardSettingsClass *klass)
 								G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
 	/**
-	 * XfdashboardSettings:favourites:
-	 *
-	 * A %NULL-terminated list of strings where each one contains either the desktop ID
-	 * or an absolute file path to the desktop file of a favourite.
-	 */
-	XfdashboardSettingsProperties[PROP_FAVOURITES]=
-		g_param_spec_boxed("favourites",
-							"Favourites",
-							"An array of strings pointing to desktop files shown as icons",
-							G_TYPE_STRV,
-							G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-
-	/**
-	 * XfdashboardSettings:always-launch-new-instance:
-	 *
-	 * A flag indicating if a new instance should an application choosen, e.g. at quicklaunch,
-	 * should be launched. If set to %TRUE, always a new instance will be launched. If set
-	 * to %FALSE an already running instance will be brought to front if existing, otherwise
-	 * it launches an instance of chosen application.
-	 */
-	XfdashboardSettingsProperties[PROP_ALWAYS_LAUNCH_NEW_INSTANCE]=
-		g_param_spec_boolean("always-launch-new-instance",
-								"Always launch new instance",
-								"Whether to always start a new instance of application or to bring an existing one to front",
-								DEFAULT_ALWAYS_LAUNCH_NEW_INSTANCE,
-								G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-
-	/**
 	 * XfdashboardSettings:enable-unmapped-window-workaround:
 	 *
 	 * A flag indicating if a workaround for unmapped windows should be enabled. If set to %TRUE
@@ -810,7 +709,7 @@ static void xfdashboard_settings_class_init(XfdashboardSettingsClass *klass)
 								G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
 	/**
-	 * XfdashboardSettings:delay-search-timeout:
+	 * XfdashboardSettings:min-notification-timeout:
 	 *
 	 * The number of milliseconds to wait at least before a hiding a notification.
 	 * The duration how long a notification is shown will be calculated but might
@@ -825,21 +724,6 @@ static void xfdashboard_settings_class_init(XfdashboardSettingsClass *klass)
 							G_MAXUINT,
 							DEFAULT_NOTIFICATION_TIMEOUT,
 							G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-
-	/**
-	 * XfdashboardSettings:reset-search-on-resume:
-	 *
-	 * A flag indicating if any started and running search should be stopped and resetted
-	 * when application resumes. If set to %TRUE the search box will be emptied resulting
-	 * in the active running search to be stopped. If set to %FALSE nothing happens when
-	 * application resumes.
-	 */
-	XfdashboardSettingsProperties[PROP_RESET_SEARCH_ON_RESUME]=
-		g_param_spec_boolean("reset-search-on-resume",
-								"Reset search on resume",
-								"Whether to reset and end search when application resumes",
-								DEFAULT_RESET_SEARCH_ON_RESUME,
-								G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
 	/**
 	 * XfdashboardSettings:switch-to-view-on-resume:
@@ -869,20 +753,6 @@ static void xfdashboard_settings_class_init(XfdashboardSettingsClass *klass)
 								G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
 	/**
-	 * XfdashboardSettings:applications-search-sort-mode:
-	 *
-	 * The sort mode how applications should be sorted in search result returned
-	 * by applications search provider.
-	 */
-	XfdashboardSettingsProperties[PROP_APPLICATIONS_SEARCH_PROVIDER_SORT_MODE]=
-		g_param_spec_flags("applications-search-sort-mode",
-							"Application search provider: Sort mode",
-							"The sort mode of applications in applications search provider",
-							XFDASHBOARD_TYPE_APPLICATIONS_SEARCH_PROVIDER_SORT_MODE,
-							DEFAULT_APPLICATIONS_SEARCH_PROVIDER_SORT_MODE,
-							G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-
-	/**
 	 * XfdashboardSettings:show-all-applications:
 	 *
 	 * A flag if set to %TRUE the applications in applications will all be shown at once without
@@ -895,20 +765,6 @@ static void xfdashboard_settings_class_init(XfdashboardSettingsClass *klass)
 								"Whether to show all applications in application view at once or to show menus to categorize applications",
 								DEFAULT_APPLICATIONS_VIEW_SHOW_ALL_APPS,
 								G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
-
-	/**
-	 * XfdashboardSettings:delay-search-timeout:
-	 *
-	 * The number of milliseconds to wait before the initial search is performed.
-	 */
-	XfdashboardSettingsProperties[PROP_SEARCH_VIEW_DELAY_SEARCH_TIMEOUT]=
-		g_param_spec_uint("delay-search-timeout",
-							"Search view: Delay search timeout",
-							"The number of milliseconds to wait before the initial search is performed",
-							0,
-							G_MAXUINT,
-							DEFAULT_SEARCH_VIEW_DELAY_SEARCH_TIMEOUT,
-							G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
 	/**
 	 * XfdashboardSettings:scroll-event-changes-workspace:
@@ -1036,13 +892,10 @@ static void xfdashboard_settings_init(XfdashboardSettings *self)
 	priv->theme=g_strdup(DEFAULT_THEME);
 	priv->allowSubwindows=DEFAULT_ALLOW_SUBWINDOWS;
 	priv->enabledPlugins=NULL;
-	priv->favourites=NULL;
-	priv->alwaysLaunchNewInstance=DEFAULT_ALWAYS_LAUNCH_NEW_INSTANCE;
 	priv->enableWorkaroundUnmappedWindow=DEFAULT_ENABLE_WORKAROUND_UNMAPPED_WINDOW;
 	priv->windowContentCreationPriority=DEFAULT_WINDOW_CONTENT_CREATION_PRIORITY;
 	priv->enableAnimations=DEFAULT_ENABLE_ANIMATIONS;
 	priv->notificationTimeout=DEFAULT_NOTIFICATION_TIMEOUT;
-	priv->resetSearchOnResume=DEFAULT_RESET_SEARCH_ON_RESUME;
 	priv->switchToViewOnResume=g_strdup(DEFAULT_SWITCH_TO_VIEW_ON_RESUME);
 	priv->reselectThemeFocusOnResume=DEFAULT_RESELECT_THEME_FOCUS_ON_RESUME;
 	priv->bindingFiles=NULL;
@@ -1051,14 +904,8 @@ static void xfdashboard_settings_init(XfdashboardSettings *self)
 	priv->configPath=NULL;
 	priv->dataPath=NULL;
 
-	/* Set default applications search provider settings */
-	priv->applicationsSearchProviderSortMode=DEFAULT_APPLICATIONS_SEARCH_PROVIDER_SORT_MODE;
-
 	/* Set default applications view settings */
 	priv->applicationsViewShowAllApps=DEFAULT_APPLICATIONS_VIEW_SHOW_ALL_APPS;
-
-	/* Set default search view settings */
-	priv->searchViewDelaySearchTimeout=DEFAULT_SEARCH_VIEW_DELAY_SEARCH_TIMEOUT;
 
 	/* Set default windows view settings */
 	priv->windowsViewScrollEventChangesWorkspace=DEFAULT_WINDOWS_VIEW_SCROLL_EVENT_CHANGES_WORKSPACE;
@@ -1399,108 +1246,6 @@ void xfdashboard_settings_set_enabled_plugins(XfdashboardSettings *self, const g
 }
 
 /**
- * xfdashboard_settings_get_favourites:
- * @self: A #XfdashboardSettings
- *
- * Retrieve the list of favourite applications in settings at @self.
- *
- * Return value: A %NULL-terminated list of strings containing either the
- *   desktop ID or an absolute file path to the desktop file of the favourite
- *   application or %NULL if no favourite application was set at all.
- */
-const gchar** xfdashboard_settings_get_favourites(XfdashboardSettings *self)
-{
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS(self), NULL);
-
-	return((const gchar**)self->priv->favourites);
-}
-
-/**
- * xfdashboard_settings_set_favourites:
- * @self: A #XfdashboardSettings
- * @inFavourites: The list of favourite applications
- *
- * Sets the list of favourite applications from @inFavourites in settings at @self.
- * The list of favourite applications at @inFavourites must be a %NULL-terminated
- * list of strings where each string contains either the desktop ID or an absolute
- * file path to the desktop file of that favourite application or set @inFavourites
- * to %NULL for an empty list.
- */
-void xfdashboard_settings_set_favourites(XfdashboardSettings *self, const gchar **inFavourites)
-{
-	XfdashboardSettingsPrivate		*priv;
-
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS(self));
-	g_return_if_fail(inFavourites==NULL || *inFavourites);
-
-	priv=self->priv;
-
-	/* Set value if changed */
-	if(!xfdashboard_strv_equal((const gchar**)priv->favourites, inFavourites))
-	{
-		/* Set value */
-		if(priv->favourites)
-		{
-			g_strfreev(priv->favourites);
-			priv->favourites=NULL;
-		}
-
-		if(inFavourites)
-		{
-			priv->favourites=g_strdupv((gchar**)inFavourites);
-		}
-
-		/* Notify about property change */
-		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardSettingsProperties[PROP_FAVOURITES]);
-	}
-}
-
-/**
- * xfdashboard_settings_get_always_launch_new_instance:
- * @self: A #XfdashboardSettings
- *
- * Retrieve if always new instances of chosen applications should be launched
- * from settings at @self.
- *
- * Return value: %TRUE if always new instances should be launched, otherwise %FALSE
- */
-gboolean xfdashboard_settings_get_always_launch_new_instance(XfdashboardSettings *self)
-{
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS(self), FALSE);
-
-	return(self->priv->alwaysLaunchNewInstance);
-}
-
-/**
- * xfdashboard_settings_set_always_launch_new_instance:
- * @self: A #XfdashboardSettings
- * @inAlwaysLaunchNewInstance: Whether to always launch new instances of applications
- *
- * Sets if always a new instance of an application should be launched in settings
- * at @self. If @inAlwaysLaunchNewInstance is set to %TRUE, always a new instance
- * of chosen application will be launched. If it is set to %FALSE an already running
- * instance will be brought to front if existing, otherwise it launches an instance.
- */
-void xfdashboard_settings_set_always_launch_new_instance(XfdashboardSettings *self, gboolean inAlwaysLaunchNewInstance)
-{
-	XfdashboardSettingsPrivate		*priv;
-
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS(self));
-
-	priv=self->priv;
-
-	/* Set value if changed */
-	if(priv->alwaysLaunchNewInstance!=inAlwaysLaunchNewInstance)
-	{
-		/* Set value */
-		priv->alwaysLaunchNewInstance=inAlwaysLaunchNewInstance;
-
-		/* Notify about property change */
-		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardSettingsProperties[PROP_ALWAYS_LAUNCH_NEW_INSTANCE]);
-	}
-}
-
-/**
  * xfdashboard_settings_get_enable_workaround_unmapped_window:
  * @self: A #XfdashboardSettings
  *
@@ -1684,52 +1429,6 @@ void xfdashboard_settings_set_notification_timeout(XfdashboardSettings *self, gu
 }
 
 /**
- * xfdashboard_settings_get_reset_search_on_resume:
- * @self: A #XfdashboardSettings
- *
- * Retrieve if active searchs should be stopped and resetted when application
- * resumes from settings at @self.
- *
- * Return value: %TRUE if active searches should be stopped and resetted,
- *   otherwise %FALSE
- */
-gboolean xfdashboard_settings_get_reset_search_on_resume(XfdashboardSettings *self)
-{
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS(self), FALSE);
-
-	return(self->priv->resetSearchOnResume);
-}
-
-/**
- * xfdashboard_settings_set_reset_search_on_resume:
- * @self: A #XfdashboardSettings
- * @inResetSearchOnResume: Whether to reset active searches when application resumes
- *
- * Sets if any active and running search should be stopped and resetted in settings
- * at @self. If @inResetSearchOnResume is set to %TRUE, the search box will be emptied
- * resulting in any active running search to be stopped and resetted. If it is set
- * to %FALSE nothing happens when application resumes.
- */
-void xfdashboard_settings_set_reset_search_on_resume(XfdashboardSettings *self, gboolean inResetSearchOnResume)
-{
-	XfdashboardSettingsPrivate		*priv;
-
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS(self));
-
-	priv=self->priv;
-
-	/* Set value if changed */
-	if(priv->resetSearchOnResume!=inResetSearchOnResume)
-	{
-		/* Set value */
-		priv->resetSearchOnResume=inResetSearchOnResume;
-
-		/* Notify about property change */
-		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardSettingsProperties[PROP_RESET_SEARCH_ON_RESUME]);
-	}
-}
-
-/**
  * xfdashboard_settings_get_switch_to_view_on_resume:
  * @self: A #XfdashboardSettings
  *
@@ -1831,51 +1530,6 @@ void xfdashboard_settings_set_reselect_theme_focus_on_resume(XfdashboardSettings
 }
 
 /**
- * xfdashboard_settings_get_applications_search_sort_mode:
- * @self: A #XfdashboardSettings
- *
- * Retrieve the sort mode of applications of applications search provider from
- * settings at @self.
- *
- * Return value: The sort mode of type #XfdashboardApplicationsSearchProviderSortMode
- */
-XfdashboardApplicationsSearchProviderSortMode xfdashboard_settings_get_applications_search_sort_mode(XfdashboardSettings *self)
-{
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS(self), FALSE);
-
-	return(self->priv->applicationsSearchProviderSortMode);
-}
-
-/**
- * xfdashboard_settings_set_applications_search_sort_mode:
- * @self: A #XfdashboardSettings
- * @inApplicationsSearchProviderSortMode: The sort mode of applications at
- *   applications search provider
- *
- * Sets the sort mode of applications from applications search provider in settings
- * at @self. The sort mode at @inApplicationsSearchProviderSortMode can be a
- * combination of the flags of type #XfdashboardApplicationsSearchProviderSortMode.
- */
-void xfdashboard_settings_set_applications_search_sort_mode(XfdashboardSettings *self, XfdashboardApplicationsSearchProviderSortMode inApplicationsSearchProviderSortMode)
-{
-	XfdashboardSettingsPrivate		*priv;
-
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS(self));
-
-	priv=self->priv;
-
-	/* Set value if changed */
-	if(priv->applicationsSearchProviderSortMode!=inApplicationsSearchProviderSortMode)
-	{
-		/* Set value */
-		priv->applicationsSearchProviderSortMode=inApplicationsSearchProviderSortMode;
-
-		/* Notify about property change */
-		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardSettingsProperties[PROP_APPLICATIONS_SEARCH_PROVIDER_SORT_MODE]);
-	}
-}
-
-/**
  * xfdashboard_settings_get_show_all_applications:
  * @self: A #XfdashboardSettings
  *
@@ -1919,49 +1573,6 @@ void xfdashboard_settings_set_show_all_applications(XfdashboardSettings *self, g
 
 		/* Notify about property change */
 		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardSettingsProperties[PROP_APPLICATIONS_VIEW_SHOW_ALL_APPS]);
-	}
-}
-
-/**
- * xfdashboard_settings_get_delay_search_timeout:
- * @self: A #XfdashboardSettings
- *
- * Retrieve the duration to wait before the initial search is performed from
- * settings at @self.
- *
- * Return value: The duration in milliseconds.
- */
-guint xfdashboard_settings_get_delay_search_timeout(XfdashboardSettings *self)
-{
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS(self), FALSE);
-
-	return(self->priv->searchViewDelaySearchTimeout);
-}
-
-/**
- * xfdashboard_settings_set_delay_search_timeout:
- * @self: A #XfdashboardSettings
- * @inSearchViewDelaySearchTimeout: The minimum timeout for notifications
- *
- * Sets the duration to wait before the initial search is performed in settings
- * at @self. The duration is specified in milliseconds at @inSearchViewDelaySearchTimeout.
- */
-void xfdashboard_settings_set_delay_search_timeout(XfdashboardSettings *self, guint inSearchViewDelaySearchTimeout)
-{
-	XfdashboardSettingsPrivate		*priv;
-
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS(self));
-
-	priv=self->priv;
-
-	/* Set value if changed */
-	if(priv->searchViewDelaySearchTimeout!=inSearchViewDelaySearchTimeout)
-	{
-		/* Set value */
-		priv->searchViewDelaySearchTimeout=inSearchViewDelaySearchTimeout;
-
-		/* Notify about property change */
-		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardSettingsProperties[PROP_SEARCH_VIEW_DELAY_SEARCH_TIMEOUT]);
 	}
 }
 

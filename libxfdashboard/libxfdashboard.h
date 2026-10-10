@@ -33,7 +33,6 @@
 #include <libxfdashboard/application-database.h>
 #include <libxfdashboard/application-tracker.h>
 #include <libxfdashboard/applications-menu-model.h>
-#include <libxfdashboard/applications-search-provider.h>
 #include <libxfdashboard/applications-view.h>
 #include <libxfdashboard/background.h>
 #include <libxfdashboard/binding.h>
@@ -69,14 +68,8 @@
 #include <libxfdashboard/popup-menu-item.h>
 #include <libxfdashboard/popup-menu-item-button.h>
 #include <libxfdashboard/popup-menu-item-separator.h>
-#include <libxfdashboard/quicklaunch.h>
 #include <libxfdashboard/scaled-table-layout.h>
 #include <libxfdashboard/scrollbar.h>
-#include <libxfdashboard/search-manager.h>
-#include <libxfdashboard/search-provider.h>
-#include <libxfdashboard/search-result-container.h>
-#include <libxfdashboard/search-result-set.h>
-#include <libxfdashboard/search-view.h>
 #include <libxfdashboard/settings.h>
 #include <libxfdashboard/stage.h>
 #include <libxfdashboard/stage-interface.h>
@@ -96,7 +89,6 @@
 #include <libxfdashboard/view.h>
 #include <libxfdashboard/view-manager.h>
 #include <libxfdashboard/viewpad.h>
-#include <libxfdashboard/view-selector.h>
 #include <libxfdashboard/window-content.h>
 #include <libxfdashboard/windows-view.h>
 #include <libxfdashboard/window-tracker.h>
