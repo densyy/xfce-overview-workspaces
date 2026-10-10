@@ -10,6 +10,8 @@
 > workspace**. A visão central (`viewpad`) foi removida dos 7 temas; o palco
 > nunca é fullscreen (largura da tela × ~22% da altura).
 
+![Faixa de workspaces com live previews](screenshot.png)
+
 ## Arquitetura (responsabilidade única por arquivo)
 
 Novos módulos extraídos (cada um com um escopo):

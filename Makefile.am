@@ -49,4 +49,5 @@ EXTRA_DIST = \
 	meson.build \
 	meson_options.txt \
 	po/meson.build \
+	screenshot.png \
 	xfce-revision.h.in
