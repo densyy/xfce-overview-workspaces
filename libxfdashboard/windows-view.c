@@ -36,7 +36,6 @@
 #include <libxfdashboard/core.h>
 #include <libxfdashboard/view.h>
 #include <libxfdashboard/drop-action.h>
-#include <libxfdashboard/application-button.h>
 #include <libxfdashboard/window-tracker.h>
 #include <libxfdashboard/image-content.h>
 #include <libxfdashboard/utils.h>

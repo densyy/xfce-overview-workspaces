@@ -37,9 +37,7 @@
 #include <libxfdashboard/viewpad.h>
 #include <libxfdashboard/text-box.h>
 #include <libxfdashboard/workspace-selector.h>
-#include <libxfdashboard/collapse-box.h>
 #include <libxfdashboard/tooltip-action.h>
-#include <libxfdashboard/stylable.h>
 #include <libxfdashboard/utils.h>
 #include <libxfdashboard/focus-manager.h>
 #include <libxfdashboard/enums.h>

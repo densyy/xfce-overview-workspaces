@@ -189,7 +189,7 @@ XfdashboardApplicationButton.running
 	effects: running-application;
 }
 
-/* Workspace selector (incl. collapse box) */
+/* Workspace selector */
 XfdashboardWorkspaceSelector
 {
 	spacing: 8.0;
@@ -204,16 +204,6 @@ XfdashboardWorkspaceSelector
 	using-fraction: true;
 	orientation: vertical;
 }
-
-#workspace-selector-collapse-box
-{
-	collapsed-size: 64.0;
-	collapse-orientation: left;
-}
-
-/* Search text box */
-
-/* View selector */
 
 /* Viewpad */
 #viewpad
@@ -233,8 +223,6 @@ XfdashboardView.view-icon-mode
 {
 	view-mode: icon;
 }
-
-/* Search view */
 
 /* Applications view */
 XfdashboardApplicationsView
@@ -365,15 +353,13 @@ XfdashboardApplicationsView XfdashboardButton:selected
 	background-fill-color: #93c1ffff;
 }
 
-.popup-menu.popup-menu-source-XfdashboardApplicationsView,
-.popup-menu.popup-menu-source-XfdashboardApplicationsSearchProvider
+.popup-menu.popup-menu-source-XfdashboardApplicationsView
 {
 	show-title: true;
 	show-title-icon: true;
 }
 
-.popup-menu.popup-menu-source-XfdashboardApplicationsView XfdashboardLabel.popup-menu-item,
-.popup-menu.popup-menu-source-XfdashboardApplicationsSearchProvider XfdashboardLabel.popup-menu-item
+.popup-menu.popup-menu-source-XfdashboardApplicationsView XfdashboardLabel.popup-menu-item
 {
 	icon-size: 16;
 	text-justify: left;
