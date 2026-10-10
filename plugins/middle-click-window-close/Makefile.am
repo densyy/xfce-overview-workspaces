@@ -1,14 +1,14 @@
-plugindir = $(libdir)/xfdashboard/plugins
+plugindir = $(libdir)/xfce-overview-workspaces/plugins
 PLUGIN_ID = middle-click-window-close
 
 AM_CPPFLAGS = \
 	-I$(top_builddir) \
 	-I$(top_srcdir) \
-	-DG_LOG_DOMAIN=\"xfdashboard-plugin-middle_click_window_close\" \
+	-DG_LOG_DOMAIN=\"xfce-overview-workspaces-plugin-middle_click_window_close\" \
 	-DLIBEXECDIR=\"$(libexecdir)\" \
 	-DPACKAGE_LOCALE_DIR=\"$(localedir)\" \
 	-DPLUGIN_ID=\"$(PLUGIN_ID)\" \
-	$(XFDASHBOARD_DEBUG_CFLAGS)
+	$(XFCE_OVERVIEW_WORKSPACES_DEBUG_CFLAGS)
 
 plugin_LTLIBRARIES = \
 	middle-click-window-close.la
@@ -41,7 +41,7 @@ middle_click_window_close_la_LIBADD = \
 	$(CLUTTER_LIBS) \
 	$(LIBXFCONF_LIBS) \
 	$(GARCON_CLIBS) \
-	$(top_builddir)/libxfdashboard/libxfdashboard.la
+	$(top_builddir)/libxfce-overview-workspaces/libxfce-overview-workspaces.la
 
 CLEANFILES = \
 	$(plugin_DATA)

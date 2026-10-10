@@ -12,7 +12,7 @@ shared_module(
   name_prefix: '',
   gnu_symbol_visibility: 'hidden',
   c_args: [
-    '-DG_LOG_DOMAIN="@0@"'.format('xfdashboard-plugin-hot-corner'),
+    '-DG_LOG_DOMAIN="@0@"'.format('xfce-overview-workspaces-plugin-hot-corner'),
     '-DPLUGIN_ID="@0@"'.format('hot-corner'),
   ],
   include_directories: [
@@ -22,8 +22,8 @@ shared_module(
     glib,
     gtk,
     libxfce4util,
-    libxfdashboard_dep,
+    libxfce_overview_workspaces_dep,
   ],
   install: true,
-  install_dir: get_option('prefix') / get_option('libdir') / 'xfdashboard' / 'plugins',
+  install_dir: get_option('prefix') / get_option('libdir') / 'xfce-overview-workspaces' / 'plugins',
 )

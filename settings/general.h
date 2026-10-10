@@ -21,8 +21,8 @@
  * 
  */
 
-#ifndef __XFDASHBOARD_SETTINGS_GENERAL__
-#define __XFDASHBOARD_SETTINGS_GENERAL__
+#ifndef __XFCE_OVERVIEW_WORKSPACES_SETTINGS_GENERAL__
+#define __XFCE_OVERVIEW_WORKSPACES_SETTINGS_GENERAL__
 
 #include <gtk/gtkx.h>
 
@@ -30,27 +30,27 @@
 
 G_BEGIN_DECLS
 
-#define XFDASHBOARD_TYPE_SETTINGS_GENERAL				(xfdashboard_settings_general_get_type())
-#define XFDASHBOARD_SETTINGS_GENERAL(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFDASHBOARD_TYPE_SETTINGS_GENERAL, XfdashboardSettingsGeneral))
-#define XFDASHBOARD_IS_SETTINGS_GENERAL(obj)			(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFDASHBOARD_TYPE_SETTINGS_GENERAL))
-#define XFDASHBOARD_SETTINGS_GENERAL_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFDASHBOARD_TYPE_SETTINGS_GENERAL, XfdashboardSettingsGeneralClass))
-#define XFDASHBOARD_IS_SETTINGS_GENERAL_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE((klass), XFDASHBOARD_TYPE_SETTINGS_GENERAL))
-#define XFDASHBOARD_SETTINGS_GENERAL_GET_CLASS(obj)		(G_TYPE_INSTANCE_GET_CLASS((obj), XFDASHBOARD_TYPE_SETTINGS_GENERAL, XfdashboardSettingsGeneralClass))
+#define XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_GENERAL				(xfce_overview_workspaces_settings_general_get_type())
+#define XFCE_OVERVIEW_WORKSPACES_SETTINGS_GENERAL(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_GENERAL, XfceOverviewWorkspacesSettingsGeneral))
+#define XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_GENERAL(obj)			(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_GENERAL))
+#define XFCE_OVERVIEW_WORKSPACES_SETTINGS_GENERAL_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_GENERAL, XfceOverviewWorkspacesSettingsGeneralClass))
+#define XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_GENERAL_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_GENERAL))
+#define XFCE_OVERVIEW_WORKSPACES_SETTINGS_GENERAL_GET_CLASS(obj)		(G_TYPE_INSTANCE_GET_CLASS((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_GENERAL, XfceOverviewWorkspacesSettingsGeneralClass))
 
-typedef struct _XfdashboardSettingsGeneral				XfdashboardSettingsGeneral;
-typedef struct _XfdashboardSettingsGeneralClass			XfdashboardSettingsGeneralClass;
-typedef struct _XfdashboardSettingsGeneralPrivate		XfdashboardSettingsGeneralPrivate;
+typedef struct _XfceOverviewWorkspacesSettingsGeneral				XfceOverviewWorkspacesSettingsGeneral;
+typedef struct _XfceOverviewWorkspacesSettingsGeneralClass			XfceOverviewWorkspacesSettingsGeneralClass;
+typedef struct _XfceOverviewWorkspacesSettingsGeneralPrivate		XfceOverviewWorkspacesSettingsGeneralPrivate;
 
-struct _XfdashboardSettingsGeneral
+struct _XfceOverviewWorkspacesSettingsGeneral
 {
 	/* Parent instance */
 	GObject								parent_instance;
 
 	/* Private structure */
-	XfdashboardSettingsGeneralPrivate	*priv;
+	XfceOverviewWorkspacesSettingsGeneralPrivate	*priv;
 };
 
-struct _XfdashboardSettingsGeneralClass
+struct _XfceOverviewWorkspacesSettingsGeneralClass
 {
 	/*< private >*/
 	/* Parent class */
@@ -61,10 +61,10 @@ struct _XfdashboardSettingsGeneralClass
 };
 
 /* Public API */
-GType xfdashboard_settings_general_get_type(void) G_GNUC_CONST;
+GType xfce_overview_workspaces_settings_general_get_type(void) G_GNUC_CONST;
 
-XfdashboardSettingsGeneral* xfdashboard_settings_general_new(XfdashboardSettingsApp *inApp);
+XfceOverviewWorkspacesSettingsGeneral* xfce_overview_workspaces_settings_general_new(XfceOverviewWorkspacesSettingsApp *inApp);
 
 G_END_DECLS
 
-#endif	/* __XFDASHBOARD_SETTINGS_GENERAL__ */
+#endif	/* __XFCE_OVERVIEW_WORKSPACES_SETTINGS_GENERAL__ */

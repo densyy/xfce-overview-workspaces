@@ -1,0 +1,10 @@
+[Xfce Overview Workspaces Theme]
+Name=xfce-overview-workspaces-blue
+Comment=Blue theme for xfce-overview-workspaces
+Style=xfce-overview-workspaces-blue.css
+Layout=xfce-overview-workspaces.xml;xfce-overview-workspaces-secondary.xml
+Effects=effects.xml
+Animations=animations.xml
+Author=lacios
+Version=@PACKAGE_VERSION@
+Screenshot=screenshot-xfce-overview-workspaces-blue.png

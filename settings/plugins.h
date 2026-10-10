@@ -21,8 +21,8 @@
  * 
  */
 
-#ifndef __XFDASHBOARD_SETTINGS_PLUGINS__
-#define __XFDASHBOARD_SETTINGS_PLUGINS__
+#ifndef __XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS__
+#define __XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS__
 
 #include <gtk/gtkx.h>
 
@@ -30,27 +30,27 @@
 
 G_BEGIN_DECLS
 
-#define XFDASHBOARD_TYPE_SETTINGS_PLUGINS				(xfdashboard_settings_plugins_get_type())
-#define XFDASHBOARD_SETTINGS_PLUGINS(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFDASHBOARD_TYPE_SETTINGS_PLUGINS, XfdashboardSettingsPlugins))
-#define XFDASHBOARD_IS_SETTINGS_PLUGINS(obj)			(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFDASHBOARD_TYPE_SETTINGS_PLUGINS))
-#define XFDASHBOARD_SETTINGS_PLUGINS_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFDASHBOARD_TYPE_SETTINGS_PLUGINS, XfdashboardSettingsPluginsClass))
-#define XFDASHBOARD_IS_SETTINGS_PLUGINS_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE((klass), XFDASHBOARD_TYPE_SETTINGS_PLUGINS))
-#define XFDASHBOARD_SETTINGS_PLUGINS_GET_CLASS(obj)		(G_TYPE_INSTANCE_GET_CLASS((obj), XFDASHBOARD_TYPE_SETTINGS_PLUGINS, XfdashboardSettingsPluginsClass))
+#define XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_PLUGINS				(xfce_overview_workspaces_settings_plugins_get_type())
+#define XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_PLUGINS, XfceOverviewWorkspacesSettingsPlugins))
+#define XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_PLUGINS(obj)			(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_PLUGINS))
+#define XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_PLUGINS, XfceOverviewWorkspacesSettingsPluginsClass))
+#define XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_PLUGINS_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_PLUGINS))
+#define XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_GET_CLASS(obj)		(G_TYPE_INSTANCE_GET_CLASS((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_PLUGINS, XfceOverviewWorkspacesSettingsPluginsClass))
 
-typedef struct _XfdashboardSettingsPlugins				XfdashboardSettingsPlugins;
-typedef struct _XfdashboardSettingsPluginsClass			XfdashboardSettingsPluginsClass;
-typedef struct _XfdashboardSettingsPluginsPrivate		XfdashboardSettingsPluginsPrivate;
+typedef struct _XfceOverviewWorkspacesSettingsPlugins				XfceOverviewWorkspacesSettingsPlugins;
+typedef struct _XfceOverviewWorkspacesSettingsPluginsClass			XfceOverviewWorkspacesSettingsPluginsClass;
+typedef struct _XfceOverviewWorkspacesSettingsPluginsPrivate		XfceOverviewWorkspacesSettingsPluginsPrivate;
 
-struct _XfdashboardSettingsPlugins
+struct _XfceOverviewWorkspacesSettingsPlugins
 {
 	/* Parent instance */
 	GObject								parent_instance;
 
 	/* Private structure */
-	XfdashboardSettingsPluginsPrivate	*priv;
+	XfceOverviewWorkspacesSettingsPluginsPrivate	*priv;
 };
 
-struct _XfdashboardSettingsPluginsClass
+struct _XfceOverviewWorkspacesSettingsPluginsClass
 {
 	/*< private >*/
 	/* Parent class */
@@ -61,10 +61,10 @@ struct _XfdashboardSettingsPluginsClass
 };
 
 /* Public API */
-GType xfdashboard_settings_plugins_get_type(void) G_GNUC_CONST;
+GType xfce_overview_workspaces_settings_plugins_get_type(void) G_GNUC_CONST;
 
-XfdashboardSettingsPlugins* xfdashboard_settings_plugins_new(XfdashboardSettingsApp *inApp);
+XfceOverviewWorkspacesSettingsPlugins* xfce_overview_workspaces_settings_plugins_new(XfceOverviewWorkspacesSettingsApp *inApp);
 
 G_END_DECLS
 
-#endif	/* __XFDASHBOARD_SETTINGS_PLUGINS__ */
+#endif	/* __XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS__ */

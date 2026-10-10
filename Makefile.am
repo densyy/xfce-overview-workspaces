@@ -6,10 +6,10 @@ SUBDIRS = \
 	common \
 	data \
 	po \
-	libxfdashboard \
+	libxfce-overview-workspaces \
 	plugins \
 	settings \
-	xfdashboard
+	xfce-overview-workspaces
 
 distuninstallcheck_listfiles =                                          \
         find . -type f -print | grep -v ./share/icons/hicolor/icon-theme.cache

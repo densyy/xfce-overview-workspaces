@@ -1,65 +1,65 @@
 <bindings>
 	<!-- Global bindings -->
-<key code="<Ctrl>-q" source="XfdashboardFocusable" target="XfdashboardApplication" when="pressed">exit</key>
+<key code="<Ctrl>-q" source="XfceOverviewWorkspacesFocusable" target="XfceOverviewWorkspacesApplication" when="pressed">exit</key>
 
-	<key code="Tab" source="XfdashboardFocusable" target="XfdashboardFocusManager" when="released">focus-move-next</key>
-	<key code="KP_Tab" source="XfdashboardFocusable" target="XfdashboardFocusManager" when="released">focus-move-next</key>
-	<key code="<Shift>-Tab" source="XfdashboardFocusable" target="XfdashboardFocusManager" when="released">focus-move-previous</key>
-	<key code="<Shift>-KP_Tab" source="XfdashboardFocusable" target="XfdashboardFocusManager" when="released">focus-move-previous</key>
-	<key code="ISO_Left_Tab" source="XfdashboardFocusable" target="XfdashboardFocusManager" when="released">focus-move-previous</key>
+	<key code="Tab" source="XfceOverviewWorkspacesFocusable" target="XfceOverviewWorkspacesFocusManager" when="released">focus-move-next</key>
+	<key code="KP_Tab" source="XfceOverviewWorkspacesFocusable" target="XfceOverviewWorkspacesFocusManager" when="released">focus-move-next</key>
+	<key code="<Shift>-Tab" source="XfceOverviewWorkspacesFocusable" target="XfceOverviewWorkspacesFocusManager" when="released">focus-move-previous</key>
+	<key code="<Shift>-KP_Tab" source="XfceOverviewWorkspacesFocusable" target="XfceOverviewWorkspacesFocusManager" when="released">focus-move-previous</key>
+	<key code="ISO_Left_Tab" source="XfceOverviewWorkspacesFocusable" target="XfceOverviewWorkspacesFocusManager" when="released">focus-move-previous</key>
 
-	<key code="<Ctrl>-w" source="XfdashboardFocusable" target="XfdashboardWindowsView" when="released" allow-unfocusable-targets="true">view-activate</key>
-	<key code="<Ctrl>-a" source="XfdashboardFocusable" target="XfdashboardApplicationsView" when="released" allow-unfocusable-targets="true">view-activate</key>
+	<key code="<Ctrl>-w" source="XfceOverviewWorkspacesFocusable" target="XfceOverviewWorkspacesWindowsView" when="released" allow-unfocusable-targets="true">view-activate</key>
+	<key code="<Ctrl>-a" source="XfceOverviewWorkspacesFocusable" target="XfceOverviewWorkspacesApplicationsView" when="released" allow-unfocusable-targets="true">view-activate</key>
 
-	<key code="Left" source="XfdashboardFocusable" when="pressed">selection-move-left</key>
-	<key code="Right" source="XfdashboardFocusable" when="pressed">selection-move-right</key>
-	<key code="Up" source="XfdashboardFocusable" when="pressed">selection-move-up</key>
-	<key code="Down" source="XfdashboardFocusable" when="pressed">selection-move-down</key>
-	<key code="Home" source="XfdashboardFocusable" when="pressed">selection-move-first</key>
-	<key code="KP_Home" source="XfdashboardFocusable" when="pressed">selection-move-first</key>
-	<key code="End" source="XfdashboardFocusable" when="pressed">selection-move-last</key>
-	<key code="KP_End" source="XfdashboardFocusable" when="pressed">selection-move-last</key>
-	<key code="<Ctrl>-Page_Up" source="XfdashboardFocusable" when="pressed">selection-move-page-left</key>
-	<key code="<Ctrl>-KP_Page_Up" source="XfdashboardFocusable" when="pressed">selection-move-page-left</key>
-	<key code="<Ctrl>-Page_Down" source="XfdashboardFocusable" when="pressed">selection-move-page-right</key>
-	<key code="<Ctrl>-KP_Page_Down" source="XfdashboardFocusable" when="pressed">selection-move-page-right</key>
-	<key code="Page_Up" source="XfdashboardFocusable" when="pressed">selection-move-page-up</key>
-	<key code="KP_Page_Up" source="XfdashboardFocusable" when="pressed">selection-move-page-up</key>
-	<key code="Page_Down" source="XfdashboardFocusable" when="pressed">selection-move-page-down</key>
-	<key code="KP_Page_Down" source="XfdashboardFocusable" when="pressed">selection-move-page-down</key>
+	<key code="Left" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-left</key>
+	<key code="Right" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-right</key>
+	<key code="Up" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-up</key>
+	<key code="Down" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-down</key>
+	<key code="Home" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-first</key>
+	<key code="KP_Home" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-first</key>
+	<key code="End" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-last</key>
+	<key code="KP_End" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-last</key>
+	<key code="<Ctrl>-Page_Up" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-page-left</key>
+	<key code="<Ctrl>-KP_Page_Up" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-page-left</key>
+	<key code="<Ctrl>-Page_Down" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-page-right</key>
+	<key code="<Ctrl>-KP_Page_Down" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-page-right</key>
+	<key code="Page_Up" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-page-up</key>
+	<key code="KP_Page_Up" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-page-up</key>
+	<key code="Page_Down" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-page-down</key>
+	<key code="KP_Page_Down" source="XfceOverviewWorkspacesFocusable" when="pressed">selection-move-page-down</key>
 
-	<key code="Return" source="XfdashboardFocusable" when="released">selection-activate</key>
-	<key code="KP_Enter" source="XfdashboardFocusable" when="released">selection-activate</key>
-	<key code="ISO_Enter" source="XfdashboardFocusable" when="released">selection-activate</key>
+	<key code="Return" source="XfceOverviewWorkspacesFocusable" when="released">selection-activate</key>
+	<key code="KP_Enter" source="XfceOverviewWorkspacesFocusable" when="released">selection-activate</key>
+	<key code="ISO_Enter" source="XfceOverviewWorkspacesFocusable" when="released">selection-activate</key>
 
 	<!-- Windows view -->
-	<key code="<Shift>-BackSpace" source="XfdashboardWindowsView" when="released">window-close</key>
-	<key code="Delete" source="XfdashboardWindowsView" when="released">window-close</key>
-	<key code="KP_Delete" source="XfdashboardWindowsView" when="released">window-close</key>
-	<key code="Control_L" source="XfdashboardWindowsView" when="pressed">windows-show-numbers</key>
-	<key code="Control_L" source="XfdashboardWindowsView" when="released">windows-hide-numbers</key>
-	<key code="<Ctrl>-1" source="XfdashboardWindowsView" when="released">windows-activate-window-one</key>
-	<key code="<Ctrl>-KP_1" source="XfdashboardWindowsView" when="released">windows-activate-window-one</key>
-	<key code="<Ctrl>-2" source="XfdashboardWindowsView" when="released">windows-activate-window-two</key>
-	<key code="<Ctrl>-KP_2" source="XfdashboardWindowsView" when="released">windows-activate-window-two</key>
-	<key code="<Ctrl>-3" source="XfdashboardWindowsView" when="released">windows-activate-window-three</key>
-	<key code="<Ctrl>-KP_3" source="XfdashboardWindowsView" when="released">windows-activate-window-three</key>
-	<key code="<Ctrl>-4" source="XfdashboardWindowsView" when="released">windows-activate-window-four</key>
-	<key code="<Ctrl>-KP_4" source="XfdashboardWindowsView" when="released">windows-activate-window-four</key>
-	<key code="<Ctrl>-5" source="XfdashboardWindowsView" when="released">windows-activate-window-five</key>
-	<key code="<Ctrl>-KP_5" source="XfdashboardWindowsView" when="released">windows-activate-window-five</key>
-	<key code="<Ctrl>-6" source="XfdashboardWindowsView" when="released">windows-activate-window-six</key>
-	<key code="<Ctrl>-KP_6" source="XfdashboardWindowsView" when="released">windows-activate-window-six</key>
-	<key code="<Ctrl>-7" source="XfdashboardWindowsView" when="released">windows-activate-window-seven</key>
-	<key code="<Ctrl>-KP_7" source="XfdashboardWindowsView" when="released">windows-activate-window-seven</key>
-	<key code="<Ctrl>-8" source="XfdashboardWindowsView" when="released">windows-activate-window-eight</key>
-	<key code="<Ctrl>-KP_8" source="XfdashboardWindowsView" when="released">windows-activate-window-eight</key>
-	<key code="<Ctrl>-9" source="XfdashboardWindowsView" when="released">windows-activate-window-nine</key>
-	<key code="<Ctrl>-KP_9" source="XfdashboardWindowsView" when="released">windows-activate-window-nine</key>
-	<key code="<Ctrl>-0" source="XfdashboardWindowsView" when="released">windows-activate-window-ten</key>
-	<key code="<Ctrl>-KP_0" source="XfdashboardWindowsView" when="released">windows-activate-window-ten</key>
+	<key code="<Shift>-BackSpace" source="XfceOverviewWorkspacesWindowsView" when="released">window-close</key>
+	<key code="Delete" source="XfceOverviewWorkspacesWindowsView" when="released">window-close</key>
+	<key code="KP_Delete" source="XfceOverviewWorkspacesWindowsView" when="released">window-close</key>
+	<key code="Control_L" source="XfceOverviewWorkspacesWindowsView" when="pressed">windows-show-numbers</key>
+	<key code="Control_L" source="XfceOverviewWorkspacesWindowsView" when="released">windows-hide-numbers</key>
+	<key code="<Ctrl>-1" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-one</key>
+	<key code="<Ctrl>-KP_1" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-one</key>
+	<key code="<Ctrl>-2" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-two</key>
+	<key code="<Ctrl>-KP_2" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-two</key>
+	<key code="<Ctrl>-3" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-three</key>
+	<key code="<Ctrl>-KP_3" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-three</key>
+	<key code="<Ctrl>-4" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-four</key>
+	<key code="<Ctrl>-KP_4" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-four</key>
+	<key code="<Ctrl>-5" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-five</key>
+	<key code="<Ctrl>-KP_5" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-five</key>
+	<key code="<Ctrl>-6" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-six</key>
+	<key code="<Ctrl>-KP_6" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-six</key>
+	<key code="<Ctrl>-7" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-seven</key>
+	<key code="<Ctrl>-KP_7" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-seven</key>
+	<key code="<Ctrl>-8" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-eight</key>
+	<key code="<Ctrl>-KP_8" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-eight</key>
+	<key code="<Ctrl>-9" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-nine</key>
+	<key code="<Ctrl>-KP_9" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-nine</key>
+	<key code="<Ctrl>-0" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-ten</key>
+	<key code="<Ctrl>-KP_0" source="XfceOverviewWorkspacesWindowsView" when="released">windows-activate-window-ten</key>
 
 	<!-- Applications view -->
-	<key code="<Ctrl>-i" source="XfdashboardApplicationsView" when="released">apply-classes::+view-icon-mode,-view-list-mode</key>
-	<key code="<Ctrl>-l" source="XfdashboardApplicationsView" when="released">apply-classes::-view-icon-mode,+view-list-mode</key>
+	<key code="<Ctrl>-i" source="XfceOverviewWorkspacesApplicationsView" when="released">apply-classes::+view-icon-mode,-view-list-mode</key>
+	<key code="<Ctrl>-l" source="XfceOverviewWorkspacesApplicationsView" when="released">apply-classes::-view-icon-mode,+view-list-mode</key>
 </bindings>

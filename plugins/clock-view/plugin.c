@@ -33,25 +33,25 @@
 
 
 /* Forward declarations */
-G_MODULE_EXPORT void plugin_init(XfdashboardPlugin *self);
+G_MODULE_EXPORT void plugin_init(XfceOverviewWorkspacesPlugin *self);
 
 
-/* IMPLEMENTATION: XfdashboardPlugin */
+/* IMPLEMENTATION: XfceOverviewWorkspacesPlugin */
 
 /* Color has changed at settings */
 static void _plugin_on_settings_color_change(GObject *inObject,
 												GParamSpec *inSpec,
 												gpointer inUserData)
 {
-	XfdashboardClockViewSettings	*settings;
+	XfceOverviewWorkspacesClockViewSettings	*settings;
 	GtkColorButton					*button;
 	ClutterColor					*settingsColor;
 	GdkRGBA							widgetColor;
 
-	g_return_if_fail(XFDASHBOARD_IS_CLOCK_VIEW_SETTINGS(inObject));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_CLOCK_VIEW_SETTINGS(inObject));
 	g_return_if_fail(GTK_IS_COLOR_BUTTON(inUserData));
 
-	settings=XFDASHBOARD_CLOCK_VIEW_SETTINGS(inObject);
+	settings=XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW_SETTINGS(inObject);
 	button=GTK_COLOR_BUTTON(inUserData);
 
 	/* Get current color from settings */
@@ -74,7 +74,7 @@ static void _plugin_on_color_button_color_chosen(GtkColorButton *inButton,
 	GdkRGBA							widgetColor;
 	ClutterColor					settingsColor;
 	const gchar						*property;
-	XfdashboardClockViewSettings	*settings;
+	XfceOverviewWorkspacesClockViewSettings	*settings;
 
 	g_return_if_fail(GTK_IS_COLOR_BUTTON(inButton));
 	g_return_if_fail(inUserData);
@@ -91,7 +91,7 @@ static void _plugin_on_color_button_color_chosen(GtkColorButton *inButton,
 	settingsColor.alpha=MIN(255, (gint)(widgetColor.alpha*255.0f));
 
 	/* Set converted color at settings */
-	settings=xfdashboard_clock_view_settings_new();
+	settings=xfce_overview_workspaces_clock_view_settings_new();
 	g_object_set(settings, property, &settingsColor, NULL);
 	g_object_unref(settings);
 }
@@ -100,7 +100,7 @@ static void _plugin_on_color_button_color_chosen(GtkColorButton *inButton,
 static void _plugin_on_widget_value_destroy(GtkWidget *inWidget,
 											gpointer inUserData)
 {
-	XfdashboardClockViewSettings	*settings;
+	XfceOverviewWorkspacesClockViewSettings	*settings;
 	guint							signalID;
 
 	g_return_if_fail(GTK_IS_WIDGET(inWidget));
@@ -112,7 +112,7 @@ static void _plugin_on_widget_value_destroy(GtkWidget *inWidget,
 	 * the updated settings value at will be destroyed. So it will
 	 * not exist anymore when the signal handler is called.
 	 */
-	settings=xfdashboard_clock_view_settings_new();
+	settings=xfce_overview_workspaces_clock_view_settings_new();
 	g_signal_handler_disconnect(settings, signalID);
 	g_object_unref(settings);
 }
@@ -122,7 +122,7 @@ static void _plugin_on_widget_value_destroy(GtkWidget *inWidget,
  * in widget etc.
  */
 static void _plugin_configure_setup_color_button(GtkColorButton *inButton,
-													XfdashboardClockViewSettings *inSettings,
+													XfceOverviewWorkspacesClockViewSettings *inSettings,
 													const gchar *inProperty)
 {
 	ClutterColor					*settingsColor;
@@ -131,7 +131,7 @@ static void _plugin_configure_setup_color_button(GtkColorButton *inButton,
 	guint							signalID;
 
 	g_return_if_fail(GTK_IS_COLOR_BUTTON(inButton));
-	g_return_if_fail(XFDASHBOARD_IS_CLOCK_VIEW_SETTINGS(inSettings));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_CLOCK_VIEW_SETTINGS(inSettings));
 	g_return_if_fail(inProperty && *inProperty);
 
 	/* Get current color from settings */
@@ -173,15 +173,15 @@ static void _plugin_configure_setup_color_button(GtkColorButton *inButton,
 }
 
 /* Plugin configuration function */
-static GObject* plugin_configure(XfdashboardPlugin *self, gpointer inUserData)
+static GObject* plugin_configure(XfceOverviewWorkspacesPlugin *self, gpointer inUserData)
 {
 	GtkWidget						*layout;
 	GtkWidget						*widgetLabel;
 	GtkWidget						*widgetValue;
-	XfdashboardClockViewSettings	*settings;
+	XfceOverviewWorkspacesClockViewSettings	*settings;
 
 	/* Get settings */
-	settings=xfdashboard_clock_view_settings_new();
+	settings=xfce_overview_workspaces_clock_view_settings_new();
 
 	/* Create layout widget */
 	layout=gtk_grid_new();
@@ -242,48 +242,48 @@ static GObject* plugin_configure(XfdashboardPlugin *self, gpointer inUserData)
 }
 
 /* Plugin enable function */
-static void plugin_enable(XfdashboardPlugin *self, gpointer inUserData)
+static void plugin_enable(XfceOverviewWorkspacesPlugin *self, gpointer inUserData)
 {
-	XfdashboardViewManager	*viewManager;
+	XfceOverviewWorkspacesViewManager	*viewManager;
 
 	/* Register view */
-	viewManager=xfdashboard_core_get_view_manager(NULL);
+	viewManager=xfce_overview_workspaces_core_get_view_manager(NULL);
 
-	xfdashboard_view_manager_register(viewManager, PLUGIN_ID, XFDASHBOARD_TYPE_CLOCK_VIEW);
+	xfce_overview_workspaces_view_manager_register(viewManager, PLUGIN_ID, XFCE_OVERVIEW_WORKSPACES_TYPE_CLOCK_VIEW);
 
 	g_object_unref(viewManager);
 }
 
 /* Plugin disable function */
-static void plugin_disable(XfdashboardPlugin *self, gpointer inUserData)
+static void plugin_disable(XfceOverviewWorkspacesPlugin *self, gpointer inUserData)
 {
-	XfdashboardViewManager	*viewManager;
+	XfceOverviewWorkspacesViewManager	*viewManager;
 
 	/* Unregister view */
-	viewManager=xfdashboard_core_get_view_manager(NULL);
+	viewManager=xfce_overview_workspaces_core_get_view_manager(NULL);
 
-	xfdashboard_view_manager_unregister(viewManager, PLUGIN_ID);
+	xfce_overview_workspaces_view_manager_unregister(viewManager, PLUGIN_ID);
 
 	g_object_unref(viewManager);
 }
 
 /* Plugin initialization function */
-G_MODULE_EXPORT void plugin_init(XfdashboardPlugin *self)
+G_MODULE_EXPORT void plugin_init(XfceOverviewWorkspacesPlugin *self)
 {
 	/* Set up localization */
 	xfce_textdomain(GETTEXT_PACKAGE, PACKAGE_LOCALE_DIR, "UTF-8");
 
 	/* Register GObject types of this plugin */
-	XFDASHBOARD_REGISTER_PLUGIN_TYPE(self, xfdashboard_clock_view);
-	XFDASHBOARD_REGISTER_PLUGIN_TYPE(self, xfdashboard_clock_view_settings);
+	XFCE_OVERVIEW_WORKSPACES_REGISTER_PLUGIN_TYPE(self, xfce_overview_workspaces_clock_view);
+	XFCE_OVERVIEW_WORKSPACES_REGISTER_PLUGIN_TYPE(self, xfce_overview_workspaces_clock_view_settings);
 
 	/* Set plugin info */
-	xfdashboard_plugin_set_info(self,
-								"flags", XFDASHBOARD_PLUGIN_FLAG_EARLY_INITIALIZATION,
+	xfce_overview_workspaces_plugin_set_info(self,
+								"flags", XFCE_OVERVIEW_WORKSPACES_PLUGIN_FLAG_EARLY_INITIALIZATION,
 								"name", _("Clock"),
 								"description", _("Adds a new view showing a clock"),
 								"author", "Stephan Haller <nomad@froevel.de>",
-								"settings", xfdashboard_clock_view_settings_new(),
+								"settings", xfce_overview_workspaces_clock_view_settings_new(),
 								NULL);
 
 	/* Connect plugin action handlers */

@@ -33,11 +33,11 @@
 
 
 /* Define this class in GObject system */
-struct _XfdashboardSettingsGeneralPrivate
+struct _XfceOverviewWorkspacesSettingsGeneralPrivate
 {
 	/* Properties related */
 	GtkBuilder				*builder;
-	XfdashboardSettings		*settings;
+	XfceOverviewWorkspacesSettings		*settings;
 
 	/* Instance related */
 	gboolean				setupDone;
@@ -51,8 +51,8 @@ struct _XfdashboardSettingsGeneralPrivate
 	GtkWidget				*widgetEnableAnimations;
 };
 
-G_DEFINE_TYPE_WITH_PRIVATE(XfdashboardSettingsGeneral,
-							xfdashboard_settings_general,
+G_DEFINE_TYPE_WITH_PRIVATE(XfceOverviewWorkspacesSettingsGeneral,
+							xfce_overview_workspaces_settings_general,
 							G_TYPE_OBJECT)
 
 /* Properties */
@@ -66,18 +66,18 @@ enum
 	PROP_LAST
 };
 
-static GParamSpec* XfdashboardSettingsGeneralProperties[PROP_LAST]={ 0, };
+static GParamSpec* XfceOverviewWorkspacesSettingsGeneralProperties[PROP_LAST]={ 0, };
 
 
 /* IMPLEMENTATION: Private variables and methods */
-typedef struct _XfdashboardSettingsGeneralNameValuePair		XfdashboardSettingsGeneralNameValuePair;
-struct _XfdashboardSettingsGeneralNameValuePair
+typedef struct _XfceOverviewWorkspacesSettingsGeneralNameValuePair		XfceOverviewWorkspacesSettingsGeneralNameValuePair;
+struct _XfceOverviewWorkspacesSettingsGeneralNameValuePair
 {
 	const gchar		*displayName;
 	const gchar		*value;
 };
 
-static XfdashboardSettingsGeneralNameValuePair				_xfdashboard_settings_general_resumable_views_values[]=
+static XfceOverviewWorkspacesSettingsGeneralNameValuePair				_xfce_overview_workspaces_settings_general_resumable_views_values[]=
 {
 	{ N_("Do nothing"), NULL },
 	{ N_("Windows view"), "builtin.windows" },
@@ -85,7 +85,7 @@ static XfdashboardSettingsGeneralNameValuePair				_xfdashboard_settings_general_
 	{ NULL, NULL }
 };
 
-static XfdashboardSettingsGeneralNameValuePair				_xfdashboard_settings_general_window_creation_priorities_values[]=
+static XfceOverviewWorkspacesSettingsGeneralNameValuePair				_xfce_overview_workspaces_settings_general_window_creation_priorities_values[]=
 {
 	{ N_("Immediately"), "immediate", },
 	{ N_("High"), "high"},
@@ -100,21 +100,21 @@ static XfdashboardSettingsGeneralNameValuePair				_xfdashboard_settings_general_
  * value from the widget. NULL values are handled with g_strcmp0 so the
  * "Do nothing" (NULL) entry keeps working for switch-to-view-on-resume.
  */
-typedef struct _XfdashboardSettingsGeneralComboboxBinding	XfdashboardSettingsGeneralComboboxBinding;
-struct _XfdashboardSettingsGeneralComboboxBinding
+typedef struct _XfceOverviewWorkspacesSettingsGeneralComboboxBinding	XfceOverviewWorkspacesSettingsGeneralComboboxBinding;
+struct _XfceOverviewWorkspacesSettingsGeneralComboboxBinding
 {
-	XfdashboardSettingsGeneral		*self;
+	XfceOverviewWorkspacesSettingsGeneral		*self;
 	GtkWidget						*widget;
-	const gchar						*(*getter)(XfdashboardSettings *inSettings);
-	void							(*setter)(XfdashboardSettings *inSettings, const gchar *inValue);
+	const gchar						*(*getter)(XfceOverviewWorkspacesSettings *inSettings);
+	void							(*setter)(XfceOverviewWorkspacesSettings *inSettings, const gchar *inValue);
 };
 
 /* Generic: combo box changed at widget -> store at settings */
-static void _xfdashboard_settings_general_combobox_changed_by_widget(GtkComboBox *inComboBox,
+static void _xfce_overview_workspaces_settings_general_combobox_changed_by_widget(GtkComboBox *inComboBox,
 																gpointer inUserData)
 {
-	XfdashboardSettingsGeneralComboboxBinding	*binding;
-	XfdashboardSettingsGeneralPrivate			*priv;
+	XfceOverviewWorkspacesSettingsGeneralComboboxBinding	*binding;
+	XfceOverviewWorkspacesSettingsGeneralPrivate			*priv;
 	GtkTreeModel							*model;
 	GtkTreeIter								iter;
 	gchar									*value;
@@ -122,8 +122,8 @@ static void _xfdashboard_settings_general_combobox_changed_by_widget(GtkComboBox
 	g_return_if_fail(GTK_IS_COMBO_BOX(inComboBox));
 	g_return_if_fail(inUserData!=NULL);
 
-	binding=(XfdashboardSettingsGeneralComboboxBinding*)inUserData;
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(binding->self));
+	binding=(XfceOverviewWorkspacesSettingsGeneralComboboxBinding*)inUserData;
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_GENERAL(binding->self));
 
 	priv=binding->self->priv;
 
@@ -140,11 +140,11 @@ static void _xfdashboard_settings_general_combobox_changed_by_widget(GtkComboBox
 }
 
 /* Generic: settings changed -> select matching entry at combo box */
-static void _xfdashboard_settings_general_combobox_changed_by_settings(XfdashboardSettings *inSettings,
+static void _xfce_overview_workspaces_settings_general_combobox_changed_by_settings(XfceOverviewWorkspacesSettings *inSettings,
 																GParamSpec *inParamSpec,
 																gpointer inUserData)
 {
-	XfdashboardSettingsGeneralComboboxBinding	*binding;
+	XfceOverviewWorkspacesSettingsGeneralComboboxBinding	*binding;
 	GtkTreeModel							*model;
 	GtkTreeIter								iter;
 	gchar									*value;
@@ -152,8 +152,8 @@ static void _xfdashboard_settings_general_combobox_changed_by_settings(Xfdashboa
 
 	g_return_if_fail(inUserData!=NULL);
 
-	binding=(XfdashboardSettingsGeneralComboboxBinding*)inUserData;
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(binding->self));
+	binding=(XfceOverviewWorkspacesSettingsGeneralComboboxBinding*)inUserData;
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_GENERAL(binding->self));
 
 	/* Get new value to lookup and set at combo box */
 	newValue=(binding->getter)(binding->self->priv->settings);
@@ -181,24 +181,24 @@ static void _xfdashboard_settings_general_combobox_changed_by_settings(Xfdashboa
  * settings value via getter and bind widget "changed" (via setter) and
  * settings notify signal (via getter) with generic handlers above.
  */
-static void _bind_combobox(XfdashboardSettingsGeneral *self,
+static void _bind_combobox(XfceOverviewWorkspacesSettingsGeneral *self,
 							GtkWidget *inWidget,
-							XfdashboardSettingsGeneralNameValuePair *inTable,
-							const gchar *(*inGetter)(XfdashboardSettings *inSettings),
-							void (*inSetter)(XfdashboardSettings *inSettings, const gchar *inValue),
+							XfceOverviewWorkspacesSettingsGeneralNameValuePair *inTable,
+							const gchar *(*inGetter)(XfceOverviewWorkspacesSettings *inSettings),
+							void (*inSetter)(XfceOverviewWorkspacesSettings *inSettings, const gchar *inValue),
 							const gchar *inNotifySignal)
 {
-	XfdashboardSettingsGeneralPrivate			*priv;
+	XfceOverviewWorkspacesSettingsGeneralPrivate			*priv;
 	GtkCellRenderer							*renderer;
 	GtkListStore							*listStore;
 	GtkTreeIter								listStoreIter;
 	GtkTreeIter								*defaultListStoreIter;
-	XfdashboardSettingsGeneralNameValuePair		*iter;
+	XfceOverviewWorkspacesSettingsGeneralNameValuePair		*iter;
 	const gchar								*defaultValue;
-	XfdashboardSettingsGeneralComboboxBinding	*bindingWidget;
-	XfdashboardSettingsGeneralComboboxBinding	*bindingSettings;
+	XfceOverviewWorkspacesSettingsGeneralComboboxBinding	*bindingWidget;
+	XfceOverviewWorkspacesSettingsGeneralComboboxBinding	*bindingSettings;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_GENERAL(self));
 	g_return_if_fail(GTK_IS_COMBO_BOX(inWidget));
 	g_return_if_fail(inTable!=NULL);
 	g_return_if_fail(inGetter!=NULL);
@@ -244,39 +244,39 @@ static void _bind_combobox(XfdashboardSettingsGeneral *self,
 	/* Connect signals with separate bindings as each connection takes
 	 * ownership of its data (avoids double-free of a shared struct).
 	 */
-	bindingWidget=g_new0(XfdashboardSettingsGeneralComboboxBinding, 1);
+	bindingWidget=g_new0(XfceOverviewWorkspacesSettingsGeneralComboboxBinding, 1);
 	bindingWidget->self=self;
 	bindingWidget->widget=inWidget;
 	bindingWidget->getter=inGetter;
 	bindingWidget->setter=inSetter;
 	g_signal_connect_data(inWidget,
 							"changed",
-							G_CALLBACK(_xfdashboard_settings_general_combobox_changed_by_widget),
+							G_CALLBACK(_xfce_overview_workspaces_settings_general_combobox_changed_by_widget),
 							bindingWidget,
 							(GClosureNotify)g_free,
 							0);
 
-	bindingSettings=g_new0(XfdashboardSettingsGeneralComboboxBinding, 1);
+	bindingSettings=g_new0(XfceOverviewWorkspacesSettingsGeneralComboboxBinding, 1);
 	bindingSettings->self=self;
 	bindingSettings->widget=inWidget;
 	bindingSettings->getter=inGetter;
 	bindingSettings->setter=inSetter;
 	g_signal_connect_data(priv->settings,
 							inNotifySignal,
-							G_CALLBACK(_xfdashboard_settings_general_combobox_changed_by_settings),
+							G_CALLBACK(_xfce_overview_workspaces_settings_general_combobox_changed_by_settings),
 							bindingSettings,
 							(GClosureNotify)g_free,
 							0);
 }
 
 /* Setting '/min-notification-timeout' changed either at widget or at xfconf property */
-static void _xfdashboard_settings_general_notification_timeout_changed_by_widget(XfdashboardSettingsGeneral *self,
+static void _xfce_overview_workspaces_settings_general_notification_timeout_changed_by_widget(XfceOverviewWorkspacesSettingsGeneral *self,
 																					GtkRange *inRange)
 {
-	XfdashboardSettingsGeneralPrivate		*priv;
+	XfceOverviewWorkspacesSettingsGeneralPrivate		*priv;
 	guint									value;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_GENERAL(self));
 	g_return_if_fail(GTK_IS_RANGE(inRange));
 
 	priv=self->priv;
@@ -285,29 +285,29 @@ static void _xfdashboard_settings_general_notification_timeout_changed_by_widget
 	value=floor(gtk_range_get_value(inRange)*1000);
 
 	/* Set value at xfconf property */
-	xfdashboard_settings_set_notification_timeout(priv->settings, value);
+	xfce_overview_workspaces_settings_set_notification_timeout(priv->settings, value);
 }
 
-static void _xfdashboard_settings_general_notification_timeout_changed_by_settings(XfdashboardSettingsGeneral *self,
+static void _xfce_overview_workspaces_settings_general_notification_timeout_changed_by_settings(XfceOverviewWorkspacesSettingsGeneral *self,
 																					GParamSpec *inParamSpec,
 																					GObject *inObject)
 {
-	XfdashboardSettingsGeneralPrivate		*priv;
+	XfceOverviewWorkspacesSettingsGeneralPrivate		*priv;
 	guint									newValue;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_GENERAL(self));
 
 	priv=self->priv;
 
 	/* Get new value to set at widget */
-	newValue=xfdashboard_settings_get_notification_timeout(priv->settings);
+	newValue=xfce_overview_workspaces_settings_get_notification_timeout(priv->settings);
 
 	/* Set new value at widget */
 	gtk_range_set_value(GTK_RANGE(priv->widgetMinNotificationTimeout), newValue/1000.0);
 }
 
 /* Format value to show in notification timeout slider */
-static gchar* _xfdashboard_settings_general_on_format_notification_timeout_value(GtkScale *inWidget,
+static gchar* _xfce_overview_workspaces_settings_general_on_format_notification_timeout_value(GtkScale *inWidget,
 																					gdouble inValue,
 																					gpointer inUserData)
 {
@@ -319,11 +319,11 @@ static gchar* _xfdashboard_settings_general_on_format_notification_timeout_value
 }
 
 /* Set up this tab */
-static void _xfdashboard_settings_general_setup(XfdashboardSettingsGeneral *self)
+static void _xfce_overview_workspaces_settings_general_setup(XfceOverviewWorkspacesSettingsGeneral *self)
 {
-	XfdashboardSettingsGeneralPrivate				*priv;
+	XfceOverviewWorkspacesSettingsGeneralPrivate				*priv;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_GENERAL(self));
 
 	priv=self->priv;
 
@@ -342,9 +342,9 @@ static void _xfdashboard_settings_general_setup(XfdashboardSettingsGeneral *self
 	{
 		_bind_combobox(self,
 						priv->widgetSwitchToViewOnResume,
-						_xfdashboard_settings_general_resumable_views_values,
-						xfdashboard_settings_get_switch_to_view_on_resume,
-						xfdashboard_settings_set_switch_to_view_on_resume,
+						_xfce_overview_workspaces_settings_general_resumable_views_values,
+						xfce_overview_workspaces_settings_get_switch_to_view_on_resume,
+						xfce_overview_workspaces_settings_set_switch_to_view_on_resume,
 						"notify::switch-to-view-on-resume");
 	}
 
@@ -355,7 +355,7 @@ static void _xfdashboard_settings_general_setup(XfdashboardSettingsGeneral *self
 		gdouble										defaultValue;
 
 		/* Get default value */
-		defaultValue=xfdashboard_settings_get_notification_timeout(priv->settings)/1000.0;
+		defaultValue=xfce_overview_workspaces_settings_get_notification_timeout(priv->settings)/1000.0;
 
 		/* Set up scaling settings of widget */
 		adjustment=GTK_ADJUSTMENT(gtk_builder_get_object(priv->builder, "notification-timeout-adjustment"));
@@ -367,15 +367,15 @@ static void _xfdashboard_settings_general_setup(XfdashboardSettingsGeneral *self
 		/* Connect signals */
 		g_signal_connect(priv->widgetMinNotificationTimeout,
 							"format-value",
-							G_CALLBACK(_xfdashboard_settings_general_on_format_notification_timeout_value),
+							G_CALLBACK(_xfce_overview_workspaces_settings_general_on_format_notification_timeout_value),
 							NULL);
 		g_signal_connect_swapped(priv->widgetMinNotificationTimeout,
 									"value-changed",
-									G_CALLBACK(_xfdashboard_settings_general_notification_timeout_changed_by_widget),
+									G_CALLBACK(_xfce_overview_workspaces_settings_general_notification_timeout_changed_by_widget),
 									self);
 		g_signal_connect_swapped(priv->settings,
 									"notify::min-notification-timeout",
-									G_CALLBACK(_xfdashboard_settings_general_notification_timeout_changed_by_settings),
+									G_CALLBACK(_xfce_overview_workspaces_settings_general_notification_timeout_changed_by_settings),
 									self);
 	}
 
@@ -405,9 +405,9 @@ static void _xfdashboard_settings_general_setup(XfdashboardSettingsGeneral *self
 	{
 		_bind_combobox(self,
 						priv->widgetWindowCreationPriority,
-						_xfdashboard_settings_general_window_creation_priorities_values,
-						xfdashboard_settings_get_window_content_creation_priority,
-						xfdashboard_settings_set_window_content_creation_priority,
+						_xfce_overview_workspaces_settings_general_window_creation_priorities_values,
+						xfce_overview_workspaces_settings_get_window_content_creation_priority,
+						xfce_overview_workspaces_settings_set_window_content_creation_priority,
 						"notify::window-content-creation-priority");
 	}
 
@@ -427,12 +427,12 @@ static void _xfdashboard_settings_general_setup(XfdashboardSettingsGeneral *self
 }
 
 /* Create and set up GtkBuilder */
-static void _xfdashboard_settings_general_set_builder(XfdashboardSettingsGeneral *self,
+static void _xfce_overview_workspaces_settings_general_set_builder(XfceOverviewWorkspacesSettingsGeneral *self,
 														GtkBuilder *inBuilder)
 {
-	XfdashboardSettingsGeneralPrivate				*priv;
+	XfceOverviewWorkspacesSettingsGeneralPrivate				*priv;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_GENERAL(self));
 	g_return_if_fail(GTK_IS_BUILDER(inBuilder));
 
 	priv=self->priv;
@@ -443,17 +443,17 @@ static void _xfdashboard_settings_general_set_builder(XfdashboardSettingsGeneral
 	priv->builder=g_object_ref(inBuilder);
 
 	/* If both builder and settings are set, then set up tab */
-	_xfdashboard_settings_general_setup(self);
+	_xfce_overview_workspaces_settings_general_setup(self);
 }
 
 /* Set settings object instance */
-static void _xfdashboard_settings_general_set_settings(XfdashboardSettingsGeneral *self,
-														XfdashboardSettings *inSettings)
+static void _xfce_overview_workspaces_settings_general_set_settings(XfceOverviewWorkspacesSettingsGeneral *self,
+														XfceOverviewWorkspacesSettings *inSettings)
 {
-	XfdashboardSettingsGeneralPrivate				*priv;
+	XfceOverviewWorkspacesSettingsGeneralPrivate				*priv;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_GENERAL(self));
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS(inSettings));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_GENERAL(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS(inSettings));
 
 	priv=self->priv;
 
@@ -463,17 +463,17 @@ static void _xfdashboard_settings_general_set_settings(XfdashboardSettingsGenera
 	priv->settings=g_object_ref(inSettings);
 
 	/* If both builder and settings are set, then set up tab */
-	_xfdashboard_settings_general_setup(self);
+	_xfce_overview_workspaces_settings_general_setup(self);
 }
 
 
 /* IMPLEMENTATION: GObject */
 
 /* Dispose this object */
-static void _xfdashboard_settings_general_dispose(GObject *inObject)
+static void _xfce_overview_workspaces_settings_general_dispose(GObject *inObject)
 {
-	XfdashboardSettingsGeneral			*self=XFDASHBOARD_SETTINGS_GENERAL(inObject);
-	XfdashboardSettingsGeneralPrivate	*priv=self->priv;
+	XfceOverviewWorkspacesSettingsGeneral			*self=XFCE_OVERVIEW_WORKSPACES_SETTINGS_GENERAL(inObject);
+	XfceOverviewWorkspacesSettingsGeneralPrivate	*priv=self->priv;
 
 	/* Release allocated resouces */
 	priv->widgetSwitchToViewOnResume=NULL;
@@ -495,25 +495,25 @@ static void _xfdashboard_settings_general_dispose(GObject *inObject)
 	}
 
 	/* Call parent's class dispose method */
-	G_OBJECT_CLASS(xfdashboard_settings_general_parent_class)->dispose(inObject);
+	G_OBJECT_CLASS(xfce_overview_workspaces_settings_general_parent_class)->dispose(inObject);
 }
 
 /* Set/get properties */
-static void _xfdashboard_settings_general_set_property(GObject *inObject,
+static void _xfce_overview_workspaces_settings_general_set_property(GObject *inObject,
 														guint inPropID,
 														const GValue *inValue,
 														GParamSpec *inSpec)
 {
-	XfdashboardSettingsGeneral				*self=XFDASHBOARD_SETTINGS_GENERAL(inObject);
+	XfceOverviewWorkspacesSettingsGeneral				*self=XFCE_OVERVIEW_WORKSPACES_SETTINGS_GENERAL(inObject);
 
 	switch(inPropID)
 	{
 		case PROP_BUILDER:
-			_xfdashboard_settings_general_set_builder(self, GTK_BUILDER(g_value_get_object(inValue)));
+			_xfce_overview_workspaces_settings_general_set_builder(self, GTK_BUILDER(g_value_get_object(inValue)));
 			break;
 
 		case PROP_SETTINGS:
-			_xfdashboard_settings_general_set_settings(self, XFDASHBOARD_SETTINGS(g_value_get_object(inValue)));
+			_xfce_overview_workspaces_settings_general_set_settings(self, XFCE_OVERVIEW_WORKSPACES_SETTINGS(g_value_get_object(inValue)));
 			break;
 
 		default:
@@ -522,13 +522,13 @@ static void _xfdashboard_settings_general_set_property(GObject *inObject,
 	}
 }
 
-static void _xfdashboard_settings_general_get_property(GObject *inObject,
+static void _xfce_overview_workspaces_settings_general_get_property(GObject *inObject,
 														guint inPropID,
 														GValue *outValue,
 														GParamSpec *inSpec)
 {
-	XfdashboardSettingsGeneral				*self=XFDASHBOARD_SETTINGS_GENERAL(inObject);
-	XfdashboardSettingsGeneralPrivate		*priv=self->priv;
+	XfceOverviewWorkspacesSettingsGeneral				*self=XFCE_OVERVIEW_WORKSPACES_SETTINGS_GENERAL(inObject);
+	XfceOverviewWorkspacesSettingsGeneralPrivate		*priv=self->priv;
 
 	switch(inPropID)
 	{
@@ -550,41 +550,41 @@ static void _xfdashboard_settings_general_get_property(GObject *inObject,
  * Override functions in parent classes and define properties
  * and signals
  */
-static void xfdashboard_settings_general_class_init(XfdashboardSettingsGeneralClass *klass)
+static void xfce_overview_workspaces_settings_general_class_init(XfceOverviewWorkspacesSettingsGeneralClass *klass)
 {
 	GObjectClass		*gobjectClass=G_OBJECT_CLASS(klass);
 
 	/* Override functions */
-	gobjectClass->dispose=_xfdashboard_settings_general_dispose;
-	gobjectClass->set_property=_xfdashboard_settings_general_set_property;
-	gobjectClass->get_property=_xfdashboard_settings_general_get_property;
+	gobjectClass->dispose=_xfce_overview_workspaces_settings_general_dispose;
+	gobjectClass->set_property=_xfce_overview_workspaces_settings_general_set_property;
+	gobjectClass->get_property=_xfce_overview_workspaces_settings_general_get_property;
 
 	/* Define properties */
-	XfdashboardSettingsGeneralProperties[PROP_BUILDER]=
+	XfceOverviewWorkspacesSettingsGeneralProperties[PROP_BUILDER]=
 		g_param_spec_object("builder",
 								"Builder",
 								"The initialized GtkBuilder object where to set up themes tab from",
 								GTK_TYPE_BUILDER,
 								G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
-	XfdashboardSettingsGeneralProperties[PROP_SETTINGS]=
+	XfceOverviewWorkspacesSettingsGeneralProperties[PROP_SETTINGS]=
 		g_param_spec_object("settings",
 								"Settings",
 								"The settings object of application",
-								XFDASHBOARD_TYPE_SETTINGS,
+								XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS,
 								G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
-	g_object_class_install_properties(gobjectClass, PROP_LAST, XfdashboardSettingsGeneralProperties);
+	g_object_class_install_properties(gobjectClass, PROP_LAST, XfceOverviewWorkspacesSettingsGeneralProperties);
 }
 
 /* Object initialization
  * Create private structure and set up default values
  */
-static void xfdashboard_settings_general_init(XfdashboardSettingsGeneral *self)
+static void xfce_overview_workspaces_settings_general_init(XfceOverviewWorkspacesSettingsGeneral *self)
 {
-	XfdashboardSettingsGeneralPrivate	*priv;
+	XfceOverviewWorkspacesSettingsGeneralPrivate	*priv;
 
-	priv=self->priv=xfdashboard_settings_general_get_instance_private(self);
+	priv=self->priv=xfce_overview_workspaces_settings_general_get_instance_private(self);
 
 	/* Set default values */
 	priv->builder=NULL;
@@ -601,18 +601,18 @@ static void xfdashboard_settings_general_init(XfdashboardSettingsGeneral *self)
 /* IMPLEMENTATION: Public API */
 
 /* Create instance of this class */
-XfdashboardSettingsGeneral* xfdashboard_settings_general_new(XfdashboardSettingsApp *inApp)
+XfceOverviewWorkspacesSettingsGeneral* xfce_overview_workspaces_settings_general_new(XfceOverviewWorkspacesSettingsApp *inApp)
 {
 	GObject		*instance;
 
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS_APP(inApp), NULL);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_APP(inApp), NULL);
 
 	/* Create instance */
-	instance=g_object_new(XFDASHBOARD_TYPE_SETTINGS_GENERAL,
-							"builder", xfdashboard_settings_app_get_builder(inApp),
-							"settings", xfdashboard_settings_app_get_settings(inApp),
+	instance=g_object_new(XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_GENERAL,
+							"builder", xfce_overview_workspaces_settings_app_get_builder(inApp),
+							"settings", xfce_overview_workspaces_settings_app_get_settings(inApp),
 							NULL);
 
 	/* Return newly created instance */
-	return(XFDASHBOARD_SETTINGS_GENERAL(instance));
+	return(XFCE_OVERVIEW_WORKSPACES_SETTINGS_GENERAL(instance));
 }

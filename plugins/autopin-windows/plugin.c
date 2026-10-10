@@ -32,25 +32,25 @@
 
 
 /* Forward declarations */
-G_MODULE_EXPORT void plugin_init(XfdashboardPlugin *self);
+G_MODULE_EXPORT void plugin_init(XfceOverviewWorkspacesPlugin *self);
 
 
-/* IMPLEMENTATION: XfdashboardPlugin */
+/* IMPLEMENTATION: XfceOverviewWorkspacesPlugin */
 
-static XfdashboardAutopinWindows			*autopinWindows=NULL;
+static XfceOverviewWorkspacesAutopinWindows			*autopinWindows=NULL;
 
 /* Plugin enable function */
-static void plugin_enable(XfdashboardPlugin *self, gpointer inUserData)
+static void plugin_enable(XfceOverviewWorkspacesPlugin *self, gpointer inUserData)
 {
 	/* Create instance of hot corner */
 	if(G_LIKELY(!autopinWindows))
 	{
-		autopinWindows=xfdashboard_autopin_windows_new();
+		autopinWindows=xfce_overview_workspaces_autopin_windows_new();
 	}
 }
 
 /* Plugin disable function */
-static void plugin_disable(XfdashboardPlugin *self, gpointer inUserData)
+static void plugin_disable(XfceOverviewWorkspacesPlugin *self, gpointer inUserData)
 {
 	/* Destroy instance of hot corner */
 	if(G_LIKELY(autopinWindows))
@@ -61,20 +61,20 @@ static void plugin_disable(XfdashboardPlugin *self, gpointer inUserData)
 }
 
 /* Plugin initialization function */
-G_MODULE_EXPORT void plugin_init(XfdashboardPlugin *self)
+G_MODULE_EXPORT void plugin_init(XfceOverviewWorkspacesPlugin *self)
 {
 	/* Set up localization */
 	xfce_textdomain(GETTEXT_PACKAGE, PACKAGE_LOCALE_DIR, "UTF-8");
 
 	/* Set plugin info */
-	xfdashboard_plugin_set_info(self,
+	xfce_overview_workspaces_plugin_set_info(self,
 								"name", _("Auto-pin windows"),
 								"description", _("Pins windows on secondary windows or unpins windows on primary windows automatically"),
 								"author", "Stephan Haller <nomad@froevel.de>",
 								NULL);
 
 	/* Register GObject types of this plugin */
-	XFDASHBOARD_REGISTER_PLUGIN_TYPE(self, xfdashboard_autopin_windows);
+	XFCE_OVERVIEW_WORKSPACES_REGISTER_PLUGIN_TYPE(self, xfce_overview_workspaces_autopin_windows);
 
 	/* Connect plugin action handlers */
 	g_signal_connect(self, "enable", G_CALLBACK(plugin_enable), NULL);

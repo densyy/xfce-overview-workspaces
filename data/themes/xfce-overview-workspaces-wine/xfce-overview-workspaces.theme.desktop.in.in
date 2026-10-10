@@ -1,0 +1,10 @@
+[Xfce Overview Workspaces Theme]
+Name=xfce-overview-workspaces-wine
+Comment=Red wine theme for xfce-overview-workspaces
+Style=xfce-overview-workspaces-wine.css
+Layout=xfce-overview-workspaces.xml;xfce-overview-workspaces-secondary.xml
+Effects=effects.xml
+Animations=animations.xml
+Author=lacios
+Version=@PACKAGE_VERSION@
+Screenshot=screenshot-xfce-overview-workspaces-wine.png

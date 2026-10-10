@@ -18,8 +18,8 @@ libxfconf_settings = static_library(
   ],
   dependencies: libxfconf_settings_deps,
   c_args: [
-    '-DLIBXFDASHBOARD_COMPILATION=1',
-    '-DG_LOG_DOMAIN="@0@"'.format('xfdashboard'),
+    '-DLIBXFCE_OVERVIEW_WORKSPACES_COMPILATION=1',
+    '-DG_LOG_DOMAIN="@0@"'.format('xfce-overview-workspaces'),
   ],
   install: false,
 )

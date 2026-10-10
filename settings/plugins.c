@@ -28,16 +28,16 @@
 #include "plugins.h"
 
 #include "settings.h"
-#include <libxfdashboard/plugin.h>
+#include <libxfce-overview-workspaces/plugin.h>
 #include <glib/gi18n-lib.h>
 
 
 /* Define this class in GObject system */
-struct _XfdashboardSettingsPluginsPrivate
+struct _XfceOverviewWorkspacesSettingsPluginsPrivate
 {
 	/* Properties related */
 	GtkBuilder				*builder;
-	XfdashboardSettings		*settings;
+	XfceOverviewWorkspacesSettings		*settings;
 
 	/* Instance related */
 	GtkWidget				*widgetPlugins;
@@ -57,8 +57,8 @@ struct _XfdashboardSettingsPluginsPrivate
 	GtkWidget				*widgetPluginPreferencesDialogTitle;
 };
 
-G_DEFINE_TYPE_WITH_PRIVATE(XfdashboardSettingsPlugins,
-							xfdashboard_settings_plugins,
+G_DEFINE_TYPE_WITH_PRIVATE(XfceOverviewWorkspacesSettingsPlugins,
+							xfce_overview_workspaces_settings_plugins,
 							G_TYPE_OBJECT)
 
 /* Properties */
@@ -72,45 +72,45 @@ enum
 	PROP_LAST
 };
 
-static GParamSpec* XfdashboardSettingsPluginsProperties[PROP_LAST]={ 0, };
+static GParamSpec* XfceOverviewWorkspacesSettingsPluginsProperties[PROP_LAST]={ 0, };
 
 
 /* IMPLEMENTATION: Private variables and methods */
-#define XFDASHBOARD_XFCONF_CHANNEL					"xfdashboard"
+#define XFCE_OVERVIEW_WORKSPACES_XFCONF_CHANNEL					"xfce-overview-workspaces"
 
 #define ENABLED_PLUGINS_XFCONF_PROP					"/enabled-plugins"
 #define DEFAULT_ENABLED_PLUGINS						NULL
 
-#define XFDASHBOARD_TREE_VIEW_COLUMN_ID				"column-id"
+#define XFCE_OVERVIEW_WORKSPACES_TREE_VIEW_COLUMN_ID				"column-id"
 
 enum
 {
-	XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_ID,
+	XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_ID,
 
-	XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_FILE,
-	XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_NAME,
-	XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_AUTHORS,
-	XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_COPYRIGHT,
-	XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_LICENSE,
-	XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_DESCRIPTION,
+	XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_FILE,
+	XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_NAME,
+	XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_AUTHORS,
+	XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_COPYRIGHT,
+	XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_LICENSE,
+	XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_DESCRIPTION,
 
-	XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_VALID,
-	XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_INVALID,
-	XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_ENABLED,
-	XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE,
+	XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_VALID,
+	XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_INVALID,
+	XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_ENABLED,
+	XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE,
 
-	XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_PLUGIN,
+	XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_PLUGIN,
 
-	XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_LAST
+	XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_LAST
 };
 
 /* Close button in plugin's preferences dialog was clicked */
-static void _xfdashboard_settings_plugins_on_perferences_dialog_close_clicked(XfdashboardSettingsPlugins *self,
+static void _xfce_overview_workspaces_settings_plugins_on_perferences_dialog_close_clicked(XfceOverviewWorkspacesSettingsPlugins *self,
 																				GtkWidget *inWidget)
 {
 	GtkWidget		*dialog;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_PLUGINS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_PLUGINS(self));
 	g_return_if_fail(GTK_IS_WIDGET(inWidget));
 
 	/* Get dialog this widget belongs to */
@@ -125,19 +125,19 @@ static void _xfdashboard_settings_plugins_on_perferences_dialog_close_clicked(Xf
 }
 
 /* Preferences icon in tree view was clicked */
-static gboolean _xfdashboard_settings_plugins_call_preferences(XfdashboardSettingsPlugins *self,
+static gboolean _xfce_overview_workspaces_settings_plugins_call_preferences(XfceOverviewWorkspacesSettingsPlugins *self,
 																GdkEvent *inEvent,
 																GtkTreeView *inTreeView,
 																GtkTreePath *inPath)
 {
-	XfdashboardSettingsPluginsPrivate		*priv;
+	XfceOverviewWorkspacesSettingsPluginsPrivate		*priv;
 	GtkTreeModel							*model;
 	GtkTreeIter								iter;
 	gboolean								isConfigurable;
-	XfdashboardPlugin						*plugin;
+	XfceOverviewWorkspacesPlugin						*plugin;
 	GtkWidget								*pluginPreferencesWidget;
 
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS_PLUGINS(self), FALSE);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_PLUGINS(self), FALSE);
 	g_return_val_if_fail(GTK_IS_TREE_VIEW(inTreeView), FALSE);
 	g_return_val_if_fail(inPath, FALSE);
 
@@ -185,13 +185,13 @@ static gboolean _xfdashboard_settings_plugins_call_preferences(XfdashboardSettin
 
 	/* Check if it plugin is marked to be configurable */
 	gtk_tree_model_get(model, &iter,
-						XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE, &isConfigurable,
-						XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_PLUGIN, &plugin,
+						XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE, &isConfigurable,
+						XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_PLUGIN, &plugin,
 						-1);
 
 	if(!isConfigurable)
 	{
-		g_debug("Plugin '%s' is not configurable", xfdashboard_plugin_get_id(plugin));
+		g_debug("Plugin '%s' is not configurable", xfce_overview_workspaces_plugin_get_id(plugin));
 
 		/* Release allocated resources */
 		if(plugin) g_object_unref(plugin);
@@ -201,7 +201,7 @@ static gboolean _xfdashboard_settings_plugins_call_preferences(XfdashboardSettin
 
 	/* Emit action "configure" at plugin */
 	g_debug("Emitting signal 'configure' at plugin '%s' of type %s",
-				xfdashboard_plugin_get_id(plugin),
+				xfce_overview_workspaces_plugin_get_id(plugin),
 				G_OBJECT_TYPE_NAME(plugin));
 
 	g_signal_emit_by_name(plugin, "configure", &pluginPreferencesWidget);
@@ -237,7 +237,7 @@ static gboolean _xfdashboard_settings_plugins_call_preferences(XfdashboardSettin
 		 */
 		response=gtk_dialog_run(GTK_DIALOG(priv->widgetPluginPreferencesDialog));
 		g_debug("Plugins preferences dialog response for plugin '%s' is %d",
-				xfdashboard_plugin_get_id(plugin),
+				xfce_overview_workspaces_plugin_get_id(plugin),
 				response);
 
 		/* First hide dialog */
@@ -258,7 +258,7 @@ static gboolean _xfdashboard_settings_plugins_call_preferences(XfdashboardSettin
 }
 
 /* A button was pressed in tree view */
-static gboolean _xfdashboard_settings_plugins_on_treeview_button_pressed(XfdashboardSettingsPlugins *self,
+static gboolean _xfce_overview_workspaces_settings_plugins_on_treeview_button_pressed(XfceOverviewWorkspacesSettingsPlugins *self,
 																			GdkEvent *inEvent,
 																			gpointer inUserData)
 {
@@ -271,7 +271,7 @@ static gboolean _xfdashboard_settings_plugins_on_treeview_button_pressed(Xfdashb
 	gboolean								isValid;
 	gboolean								eventHandled;
 
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS_PLUGINS(self), FALSE);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_PLUGINS(self), FALSE);
 	g_return_val_if_fail(inEvent, FALSE);
 	g_return_val_if_fail(GTK_IS_TREE_VIEW(inUserData), FALSE);
 
@@ -316,7 +316,7 @@ static gboolean _xfdashboard_settings_plugins_on_treeview_button_pressed(Xfdashb
 	 * this event any futher.
 	 */
 	gtk_tree_model_get(model, &iter,
-						XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_VALID, &isValid,
+						XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_VALID, &isValid,
 						-1);
 
 	if(!isValid)
@@ -331,11 +331,11 @@ static gboolean _xfdashboard_settings_plugins_on_treeview_button_pressed(Xfdashb
 	}
 
 	/* Check if column where event happened can be handled */
-	columnID=GPOINTER_TO_INT(g_object_get_data(G_OBJECT(column), XFDASHBOARD_TREE_VIEW_COLUMN_ID));
+	columnID=GPOINTER_TO_INT(g_object_get_data(G_OBJECT(column), XFCE_OVERVIEW_WORKSPACES_TREE_VIEW_COLUMN_ID));
 	switch(columnID)
 	{
-		case XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE:
-			eventHandled=_xfdashboard_settings_plugins_call_preferences(self,
+		case XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE:
+			eventHandled=_xfce_overview_workspaces_settings_plugins_call_preferences(self,
 																		inEvent,
 																		treeView,
 																		path);
@@ -354,15 +354,15 @@ static gboolean _xfdashboard_settings_plugins_on_treeview_button_pressed(Xfdashb
 }
 
 /* The configure button for selected plugin was pressed */
-static void _xfdashboard_settings_plugins_on_configure_button_pressed(XfdashboardSettingsPlugins *self,
+static void _xfce_overview_workspaces_settings_plugins_on_configure_button_pressed(XfceOverviewWorkspacesSettingsPlugins *self,
 																		GtkWidget *inButton)
 {
-	XfdashboardSettingsPluginsPrivate		*priv;
+	XfceOverviewWorkspacesSettingsPluginsPrivate		*priv;
 	GtkTreeSelection						*selection;
 	GtkTreeModel							*model;
 	GtkTreeIter								iter;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_PLUGINS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_PLUGINS(self));
 	g_return_if_fail(GTK_IS_BUTTON(inButton));
 
 	priv=self->priv;
@@ -379,7 +379,7 @@ static void _xfdashboard_settings_plugins_on_configure_button_pressed(Xfdashboar
 		path=gtk_tree_model_get_path(model, &iter);
 
 		/* Call preferences dialog for selected plugin */
-		_xfdashboard_settings_plugins_call_preferences(self,
+		_xfce_overview_workspaces_settings_plugins_call_preferences(self,
 														NULL,
 														GTK_TREE_VIEW(priv->widgetPlugins),
 														path);
@@ -390,10 +390,10 @@ static void _xfdashboard_settings_plugins_on_configure_button_pressed(Xfdashboar
 }
 
 /* Selection in plugins tree view changed */
-static void _xfdashboard_settings_plugins_enabled_plugins_on_plugins_selection_changed(XfdashboardSettingsPlugins *self,
+static void _xfce_overview_workspaces_settings_plugins_enabled_plugins_on_plugins_selection_changed(XfceOverviewWorkspacesSettingsPlugins *self,
 																						GtkTreeSelection *inSelection)
 {
-	XfdashboardSettingsPluginsPrivate		*priv;
+	XfceOverviewWorkspacesSettingsPluginsPrivate		*priv;
 	GtkTreeModel							*model;
 	GtkTreeIter								iter;
 	gchar									*pluginName;
@@ -403,7 +403,7 @@ static void _xfdashboard_settings_plugins_enabled_plugins_on_plugins_selection_c
 	gchar									*pluginLicense;
 	gboolean								pluginCanConfigure;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_PLUGINS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_PLUGINS(self));
 	g_return_if_fail(GTK_IS_TREE_SELECTION(inSelection));
 
 	priv=self->priv;
@@ -420,12 +420,12 @@ static void _xfdashboard_settings_plugins_enabled_plugins_on_plugins_selection_c
 		/* Get data from model */
 		gtk_tree_model_get(model,
 							&iter,
-							XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_NAME, &pluginName,
-							XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_DESCRIPTION, &pluginDescription,
-							XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_AUTHORS, &pluginAuthors,
-							XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_COPYRIGHT, &pluginCopyright,
-							XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_LICENSE, &pluginLicense,
-							XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE, &pluginCanConfigure,
+							XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_NAME, &pluginName,
+							XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_DESCRIPTION, &pluginDescription,
+							XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_AUTHORS, &pluginAuthors,
+							XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_COPYRIGHT, &pluginCopyright,
+							XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_LICENSE, &pluginLicense,
+							XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE, &pluginCanConfigure,
 							-1);
 	}
 
@@ -508,11 +508,11 @@ static void _xfdashboard_settings_plugins_enabled_plugins_on_plugins_selection_c
 }
 
 /* Setting '/enabled-plugins' changed either at widget or at xfconf property */
-static void _xfdashboard_settings_plugins_enabled_plugins_changed_by_widget(XfdashboardSettingsPlugins *self,
+static void _xfce_overview_workspaces_settings_plugins_enabled_plugins_changed_by_widget(XfceOverviewWorkspacesSettingsPlugins *self,
 																			gchar *inPath,
 																			gpointer inUserData)
 {
-	XfdashboardSettingsPluginsPrivate		*priv;
+	XfceOverviewWorkspacesSettingsPluginsPrivate		*priv;
 	GtkTreeModel							*model;
 	GtkTreeIter								modelIter;
 	GtkTreeIter								pluginsIter;
@@ -520,7 +520,7 @@ static void _xfdashboard_settings_plugins_enabled_plugins_changed_by_widget(Xfda
 	gboolean								isEnabled;
 	GPtrArray								*enabledPlugins;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_PLUGINS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_PLUGINS(self));
 	g_return_if_fail(inPath && *inPath);
 
 	priv=self->priv;
@@ -544,13 +544,13 @@ static void _xfdashboard_settings_plugins_enabled_plugins_changed_by_widget(Xfda
 	/* Get current state before toggling */
 	gtk_tree_model_get(model,
 						&modelIter,
-						XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_ENABLED, &isEnabled,
+						XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_ENABLED, &isEnabled,
 						-1);
 
 	/* Set new enabled or disabled state of plugin in tree model */
 	gtk_list_store_set(GTK_LIST_STORE(model),
 						&modelIter,
-						XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_ENABLED, !isEnabled,
+						XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_ENABLED, !isEnabled,
 						-1);
 
 	/* Get and store new list of enabled plugins in Xfconf */
@@ -560,8 +560,8 @@ static void _xfdashboard_settings_plugins_enabled_plugins_changed_by_widget(Xfda
 		/* Check if plugin is enabled and get plugin ID */
 		gtk_tree_model_get(model,
 							&pluginsIter,
-							XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_ID, &pluginID,
-							XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_ENABLED, &isEnabled,
+							XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_ID, &pluginID,
+							XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_ENABLED, &isEnabled,
 							-1);
 
 		/* If plugin is enabled add plugin's ID to array */
@@ -584,7 +584,7 @@ static void _xfdashboard_settings_plugins_enabled_plugins_changed_by_widget(Xfda
 			enabledPluginsList[i]=g_strdup(g_ptr_array_index(enabledPlugins, i));
 		}
 
-		xfdashboard_settings_set_enabled_plugins(priv->settings, (const gchar**)enabledPluginsList);
+		xfce_overview_workspaces_settings_set_enabled_plugins(priv->settings, (const gchar**)enabledPluginsList);
 
 		/* Release allocated resources */
 		if(enabledPluginsList) g_strfreev(enabledPluginsList);
@@ -592,28 +592,28 @@ static void _xfdashboard_settings_plugins_enabled_plugins_changed_by_widget(Xfda
 		else
 		{
 			/* Array of enabled plugins is empty so reset property at Xfconf */
-			xfdashboard_settings_set_enabled_plugins(priv->settings, NULL);
+			xfce_overview_workspaces_settings_set_enabled_plugins(priv->settings, NULL);
 		}
 
 	/* Release allocated resources */
 	if(enabledPlugins) g_ptr_array_free(enabledPlugins, TRUE);
 }
 
-static void _xfdashboard_settings_plugins_enabled_plugins_changed_by_settings(XfdashboardSettingsPlugins *self,
+static void _xfce_overview_workspaces_settings_plugins_enabled_plugins_changed_by_settings(XfceOverviewWorkspacesSettingsPlugins *self,
 																				GParamSpec *inParamSpec,
 																				GObject *inObject)
 {
-	XfdashboardSettingsPluginsPrivate		*priv;
+	XfceOverviewWorkspacesSettingsPluginsPrivate		*priv;
 	const gchar								**newValues;
 	GtkTreeModel							*model;
 	GtkTreeIter								modelIter;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_PLUGINS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_PLUGINS(self));
 
 	priv=self->priv;
 
 	/* Get new value to set at widget */
-	newValues=xfdashboard_settings_get_enabled_plugins(priv->settings);
+	newValues=xfce_overview_workspaces_settings_get_enabled_plugins(priv->settings);
 
 	/* Iterate through plugins' model and lookup each item to match against
 	 * one value in new value and enable or disable it
@@ -628,7 +628,7 @@ static void _xfdashboard_settings_plugins_enabled_plugins_changed_by_settings(Xf
 		/* Get plugin ID of item currently iterated */
 		gtk_tree_model_get(model,
 							&modelIter,
-							XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_ID, &pluginID,
+							XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_ID, &pluginID,
 							-1);
 
 		/* Check if plugin ID of item is in list of enabled plugins */
@@ -648,7 +648,7 @@ static void _xfdashboard_settings_plugins_enabled_plugins_changed_by_settings(Xf
 			 * unset this flag.
 			 */
 			gtk_list_store_set(GTK_LIST_STORE(model), &modelIter,
-								XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_ENABLED, isEnabled,
+								XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_ENABLED, isEnabled,
 								-1);
 		}
 
@@ -659,7 +659,7 @@ static void _xfdashboard_settings_plugins_enabled_plugins_changed_by_settings(Xf
 }
 
 /* Sorting function for theme list's model */
-static gint _xfdashboard_settings_plugins_sort_plugins_list_model(GtkTreeModel *inModel,
+static gint _xfce_overview_workspaces_settings_plugins_sort_plugins_list_model(GtkTreeModel *inModel,
 																	GtkTreeIter *inLeft,
 																	GtkTreeIter *inRight,
 																	gpointer inUserData)
@@ -671,13 +671,13 @@ static gint _xfdashboard_settings_plugins_sort_plugins_list_model(GtkTreeModel *
 	/* Get plugin names from model */
 	leftName=NULL;
 	gtk_tree_model_get(inModel, inLeft,
-						XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_NAME, &leftName,
+						XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_NAME, &leftName,
 						-1);
 	if(!leftName) leftName=g_strdup("");
 
 	rightName=NULL;
 	gtk_tree_model_get(inModel, inRight,
-						XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_NAME, &rightName,
+						XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_NAME, &rightName,
 						-1);
 	if(!rightName) rightName=g_strdup("");
 
@@ -692,16 +692,16 @@ static gint _xfdashboard_settings_plugins_sort_plugins_list_model(GtkTreeModel *
 }
 
 /* Populate list of available themes */
-static void _xfdashboard_settings_plugins_populate_plugins_list(XfdashboardSettingsPlugins *self,
+static void _xfce_overview_workspaces_settings_plugins_populate_plugins_list(XfceOverviewWorkspacesSettingsPlugins *self,
 																GtkWidget *inWidget)
 {
-	XfdashboardSettingsPluginsPrivate	*priv;
+	XfceOverviewWorkspacesSettingsPluginsPrivate	*priv;
 	GHashTable							*plugins;
 	GtkListStore						*model;
 	const gchar							**pluginsSearchPaths;
 	GtkTreeIter							modelIter;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_PLUGINS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_PLUGINS(self));
 	g_return_if_fail(GTK_IS_TREE_VIEW(inWidget));
 
 	priv=self->priv;
@@ -711,33 +711,33 @@ static void _xfdashboard_settings_plugins_populate_plugins_list(XfdashboardSetti
 	plugins=g_hash_table_new_full(g_str_hash, g_str_equal, g_free, NULL);
 
 	/* Get model of widget to fill */
-	model=gtk_list_store_new(XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_LAST,
-								G_TYPE_STRING,  /* XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_ID */
-								G_TYPE_STRING,  /* XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_FILE */
-								G_TYPE_STRING,  /* XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_NAME */
-								G_TYPE_STRING,  /* XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_AUTHORS */
-								G_TYPE_STRING,  /* XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_COPYRIGHT */
-								G_TYPE_STRING,  /* XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_LICENSE */
-								G_TYPE_STRING,  /* XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_DESCRIPTION */
-								G_TYPE_BOOLEAN, /* XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_VALID */
-								G_TYPE_BOOLEAN, /* XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_INVALID */
-								G_TYPE_BOOLEAN, /* XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_ENABLED */
-								G_TYPE_BOOLEAN, /* XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE */
-								XFDASHBOARD_TYPE_PLUGIN /* XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_PLUGIN */
+	model=gtk_list_store_new(XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_LAST,
+								G_TYPE_STRING,  /* XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_ID */
+								G_TYPE_STRING,  /* XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_FILE */
+								G_TYPE_STRING,  /* XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_NAME */
+								G_TYPE_STRING,  /* XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_AUTHORS */
+								G_TYPE_STRING,  /* XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_COPYRIGHT */
+								G_TYPE_STRING,  /* XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_LICENSE */
+								G_TYPE_STRING,  /* XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_DESCRIPTION */
+								G_TYPE_BOOLEAN, /* XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_VALID */
+								G_TYPE_BOOLEAN, /* XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_INVALID */
+								G_TYPE_BOOLEAN, /* XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_ENABLED */
+								G_TYPE_BOOLEAN, /* XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE */
+								XFCE_OVERVIEW_WORKSPACES_TYPE_PLUGIN /* XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_PLUGIN */
 							);
 	gtk_tree_sortable_set_sort_func(GTK_TREE_SORTABLE(model),
-									XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_NAME,
-									(GtkTreeIterCompareFunc)_xfdashboard_settings_plugins_sort_plugins_list_model,
+									XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_NAME,
+									(GtkTreeIterCompareFunc)_xfce_overview_workspaces_settings_plugins_sort_plugins_list_model,
 									NULL,
 									NULL);
 	gtk_tree_sortable_set_sort_column_id(GTK_TREE_SORTABLE(model),
-											XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_NAME,
+											XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_NAME,
 											GTK_SORT_ASCENDING);
 
 	/* Iterate through all plugin at all plugin paths, load them and
 	 * check if they are valid and can be configured.
 	 */
-	pluginsSearchPaths=xfdashboard_settings_get_plugin_search_paths(priv->settings);
+	pluginsSearchPaths=xfce_overview_workspaces_settings_get_plugin_search_paths(priv->settings);
 	for( ; pluginsSearchPaths && *pluginsSearchPaths; pluginsSearchPaths++)
 	{
 		const gchar					*pluginCurrentPath;
@@ -757,7 +757,7 @@ static void _xfdashboard_settings_plugins_populate_plugins_list(XfdashboardSetti
 		while((pluginCurrentFilename=g_dir_read_name(directory)))
 		{
 			gchar					*fullPath;
-			XfdashboardPlugin		*plugin;
+			XfceOverviewWorkspacesPlugin		*plugin;
 			gchar					*pluginID;
 			gchar					*pluginName;
 			gchar					*pluginDescription;
@@ -779,7 +779,7 @@ static void _xfdashboard_settings_plugins_populate_plugins_list(XfdashboardSetti
 			if(G_UNLIKELY(!fullPath)) continue;
 
 			/* Load plugin */
-			plugin=xfdashboard_plugin_new(fullPath, &error);
+			plugin=xfce_overview_workspaces_plugin_new(fullPath, &error);
 			if(!plugin)
 			{
 				gchar				*message;
@@ -796,18 +796,18 @@ static void _xfdashboard_settings_plugins_populate_plugins_list(XfdashboardSetti
 				/* Add to widget's list */
 				gtk_list_store_append(GTK_LIST_STORE(model), &modelIter);
 				gtk_list_store_set(GTK_LIST_STORE(model), &modelIter,
-									XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_ID, NULL,
-									XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_NAME, pluginCurrentFilename,
-									XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_DESCRIPTION, message,
-									XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_AUTHORS, NULL,
-									XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_COPYRIGHT, NULL,
-									XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_LICENSE, NULL,
-									XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_FILE, fullPath,
-									XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_VALID, FALSE,
-									XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_INVALID, TRUE,
-									XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_ENABLED, FALSE,
-									XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE, FALSE,
-									XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_PLUGIN, NULL,
+									XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_ID, NULL,
+									XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_NAME, pluginCurrentFilename,
+									XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_DESCRIPTION, message,
+									XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_AUTHORS, NULL,
+									XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_COPYRIGHT, NULL,
+									XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_LICENSE, NULL,
+									XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_FILE, fullPath,
+									XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_VALID, FALSE,
+									XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_INVALID, TRUE,
+									XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_ENABLED, FALSE,
+									XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE, FALSE,
+									XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_PLUGIN, NULL,
 									-1);
 
 				/* Release allocated resources */
@@ -842,7 +842,7 @@ static void _xfdashboard_settings_plugins_populate_plugins_list(XfdashboardSetti
 			}
 
 			/* Add plugin to settings */
-			xfdashboard_settings_add_plugin(priv->settings, plugin);
+			xfce_overview_workspaces_settings_add_plugin(priv->settings, plugin);
 
 			/* Get plugin infos */
 			g_object_get(plugin,
@@ -856,7 +856,7 @@ static void _xfdashboard_settings_plugins_populate_plugins_list(XfdashboardSetti
 			/* Determine if plugin is configurable */
 			pluginIsConfigurable=FALSE;
 
-			signalID=g_signal_lookup("configure", XFDASHBOARD_TYPE_PLUGIN);
+			signalID=g_signal_lookup("configure", XFCE_OVERVIEW_WORKSPACES_TYPE_PLUGIN);
 			handlerID=g_signal_handler_find(plugin,
 											G_SIGNAL_MATCH_ID,
 											signalID,
@@ -873,18 +873,18 @@ static void _xfdashboard_settings_plugins_populate_plugins_list(XfdashboardSetti
 			/* Add to widget's list */
 			gtk_list_store_append(GTK_LIST_STORE(model), &modelIter);
 			gtk_list_store_set(GTK_LIST_STORE(model), &modelIter,
-								XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_ID, pluginID,
-								XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_NAME, pluginName,
-								XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_DESCRIPTION, pluginDescription,
-								XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_AUTHORS, pluginAuthors,
-								XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_COPYRIGHT, pluginCopyright,
-								XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_LICENSE, pluginLicense,
-								XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_FILE, fullPath,
-								XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_VALID, TRUE,
-								XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_INVALID, FALSE,
-								XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_ENABLED, FALSE,
-								XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE, pluginIsConfigurable,
-								XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_PLUGIN, plugin,
+								XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_ID, pluginID,
+								XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_NAME, pluginName,
+								XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_DESCRIPTION, pluginDescription,
+								XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_AUTHORS, pluginAuthors,
+								XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_COPYRIGHT, pluginCopyright,
+								XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_LICENSE, pluginLicense,
+								XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_FILE, fullPath,
+								XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_VALID, TRUE,
+								XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_INVALID, FALSE,
+								XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_ENABLED, FALSE,
+								XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE, pluginIsConfigurable,
+								XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_PLUGIN, plugin,
 								-1);
 
 			/* Remember theme to avoid duplicates (and allow overrides by user */
@@ -913,12 +913,12 @@ static void _xfdashboard_settings_plugins_populate_plugins_list(XfdashboardSetti
 }
 
 /* Set up this tab */
-static void _xfdashboard_settings_plugins_setup(XfdashboardSettingsPlugins *self)
+static void _xfce_overview_workspaces_settings_plugins_setup(XfceOverviewWorkspacesSettingsPlugins *self)
 {
-	XfdashboardSettingsPluginsPrivate				*priv;
+	XfceOverviewWorkspacesSettingsPluginsPrivate				*priv;
 	static gboolean									setupDone=FALSE;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_PLUGINS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_PLUGINS(self));
 
 	priv=self->priv;
 
@@ -967,23 +967,23 @@ static void _xfdashboard_settings_plugins_setup(XfdashboardSettingsPlugins *self
 		if(icon) g_object_unref(icon);
 		column=gtk_tree_view_column_new_with_attributes("",
 														renderer,
-														"visible", XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_INVALID,
-														"sensitive", XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_VALID,
+														"visible", XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_INVALID,
+														"sensitive", XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_VALID,
 														NULL);
-		g_object_set_data(G_OBJECT(column), XFDASHBOARD_TREE_VIEW_COLUMN_ID, GINT_TO_POINTER(XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_VALID));
+		g_object_set_data(G_OBJECT(column), XFCE_OVERVIEW_WORKSPACES_TREE_VIEW_COLUMN_ID, GINT_TO_POINTER(XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_VALID));
 		gtk_tree_view_insert_column(GTK_TREE_VIEW(priv->widgetPlugins), column, -1);
 
 		renderer=gtk_cell_renderer_toggle_new();
 		g_signal_connect_swapped(renderer,
 									"toggled",
-									G_CALLBACK(_xfdashboard_settings_plugins_enabled_plugins_changed_by_widget),
+									G_CALLBACK(_xfce_overview_workspaces_settings_plugins_enabled_plugins_changed_by_widget),
 									self);
 		column=gtk_tree_view_column_new_with_attributes("",
 														renderer,
-														"active", XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_ENABLED,
-														"sensitive", XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_VALID,
+														"active", XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_ENABLED,
+														"sensitive", XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_VALID,
 														NULL);
-		g_object_set_data(G_OBJECT(column), XFDASHBOARD_TREE_VIEW_COLUMN_ID, GINT_TO_POINTER(XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_ENABLED));
+		g_object_set_data(G_OBJECT(column), XFCE_OVERVIEW_WORKSPACES_TREE_VIEW_COLUMN_ID, GINT_TO_POINTER(XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_ENABLED));
 		gtk_tree_view_insert_column(GTK_TREE_VIEW(priv->widgetPlugins), column, -1);
 
 		renderer=gtk_cell_renderer_pixbuf_new();
@@ -995,19 +995,19 @@ static void _xfdashboard_settings_plugins_setup(XfdashboardSettingsPlugins *self
 		if(icon) g_object_unref(icon);
 		column=gtk_tree_view_column_new_with_attributes("",
 														renderer,
-														"visible", XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE,
-														"sensitive", XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_VALID,
+														"visible", XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE,
+														"sensitive", XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_VALID,
 														NULL);
-		g_object_set_data(G_OBJECT(column), XFDASHBOARD_TREE_VIEW_COLUMN_ID, GINT_TO_POINTER(XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE));
+		g_object_set_data(G_OBJECT(column), XFCE_OVERVIEW_WORKSPACES_TREE_VIEW_COLUMN_ID, GINT_TO_POINTER(XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_CONFIGURABLE));
 		gtk_tree_view_insert_column(GTK_TREE_VIEW(priv->widgetPlugins), column, -1);
 
 		renderer=gtk_cell_renderer_text_new();
 		column=gtk_tree_view_column_new_with_attributes(_("Name"),
 														renderer,
-														"text", XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_NAME,
-														"sensitive", XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_IS_VALID,
+														"text", XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_NAME,
+														"sensitive", XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_IS_VALID,
 														NULL);
-		g_object_set_data(G_OBJECT(column), XFDASHBOARD_TREE_VIEW_COLUMN_ID, GINT_TO_POINTER(XFDASHBOARD_SETTINGS_PLUGINS_COLUMN_NAME));
+		g_object_set_data(G_OBJECT(column), XFCE_OVERVIEW_WORKSPACES_TREE_VIEW_COLUMN_ID, GINT_TO_POINTER(XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS_COLUMN_NAME));
 		gtk_tree_view_insert_column(GTK_TREE_VIEW(priv->widgetPlugins), column, -1);
 
 		/* Ensure only one selection at time is possible */
@@ -1015,34 +1015,34 @@ static void _xfdashboard_settings_plugins_setup(XfdashboardSettingsPlugins *self
 		gtk_tree_selection_set_mode(selection, GTK_SELECTION_SINGLE);
 
 		/* Populate list of available themes */
-		_xfdashboard_settings_plugins_populate_plugins_list(self, priv->widgetPlugins);
+		_xfce_overview_workspaces_settings_plugins_populate_plugins_list(self, priv->widgetPlugins);
 
 		/* Check enabled plugins */
-		_xfdashboard_settings_plugins_enabled_plugins_changed_by_settings(self, NULL, G_OBJECT(priv->settings));
+		_xfce_overview_workspaces_settings_plugins_enabled_plugins_changed_by_settings(self, NULL, G_OBJECT(priv->settings));
 
 		/* Connect signals */
 		g_signal_connect_swapped(selection,
 									"changed",
-									G_CALLBACK(_xfdashboard_settings_plugins_enabled_plugins_on_plugins_selection_changed),
+									G_CALLBACK(_xfce_overview_workspaces_settings_plugins_enabled_plugins_on_plugins_selection_changed),
 									self);
 
 		g_signal_connect_swapped(priv->settings,
 									"notify::enabled-plugins",
-									G_CALLBACK(_xfdashboard_settings_plugins_enabled_plugins_changed_by_settings),
+									G_CALLBACK(_xfce_overview_workspaces_settings_plugins_enabled_plugins_changed_by_settings),
 									self);
 
 		g_signal_connect_swapped(priv->widgetPlugins,
 									"button-press-event",
-									G_CALLBACK(_xfdashboard_settings_plugins_on_treeview_button_pressed),
+									G_CALLBACK(_xfce_overview_workspaces_settings_plugins_on_treeview_button_pressed),
 									self);
 		g_signal_connect_swapped(priv->widgetPlugins,
 									"button-release-event",
-									G_CALLBACK(_xfdashboard_settings_plugins_on_treeview_button_pressed),
+									G_CALLBACK(_xfce_overview_workspaces_settings_plugins_on_treeview_button_pressed),
 									self);
 
 		g_signal_connect_swapped(priv->widgetPluginConfigureButton,
 									"clicked",
-									G_CALLBACK(_xfdashboard_settings_plugins_on_configure_button_pressed),
+									G_CALLBACK(_xfce_overview_workspaces_settings_plugins_on_configure_button_pressed),
 									self);
 	}
 
@@ -1055,18 +1055,18 @@ static void _xfdashboard_settings_plugins_setup(XfdashboardSettingsPlugins *self
 		widgetCloseButton=GTK_WIDGET(gtk_builder_get_object(priv->builder, "plugin-preferences-dialog-close-button"));
 		g_signal_connect_swapped(widgetCloseButton,
 									"clicked",
-									G_CALLBACK(_xfdashboard_settings_plugins_on_perferences_dialog_close_clicked),
+									G_CALLBACK(_xfce_overview_workspaces_settings_plugins_on_perferences_dialog_close_clicked),
 									self);
 	}
 }
 
 /* Create and set up GtkBuilder */
-static void _xfdashboard_settings_plugins_set_builder(XfdashboardSettingsPlugins *self,
+static void _xfce_overview_workspaces_settings_plugins_set_builder(XfceOverviewWorkspacesSettingsPlugins *self,
 														GtkBuilder *inBuilder)
 {
-	XfdashboardSettingsPluginsPrivate	*priv;
+	XfceOverviewWorkspacesSettingsPluginsPrivate	*priv;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_PLUGINS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_PLUGINS(self));
 	g_return_if_fail(GTK_IS_BUILDER(inBuilder));
 
 	priv=self->priv;
@@ -1077,17 +1077,17 @@ static void _xfdashboard_settings_plugins_set_builder(XfdashboardSettingsPlugins
 	priv->builder=g_object_ref(inBuilder);
 
 	/* If both builder and settings are set, then set up tab */
-	_xfdashboard_settings_plugins_setup(self);
+	_xfce_overview_workspaces_settings_plugins_setup(self);
 }
 
 /* Set settings object instance */
-static void _xfdashboard_settings_plugins_set_settings(XfdashboardSettingsPlugins *self,
-														XfdashboardSettings *inSettings)
+static void _xfce_overview_workspaces_settings_plugins_set_settings(XfceOverviewWorkspacesSettingsPlugins *self,
+														XfceOverviewWorkspacesSettings *inSettings)
 {
-	XfdashboardSettingsPluginsPrivate				*priv;
+	XfceOverviewWorkspacesSettingsPluginsPrivate				*priv;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_PLUGINS(self));
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS(inSettings));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_PLUGINS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS(inSettings));
 
 	priv=self->priv;
 
@@ -1097,17 +1097,17 @@ static void _xfdashboard_settings_plugins_set_settings(XfdashboardSettingsPlugin
 	priv->settings=g_object_ref(inSettings);
 
 	/* If both builder and settings are set, then set up tab */
-	_xfdashboard_settings_plugins_setup(self);
+	_xfce_overview_workspaces_settings_plugins_setup(self);
 }
 
 
 /* IMPLEMENTATION: GObject */
 
 /* Dispose this object */
-static void _xfdashboard_settings_plugins_dispose(GObject *inObject)
+static void _xfce_overview_workspaces_settings_plugins_dispose(GObject *inObject)
 {
-	XfdashboardSettingsPlugins			*self=XFDASHBOARD_SETTINGS_PLUGINS(inObject);
-	XfdashboardSettingsPluginsPrivate	*priv=self->priv;
+	XfceOverviewWorkspacesSettingsPlugins			*self=XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS(inObject);
+	XfceOverviewWorkspacesSettingsPluginsPrivate	*priv=self->priv;
 
 	/* Release allocated resouces */
 	priv->widgetPlugins=NULL;
@@ -1140,25 +1140,25 @@ static void _xfdashboard_settings_plugins_dispose(GObject *inObject)
 	}
 
 	/* Call parent's class dispose method */
-	G_OBJECT_CLASS(xfdashboard_settings_plugins_parent_class)->dispose(inObject);
+	G_OBJECT_CLASS(xfce_overview_workspaces_settings_plugins_parent_class)->dispose(inObject);
 }
 
 /* Set/get properties */
-static void _xfdashboard_settings_plugins_set_property(GObject *inObject,
+static void _xfce_overview_workspaces_settings_plugins_set_property(GObject *inObject,
 														guint inPropID,
 														const GValue *inValue,
 														GParamSpec *inSpec)
 {
-	XfdashboardSettingsPlugins				*self=XFDASHBOARD_SETTINGS_PLUGINS(inObject);
+	XfceOverviewWorkspacesSettingsPlugins				*self=XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS(inObject);
 
 	switch(inPropID)
 	{
 		case PROP_BUILDER:
-			_xfdashboard_settings_plugins_set_builder(self, GTK_BUILDER(g_value_get_object(inValue)));
+			_xfce_overview_workspaces_settings_plugins_set_builder(self, GTK_BUILDER(g_value_get_object(inValue)));
 			break;
 
 		case PROP_SETTINGS:
-			_xfdashboard_settings_plugins_set_settings(self, XFDASHBOARD_SETTINGS(g_value_get_object(inValue)));
+			_xfce_overview_workspaces_settings_plugins_set_settings(self, XFCE_OVERVIEW_WORKSPACES_SETTINGS(g_value_get_object(inValue)));
 			break;
 
 		default:
@@ -1167,13 +1167,13 @@ static void _xfdashboard_settings_plugins_set_property(GObject *inObject,
 	}
 }
 
-static void _xfdashboard_settings_plugins_get_property(GObject *inObject,
+static void _xfce_overview_workspaces_settings_plugins_get_property(GObject *inObject,
 														guint inPropID,
 														GValue *outValue,
 														GParamSpec *inSpec)
 {
-	XfdashboardSettingsPlugins				*self=XFDASHBOARD_SETTINGS_PLUGINS(inObject);
-	XfdashboardSettingsPluginsPrivate		*priv=self->priv;
+	XfceOverviewWorkspacesSettingsPlugins				*self=XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS(inObject);
+	XfceOverviewWorkspacesSettingsPluginsPrivate		*priv=self->priv;
 
 	switch(inPropID)
 	{
@@ -1195,41 +1195,41 @@ static void _xfdashboard_settings_plugins_get_property(GObject *inObject,
  * Override functions in parent classes and define properties
  * and signals
  */
-static void xfdashboard_settings_plugins_class_init(XfdashboardSettingsPluginsClass *klass)
+static void xfce_overview_workspaces_settings_plugins_class_init(XfceOverviewWorkspacesSettingsPluginsClass *klass)
 {
 	GObjectClass		*gobjectClass=G_OBJECT_CLASS(klass);
 
 	/* Override functions */
-	gobjectClass->dispose=_xfdashboard_settings_plugins_dispose;
-	gobjectClass->set_property=_xfdashboard_settings_plugins_set_property;
-	gobjectClass->get_property=_xfdashboard_settings_plugins_get_property;
+	gobjectClass->dispose=_xfce_overview_workspaces_settings_plugins_dispose;
+	gobjectClass->set_property=_xfce_overview_workspaces_settings_plugins_set_property;
+	gobjectClass->get_property=_xfce_overview_workspaces_settings_plugins_get_property;
 
 	/* Define properties */
-	XfdashboardSettingsPluginsProperties[PROP_BUILDER]=
+	XfceOverviewWorkspacesSettingsPluginsProperties[PROP_BUILDER]=
 		g_param_spec_object("builder",
 								"Builder",
 								"The initialized GtkBuilder object where to set up themes tab from",
 								GTK_TYPE_BUILDER,
 								G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS | G_PARAM_CONSTRUCT_ONLY);
 
-	XfdashboardSettingsPluginsProperties[PROP_SETTINGS]=
+	XfceOverviewWorkspacesSettingsPluginsProperties[PROP_SETTINGS]=
 		g_param_spec_object("settings",
 								"Settings",
 								"The settings object of application",
-								XFDASHBOARD_TYPE_SETTINGS,
+								XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS,
 								G_PARAM_READWRITE | G_PARAM_CONSTRUCT_ONLY | G_PARAM_STATIC_STRINGS);
 
-	g_object_class_install_properties(gobjectClass, PROP_LAST, XfdashboardSettingsPluginsProperties);
+	g_object_class_install_properties(gobjectClass, PROP_LAST, XfceOverviewWorkspacesSettingsPluginsProperties);
 }
 
 /* Object initialization
  * Create private structure and set up default values
  */
-static void xfdashboard_settings_plugins_init(XfdashboardSettingsPlugins *self)
+static void xfce_overview_workspaces_settings_plugins_init(XfceOverviewWorkspacesSettingsPlugins *self)
 {
-	XfdashboardSettingsPluginsPrivate	*priv;
+	XfceOverviewWorkspacesSettingsPluginsPrivate	*priv;
 
-	priv=self->priv=xfdashboard_settings_plugins_get_instance_private(self);
+	priv=self->priv=xfce_overview_workspaces_settings_plugins_get_instance_private(self);
 
 	/* Set default values */
 	priv->builder=NULL;
@@ -1256,18 +1256,18 @@ static void xfdashboard_settings_plugins_init(XfdashboardSettingsPlugins *self)
 /* IMPLEMENTATION: Public API */
 
 /* Create instance of this class */
-XfdashboardSettingsPlugins* xfdashboard_settings_plugins_new(XfdashboardSettingsApp *inApp)
+XfceOverviewWorkspacesSettingsPlugins* xfce_overview_workspaces_settings_plugins_new(XfceOverviewWorkspacesSettingsApp *inApp)
 {
 	GObject		*instance;
 
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS_APP(inApp), NULL);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_APP(inApp), NULL);
 
 	/* Create instance */
-	instance=g_object_new(XFDASHBOARD_TYPE_SETTINGS_PLUGINS,
-							"builder", xfdashboard_settings_app_get_builder(inApp),
-							"settings", xfdashboard_settings_app_get_settings(inApp),
+	instance=g_object_new(XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_PLUGINS,
+							"builder", xfce_overview_workspaces_settings_app_get_builder(inApp),
+							"settings", xfce_overview_workspaces_settings_app_get_settings(inApp),
 							NULL);
 
 	/* Return newly created instance */
-	return(XFDASHBOARD_SETTINGS_PLUGINS(instance));
+	return(XFCE_OVERVIEW_WORKSPACES_SETTINGS_PLUGINS(instance));
 }

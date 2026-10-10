@@ -27,7 +27,7 @@
 
 #include "hot-corner.h"
 
-#include <libxfdashboard/libxfdashboard.h>
+#include <libxfce-overview-workspaces/libxfce-overview-workspaces.h>
 #include <glib/gi18n-lib.h>
 #include <gtk/gtk.h>
 #include <math.h>
@@ -36,11 +36,11 @@
 
 
 /* Define this class in GObject system */
-struct _XfdashboardHotCornerPrivate
+struct _XfceOverviewWorkspacesHotCornerPrivate
 {
 	/* Instance related */
-	XfdashboardCore							*core;
-	XfdashboardWindowTracker				*windowTracker;
+	XfceOverviewWorkspacesCore							*core;
+	XfceOverviewWorkspacesWindowTracker				*windowTracker;
 	GdkWindow								*rootWindow;
 	GdkSeat									*seat;
 
@@ -48,21 +48,21 @@ struct _XfdashboardHotCornerPrivate
 	GDateTime								*enteredTime;
 	gboolean								wasHandledRecently;
 
-	XfdashboardHotCornerSettings			*settings;
+	XfceOverviewWorkspacesHotCornerSettings			*settings;
 };
 
-G_DEFINE_DYNAMIC_TYPE_EXTENDED(XfdashboardHotCorner,
-								xfdashboard_hot_corner,
+G_DEFINE_DYNAMIC_TYPE_EXTENDED(XfceOverviewWorkspacesHotCorner,
+								xfce_overview_workspaces_hot_corner,
 								G_TYPE_OBJECT,
 								0,
-								G_ADD_PRIVATE_DYNAMIC(XfdashboardHotCorner))
+								G_ADD_PRIVATE_DYNAMIC(XfceOverviewWorkspacesHotCorner))
 
 /* Define this class in this plugin */
-XFDASHBOARD_DEFINE_PLUGIN_TYPE(xfdashboard_hot_corner);
+XFCE_OVERVIEW_WORKSPACES_DEFINE_PLUGIN_TYPE(xfce_overview_workspaces_hot_corner);
 
-/* IMPLEMENTATION: Enum XFDASHBOARD_TYPE_HOT_CORNER_ACTIVATION_CORNER */
+/* IMPLEMENTATION: Enum XFCE_OVERVIEW_WORKSPACES_TYPE_HOT_CORNER_ACTIVATION_CORNER */
 
-GType xfdashboard_hot_corner_activation_corner_get_type(void)
+GType xfce_overview_workspaces_hot_corner_activation_corner_get_type(void)
 {
 	static gsize	static_g_define_type_id=0;
 
@@ -70,14 +70,14 @@ GType xfdashboard_hot_corner_activation_corner_get_type(void)
 	{
 		static const GEnumValue values[]=
 		{
-			{ XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_TOP_LEFT, "XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_TOP_LEFT", "top-left" },
-			{ XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_TOP_RIGHT, "XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_TOP_RIGHT", "top-right" },
-			{ XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_LEFT, "XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_LEFT", "bottom-left" },
-			{ XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_RIGHT, "XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_RIGHT", "bottom-right" },
+			{ XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_TOP_LEFT, "XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_TOP_LEFT", "top-left" },
+			{ XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_TOP_RIGHT, "XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_TOP_RIGHT", "top-right" },
+			{ XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_LEFT, "XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_LEFT", "bottom-left" },
+			{ XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_RIGHT, "XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_RIGHT", "bottom-right" },
 			{ 0, NULL, NULL }
 		};
 
-		GType	g_define_type_id=g_enum_register_static(g_intern_static_string("XfdashboardHotCornerActivationCorner"), values);
+		GType	g_define_type_id=g_enum_register_static(g_intern_static_string("XfceOverviewWorkspacesHotCornerActivationCorner"), values);
 		g_once_init_leave(&static_g_define_type_id, g_define_type_id);
 	}
 
@@ -88,29 +88,29 @@ GType xfdashboard_hot_corner_activation_corner_get_type(void)
 /* IMPLEMENTATION: Private variables and methods */
 #define POLL_POINTER_POSITION_INTERVAL			100
 
-typedef struct _XfdashboardHotCornerBox		XfdashboardHotCornerBox;
-struct _XfdashboardHotCornerBox
+typedef struct _XfceOverviewWorkspacesHotCornerBox		XfceOverviewWorkspacesHotCornerBox;
+struct _XfceOverviewWorkspacesHotCornerBox
 {
 	gint		x1, y1;
 	gint		x2, y2;
 };
 
 /* Timeout callback to check for activation or suspend via hot corner */
-static gboolean _is_fullscreen_blocked(XfdashboardWindowTracker *inTracker)
+static gboolean _is_fullscreen_blocked(XfceOverviewWorkspacesWindowTracker *inTracker)
 {
-	XfdashboardWindowTrackerWindow		*activeWindow;
-	XfdashboardWindowTrackerWindowState	activeWindowState;
+	XfceOverviewWorkspacesWindowTrackerWindow		*activeWindow;
+	XfceOverviewWorkspacesWindowTrackerWindowState	activeWindowState;
 
-	g_return_val_if_fail(!inTracker || XFDASHBOARD_IS_WINDOW_TRACKER(inTracker), FALSE);
+	g_return_val_if_fail(!inTracker || XFCE_OVERVIEW_WORKSPACES_IS_WINDOW_TRACKER(inTracker), FALSE);
 
 	if(!inTracker) return(FALSE);
 
-	activeWindow=xfdashboard_window_tracker_get_active_window(inTracker);
+	activeWindow=xfce_overview_workspaces_window_tracker_get_active_window(inTracker);
 	if(!activeWindow) return(FALSE);
 
-	activeWindowState=xfdashboard_window_tracker_window_get_state(activeWindow);
-	if((activeWindowState & XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_FULLSCREEN) &&
-		!xfdashboard_window_tracker_window_is_stage(activeWindow))
+	activeWindowState=xfce_overview_workspaces_window_tracker_window_get_state(activeWindow);
+	if((activeWindowState & XFCE_OVERVIEW_WORKSPACES_WINDOW_TRACKER_WINDOW_STATE_FULLSCREEN) &&
+		!xfce_overview_workspaces_window_tracker_window_is_stage(activeWindow))
 	{
 		return(TRUE);
 	}
@@ -118,7 +118,7 @@ static gboolean _is_fullscreen_blocked(XfdashboardWindowTracker *inTracker)
 	return(FALSE);
 }
 
-static void _hot_rect(const XfdashboardHotCornerBox *inMonitorRect, gint inCorner, gint inRadius, XfdashboardHotCornerBox *outHotRect)
+static void _hot_rect(const XfceOverviewWorkspacesHotCornerBox *inMonitorRect, gint inCorner, gint inRadius, XfceOverviewWorkspacesHotCornerBox *outHotRect)
 {
 	g_return_if_fail(inMonitorRect);
 	g_return_if_fail(outHotRect);
@@ -126,28 +126,28 @@ static void _hot_rect(const XfdashboardHotCornerBox *inMonitorRect, gint inCorne
 	/* Get rectangle where pointer must be inside to activate hot corner */
 	switch(inCorner)
 	{
-		case XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_TOP_RIGHT:
+		case XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_TOP_RIGHT:
 			outHotRect->x2=inMonitorRect->x2;
 			outHotRect->x1=MAX(inMonitorRect->x2-inRadius, inMonitorRect->x1);
 			outHotRect->y1=inMonitorRect->y1;
 			outHotRect->y2=MIN(inMonitorRect->y1+inRadius, inMonitorRect->y2);
 			break;
 
-		case XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_LEFT:
+		case XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_LEFT:
 			outHotRect->x1=inMonitorRect->x1;
 			outHotRect->x2=MIN(inMonitorRect->x1+inRadius, inMonitorRect->x2);
 			outHotRect->y2=inMonitorRect->y2;
 			outHotRect->y1=MAX(inMonitorRect->y2-inRadius, inMonitorRect->y1);
 			break;
 
-		case XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_RIGHT:
+		case XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_RIGHT:
 			outHotRect->x2=inMonitorRect->x2;
 			outHotRect->x1=MAX(inMonitorRect->x2-inRadius, inMonitorRect->x1);
 			outHotRect->y2=inMonitorRect->y2;
 			outHotRect->y1=MAX(inMonitorRect->y2-inRadius, inMonitorRect->y1);
 			break;
 
-		case XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_TOP_LEFT:
+		case XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_TOP_LEFT:
 		default:
 			outHotRect->x1=inMonitorRect->x1;
 			outHotRect->x2=MIN(inMonitorRect->x1+inRadius, inMonitorRect->x2);
@@ -157,32 +157,32 @@ static void _hot_rect(const XfdashboardHotCornerBox *inMonitorRect, gint inCorne
 	}
 }
 
-static gboolean _xfdashboard_hot_corner_check_hot_corner(gpointer inUserData)
+static gboolean _xfce_overview_workspaces_hot_corner_check_hot_corner(gpointer inUserData)
 {
-	XfdashboardHotCorner							*self;
-	XfdashboardHotCornerPrivate						*priv;
+	XfceOverviewWorkspacesHotCorner							*self;
+	XfceOverviewWorkspacesHotCornerPrivate						*priv;
 	GdkDevice										*pointerDevice;
 	gint											pointerX, pointerY;
-	XfdashboardHotCornerSettingsActivationCorner	activationCorner;
+	XfceOverviewWorkspacesHotCornerSettingsActivationCorner	activationCorner;
 	gint											activationRadius;
 	gint64											activationDuration;
 	gboolean										primaryMonitorOnly;
-	XfdashboardWindowTrackerMonitor					*monitor;
-	XfdashboardHotCornerBox							monitorRect;
-	XfdashboardHotCornerBox							hotCornerRect;
+	XfceOverviewWorkspacesWindowTrackerMonitor					*monitor;
+	XfceOverviewWorkspacesHotCornerBox							monitorRect;
+	XfceOverviewWorkspacesHotCornerBox							hotCornerRect;
 	GDateTime										*currentTime;
 	GTimeSpan										timeDiff;
 
-	g_return_val_if_fail(XFDASHBOARD_IS_HOT_CORNER(inUserData), G_SOURCE_CONTINUE);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER(inUserData), G_SOURCE_CONTINUE);
 
-	self=XFDASHBOARD_HOT_CORNER(inUserData);
+	self=XFCE_OVERVIEW_WORKSPACES_HOT_CORNER(inUserData);
 	priv=self->priv;
 
 	/* Get all settings now which are used within this function */
-	activationCorner=xfdashboard_hot_corner_settings_get_activation_corner(priv->settings);
-	activationRadius=xfdashboard_hot_corner_settings_get_activation_radius(priv->settings);
-	activationDuration=xfdashboard_hot_corner_settings_get_activation_duration(priv->settings);
-	primaryMonitorOnly=xfdashboard_hot_corner_settings_get_primary_monitor_only(priv->settings);
+	activationCorner=xfce_overview_workspaces_hot_corner_settings_get_activation_corner(priv->settings);
+	activationRadius=xfce_overview_workspaces_hot_corner_settings_get_activation_radius(priv->settings);
+	activationDuration=xfce_overview_workspaces_hot_corner_settings_get_activation_duration(priv->settings);
+	primaryMonitorOnly=xfce_overview_workspaces_hot_corner_settings_get_primary_monitor_only(priv->settings);
 
 	/* Do nothing if current window is fullscreen but not this application */
 	if(_is_fullscreen_blocked(priv->windowTracker))
@@ -201,12 +201,12 @@ static gboolean _xfdashboard_hot_corner_check_hot_corner(gpointer inUserData)
 	gdk_window_get_device_position(priv->rootWindow, pointerDevice, &pointerX, &pointerY, NULL);
 
 	/* Get monitor and its position and size at pointer position */
-	monitor=xfdashboard_window_tracker_get_monitor_by_position(priv->windowTracker, pointerX, pointerY);
+	monitor=xfce_overview_workspaces_window_tracker_get_monitor_by_position(priv->windowTracker, pointerX, pointerY);
 	if(monitor)
 	{
 		gint										monitorWidth, monitorHeight;
 
-		xfdashboard_window_tracker_monitor_get_geometry(monitor,
+		xfce_overview_workspaces_window_tracker_monitor_get_geometry(monitor,
 														&monitorRect.x1,
 														&monitorRect.y1,
 														&monitorWidth,
@@ -218,13 +218,13 @@ static gboolean _xfdashboard_hot_corner_check_hot_corner(gpointer inUserData)
 		{
 			/* Set position to 0,0 and size to screen size */
 			monitorRect.x1=monitorRect.y1=0;
-			xfdashboard_window_tracker_get_screen_size(priv->windowTracker, &monitorRect.x2, &monitorRect.y2);
+			xfce_overview_workspaces_window_tracker_get_screen_size(priv->windowTracker, &monitorRect.x2, &monitorRect.y2);
 		}
 
 	/* Check pointer in currently iterated monitor should be checked */
 	if(primaryMonitorOnly &&
 		monitor &&
-		!xfdashboard_window_tracker_monitor_is_primary(monitor))
+		!xfce_overview_workspaces_window_tracker_monitor_is_primary(monitor))
 	{
 		return(G_SOURCE_CONTINUE);
 	}
@@ -280,13 +280,13 @@ static gboolean _xfdashboard_hot_corner_check_hot_corner(gpointer inUserData)
 	/* Activation duration reached so resume core if suspended or suspend it
 	 * if active currently.
 	 */
-	if(!xfdashboard_core_is_suspended(priv->core))
+	if(!xfce_overview_workspaces_core_is_suspended(priv->core))
 	{
-		xfdashboard_core_suspend(priv->core);
+		xfce_overview_workspaces_core_suspend(priv->core);
 	}
 		else
 		{
-			xfdashboard_core_resume(priv->core);
+			xfce_overview_workspaces_core_resume(priv->core);
 		}
 
 	/* Set flag that activation was handled recently */
@@ -298,10 +298,10 @@ static gboolean _xfdashboard_hot_corner_check_hot_corner(gpointer inUserData)
 /* IMPLEMENTATION: GObject */
 
 /* Dispose this object */
-static void _xfdashboard_hot_corner_dispose(GObject *inObject)
+static void _xfce_overview_workspaces_hot_corner_dispose(GObject *inObject)
 {
-	XfdashboardHotCorner			*self=XFDASHBOARD_HOT_CORNER(inObject);
-	XfdashboardHotCornerPrivate		*priv=self->priv;
+	XfceOverviewWorkspacesHotCorner			*self=XFCE_OVERVIEW_WORKSPACES_HOT_CORNER(inObject);
+	XfceOverviewWorkspacesHotCornerPrivate		*priv=self->priv;
 
 	/* Release allocated resources */
 	if(priv->enteredTime)
@@ -334,40 +334,40 @@ static void _xfdashboard_hot_corner_dispose(GObject *inObject)
 	}
 
 	/* Call parent's class dispose method */
-	G_OBJECT_CLASS(xfdashboard_hot_corner_parent_class)->dispose(inObject);
+	G_OBJECT_CLASS(xfce_overview_workspaces_hot_corner_parent_class)->dispose(inObject);
 }
 
 /* Class initialization
  * Override functions in parent classes and define properties
  * and signals
  */
-void xfdashboard_hot_corner_class_init(XfdashboardHotCornerClass *klass)
+void xfce_overview_workspaces_hot_corner_class_init(XfceOverviewWorkspacesHotCornerClass *klass)
 {
 	GObjectClass			*gobjectClass=G_OBJECT_CLASS(klass);
 
 	/* Override functions */
-	gobjectClass->dispose=_xfdashboard_hot_corner_dispose;
+	gobjectClass->dispose=_xfce_overview_workspaces_hot_corner_dispose;
 }
 
 /* Class finalization */
-void xfdashboard_hot_corner_class_finalize(XfdashboardHotCornerClass *klass)
+void xfce_overview_workspaces_hot_corner_class_finalize(XfceOverviewWorkspacesHotCornerClass *klass)
 {
 }
 
 /* Object initialization
  * Create private structure and set up default values
  */
-void xfdashboard_hot_corner_init(XfdashboardHotCorner *self)
+void xfce_overview_workspaces_hot_corner_init(XfceOverviewWorkspacesHotCorner *self)
 {
-	XfdashboardHotCornerPrivate		*priv;
+	XfceOverviewWorkspacesHotCornerPrivate		*priv;
 	GdkScreen						*screen;
 	GdkDisplay						*display;
 
-	self->priv=priv=xfdashboard_hot_corner_get_instance_private(self);
+	self->priv=priv=xfce_overview_workspaces_hot_corner_get_instance_private(self);
 
 	/* Set up default values */
-	priv->core=xfdashboard_core_get_default();
-	priv->windowTracker=xfdashboard_core_get_window_tracker(priv->core);
+	priv->core=xfce_overview_workspaces_core_get_default();
+	priv->windowTracker=xfce_overview_workspaces_core_get_window_tracker(priv->core);
 	priv->rootWindow=NULL;
 	priv->seat=NULL;
 
@@ -376,10 +376,10 @@ void xfdashboard_hot_corner_init(XfdashboardHotCorner *self)
 	priv->wasHandledRecently=FALSE;
 
 	/* Set up settings */
-	priv->settings=xfdashboard_hot_corner_settings_new();
+	priv->settings=xfce_overview_workspaces_hot_corner_settings_new();
 
 	/* Get device manager for polling pointer position */
-	if(xfdashboard_core_can_suspend(priv->core))
+	if(xfce_overview_workspaces_core_can_suspend(priv->core))
 	{
 		screen=gdk_screen_get_default();
 		priv->rootWindow=gdk_screen_get_root_window(screen);
@@ -397,7 +397,7 @@ void xfdashboard_hot_corner_init(XfdashboardHotCorner *self)
 		{
 			/* Start polling pointer position */
 			priv->timeoutID=g_timeout_add(POLL_POINTER_POSITION_INTERVAL,
-											(GSourceFunc)_xfdashboard_hot_corner_check_hot_corner,
+											(GSourceFunc)_xfce_overview_workspaces_hot_corner_check_hot_corner,
 											self);
 		}
 			else
@@ -415,12 +415,12 @@ void xfdashboard_hot_corner_init(XfdashboardHotCorner *self)
 /* IMPLEMENTATION: Public API */
 
 /* Create new instance */
-XfdashboardHotCorner* xfdashboard_hot_corner_new(void)
+XfceOverviewWorkspacesHotCorner* xfce_overview_workspaces_hot_corner_new(void)
 {
 	GObject		*hotCorner;
 
-	hotCorner=g_object_new(XFDASHBOARD_TYPE_HOT_CORNER, NULL);
+	hotCorner=g_object_new(XFCE_OVERVIEW_WORKSPACES_TYPE_HOT_CORNER, NULL);
 	if(!hotCorner) return(NULL);
 
-	return(XFDASHBOARD_HOT_CORNER(hotCorner));
+	return(XFCE_OVERVIEW_WORKSPACES_HOT_CORNER(hotCorner));
 }

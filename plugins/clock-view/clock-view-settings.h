@@ -21,60 +21,60 @@
  * 
  */
 
-#ifndef __XFDASHBOARD_CLOCK_VIEW_SETTINGS__
-#define __XFDASHBOARD_CLOCK_VIEW_SETTINGS__
+#ifndef __XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW_SETTINGS__
+#define __XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW_SETTINGS__
 
-#include <libxfdashboard/libxfdashboard.h>
+#include <libxfce-overview-workspaces/libxfce-overview-workspaces.h>
 #include <glib-object.h>
 #include <clutter/clutter.h>
 
 G_BEGIN_DECLS
 
-#define XFDASHBOARD_TYPE_CLOCK_VIEW_SETTINGS				(xfdashboard_clock_view_settings_get_type())
-#define XFDASHBOARD_CLOCK_VIEW_SETTINGS(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFDASHBOARD_TYPE_CLOCK_VIEW_SETTINGS, XfdashboardClockViewSettings))
-#define XFDASHBOARD_IS_CLOCK_VIEW_SETTINGS(obj)				(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFDASHBOARD_TYPE_CLOCK_VIEW_SETTINGS))
-#define XFDASHBOARD_CLOCK_VIEW_SETTINGS_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFDASHBOARD_TYPE_CLOCK_VIEW_SETTINGS, XfdashboardClockViewSettingsClass))
-#define XFDASHBOARD_IS_CLOCK_VIEW_SETTINGS_CLASS(klass)		(G_TYPE_CHECK_CLASS_TYPE((klass), XFDASHBOARD_TYPE_CLOCK_VIEW_SETTINGS))
-#define XFDASHBOARD_CLOCK_VIEW_SETTINGS_GET_CLASS(obj)		(G_TYPE_INSTANCE_GET_CLASS((obj), XFDASHBOARD_TYPE_CLOCK_VIEW_SETTINGS, XfdashboardClockViewSettingsClass))
+#define XFCE_OVERVIEW_WORKSPACES_TYPE_CLOCK_VIEW_SETTINGS				(xfce_overview_workspaces_clock_view_settings_get_type())
+#define XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW_SETTINGS(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_CLOCK_VIEW_SETTINGS, XfceOverviewWorkspacesClockViewSettings))
+#define XFCE_OVERVIEW_WORKSPACES_IS_CLOCK_VIEW_SETTINGS(obj)				(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_CLOCK_VIEW_SETTINGS))
+#define XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW_SETTINGS_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_CLOCK_VIEW_SETTINGS, XfceOverviewWorkspacesClockViewSettingsClass))
+#define XFCE_OVERVIEW_WORKSPACES_IS_CLOCK_VIEW_SETTINGS_CLASS(klass)		(G_TYPE_CHECK_CLASS_TYPE((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_CLOCK_VIEW_SETTINGS))
+#define XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW_SETTINGS_GET_CLASS(obj)		(G_TYPE_INSTANCE_GET_CLASS((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_CLOCK_VIEW_SETTINGS, XfceOverviewWorkspacesClockViewSettingsClass))
 
-typedef struct _XfdashboardClockViewSettings				XfdashboardClockViewSettings; 
-typedef struct _XfdashboardClockViewSettingsPrivate			XfdashboardClockViewSettingsPrivate;
-typedef struct _XfdashboardClockViewSettingsClass			XfdashboardClockViewSettingsClass;
+typedef struct _XfceOverviewWorkspacesClockViewSettings				XfceOverviewWorkspacesClockViewSettings; 
+typedef struct _XfceOverviewWorkspacesClockViewSettingsPrivate			XfceOverviewWorkspacesClockViewSettingsPrivate;
+typedef struct _XfceOverviewWorkspacesClockViewSettingsClass			XfceOverviewWorkspacesClockViewSettingsClass;
 
-struct _XfdashboardClockViewSettings
+struct _XfceOverviewWorkspacesClockViewSettings
 {
 	/* Parent instance */
-	XfdashboardPluginSettings				parent_instance;
+	XfceOverviewWorkspacesPluginSettings				parent_instance;
 
 	/* Private structure */
-	XfdashboardClockViewSettingsPrivate		*priv;
+	XfceOverviewWorkspacesClockViewSettingsPrivate		*priv;
 };
 
-struct _XfdashboardClockViewSettingsClass
+struct _XfceOverviewWorkspacesClockViewSettingsClass
 {
 	/*< private >*/
 	/* Parent class */
-	XfdashboardPluginSettingsClass			parent_class;
+	XfceOverviewWorkspacesPluginSettingsClass			parent_class;
 };
 
 /* Public API */
-GType xfdashboard_clock_view_settings_get_type(void) G_GNUC_CONST;
+GType xfce_overview_workspaces_clock_view_settings_get_type(void) G_GNUC_CONST;
 
-XfdashboardClockViewSettings* xfdashboard_clock_view_settings_new(void);
+XfceOverviewWorkspacesClockViewSettings* xfce_overview_workspaces_clock_view_settings_new(void);
 
-const ClutterColor* xfdashboard_clock_view_settings_get_hour_color(XfdashboardClockViewSettings *self);
-void xfdashboard_clock_view_settings_set_hour_color(XfdashboardClockViewSettings *self, const ClutterColor *inColor);
+const ClutterColor* xfce_overview_workspaces_clock_view_settings_get_hour_color(XfceOverviewWorkspacesClockViewSettings *self);
+void xfce_overview_workspaces_clock_view_settings_set_hour_color(XfceOverviewWorkspacesClockViewSettings *self, const ClutterColor *inColor);
 
-const ClutterColor* xfdashboard_clock_view_settings_get_minute_color(XfdashboardClockViewSettings *self);
-void xfdashboard_clock_view_settings_set_minute_color(XfdashboardClockViewSettings *self, const ClutterColor *inColor);
+const ClutterColor* xfce_overview_workspaces_clock_view_settings_get_minute_color(XfceOverviewWorkspacesClockViewSettings *self);
+void xfce_overview_workspaces_clock_view_settings_set_minute_color(XfceOverviewWorkspacesClockViewSettings *self, const ClutterColor *inColor);
 
-const ClutterColor* xfdashboard_clock_view_settings_get_second_color(XfdashboardClockViewSettings *self);
-void xfdashboard_clock_view_settings_set_second_color(XfdashboardClockViewSettings *self, const ClutterColor *inColor);
+const ClutterColor* xfce_overview_workspaces_clock_view_settings_get_second_color(XfceOverviewWorkspacesClockViewSettings *self);
+void xfce_overview_workspaces_clock_view_settings_set_second_color(XfceOverviewWorkspacesClockViewSettings *self, const ClutterColor *inColor);
 
-const ClutterColor* xfdashboard_clock_view_settings_get_background_color(XfdashboardClockViewSettings *self);
-void xfdashboard_clock_view_settings_set_background_color(XfdashboardClockViewSettings *self, const ClutterColor *inColor);
+const ClutterColor* xfce_overview_workspaces_clock_view_settings_get_background_color(XfceOverviewWorkspacesClockViewSettings *self);
+void xfce_overview_workspaces_clock_view_settings_set_background_color(XfceOverviewWorkspacesClockViewSettings *self, const ClutterColor *inColor);
 
-XFDASHBOARD_DECLARE_PLUGIN_TYPE(xfdashboard_clock_view_settings);
+XFCE_OVERVIEW_WORKSPACES_DECLARE_PLUGIN_TYPE(xfce_overview_workspaces_clock_view_settings);
 
 G_END_DECLS
 

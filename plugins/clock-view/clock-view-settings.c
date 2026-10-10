@@ -27,14 +27,14 @@
 
 #include "clock-view-settings.h"
 
-#include <libxfdashboard/libxfdashboard.h>
+#include <libxfce-overview-workspaces/libxfce-overview-workspaces.h>
 #include <glib/gi18n-lib.h>
 #include <gtk/gtk.h>
 #include <math.h>
 
 
 /* Define this class in GObject system */
-struct _XfdashboardClockViewSettingsPrivate
+struct _XfceOverviewWorkspacesClockViewSettingsPrivate
 {
 	/* Properties related */
 	ClutterColor			*hourColor;
@@ -43,14 +43,14 @@ struct _XfdashboardClockViewSettingsPrivate
 	ClutterColor			*backgroundColor;
 };
 
-G_DEFINE_DYNAMIC_TYPE_EXTENDED(XfdashboardClockViewSettings,
-								xfdashboard_clock_view_settings,
-								XFDASHBOARD_TYPE_PLUGIN_SETTINGS,
+G_DEFINE_DYNAMIC_TYPE_EXTENDED(XfceOverviewWorkspacesClockViewSettings,
+								xfce_overview_workspaces_clock_view_settings,
+								XFCE_OVERVIEW_WORKSPACES_TYPE_PLUGIN_SETTINGS,
 								0,
-								G_ADD_PRIVATE_DYNAMIC(XfdashboardClockViewSettings))
+								G_ADD_PRIVATE_DYNAMIC(XfceOverviewWorkspacesClockViewSettings))
 
 /* Define this class in this plugin */
-XFDASHBOARD_DEFINE_PLUGIN_TYPE(xfdashboard_clock_view_settings);
+XFCE_OVERVIEW_WORKSPACES_DEFINE_PLUGIN_TYPE(xfce_overview_workspaces_clock_view_settings);
 
 /* Properties */
 enum
@@ -65,42 +65,42 @@ enum
 	PROP_LAST
 };
 
-static GParamSpec* XfdashboardClockViewSettingsProperties[PROP_LAST]={ 0, };
+static GParamSpec* XfceOverviewWorkspacesClockViewSettingsProperties[PROP_LAST]={ 0, };
 
 
 /* IMPLEMENTATION: Private variables and methods */
 
 /* Single instance of plugin settings */
-static XfdashboardClockViewSettings*		_xfdashboard_clock_view_settings=NULL;
+static XfceOverviewWorkspacesClockViewSettings*		_xfce_overview_workspaces_clock_view_settings=NULL;
 
 
 /* IMPLEMENTATION: GObject */
 
 /* Construct this object */
-static GObject* _xfdashboard_clock_view_settings_constructor(GType inType,
+static GObject* _xfce_overview_workspaces_clock_view_settings_constructor(GType inType,
 																guint inNumberConstructParams,
 																GObjectConstructParam *inConstructParams)
 {
 	GObject									*object;
 
-	if(!_xfdashboard_clock_view_settings)
+	if(!_xfce_overview_workspaces_clock_view_settings)
 	{
-		object=G_OBJECT_CLASS(xfdashboard_clock_view_settings_parent_class)->constructor(inType, inNumberConstructParams, inConstructParams);
-		_xfdashboard_clock_view_settings=XFDASHBOARD_CLOCK_VIEW_SETTINGS(object);
+		object=G_OBJECT_CLASS(xfce_overview_workspaces_clock_view_settings_parent_class)->constructor(inType, inNumberConstructParams, inConstructParams);
+		_xfce_overview_workspaces_clock_view_settings=XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW_SETTINGS(object);
 	}
 		else
 		{
-			object=g_object_ref(G_OBJECT(_xfdashboard_clock_view_settings));
+			object=g_object_ref(G_OBJECT(_xfce_overview_workspaces_clock_view_settings));
 		}
 
 	return(object);
 }
 
 /* Dispose this object */
-static void _xfdashboard_clock_view_settings_dispose(GObject *inObject)
+static void _xfce_overview_workspaces_clock_view_settings_dispose(GObject *inObject)
 {
-	XfdashboardClockViewSettings			*self=XFDASHBOARD_CLOCK_VIEW_SETTINGS(inObject);
-	XfdashboardClockViewSettingsPrivate		*priv=self->priv;
+	XfceOverviewWorkspacesClockViewSettings			*self=XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW_SETTINGS(inObject);
+	XfceOverviewWorkspacesClockViewSettingsPrivate		*priv=self->priv;
 
 	/* Release allocated resources */
 	if(priv->hourColor)
@@ -122,46 +122,46 @@ static void _xfdashboard_clock_view_settings_dispose(GObject *inObject)
 	}
 
 	/* Call parent's class dispose method */
-	G_OBJECT_CLASS(xfdashboard_clock_view_settings_parent_class)->dispose(inObject);
+	G_OBJECT_CLASS(xfce_overview_workspaces_clock_view_settings_parent_class)->dispose(inObject);
 }
 
 /* Finalize this object */
-static void _xfdashboard_clock_view_settings_finalize(GObject *inObject)
+static void _xfce_overview_workspaces_clock_view_settings_finalize(GObject *inObject)
 {
 	/* Release allocated resources finally, e.g. unset singleton */
-	if(G_LIKELY(G_OBJECT(_xfdashboard_clock_view_settings)==inObject))
+	if(G_LIKELY(G_OBJECT(_xfce_overview_workspaces_clock_view_settings)==inObject))
 	{
-		_xfdashboard_clock_view_settings=NULL;
+		_xfce_overview_workspaces_clock_view_settings=NULL;
 	}
 
 	/* Call parent's class dispose method */
-	G_OBJECT_CLASS(xfdashboard_clock_view_settings_parent_class)->finalize(inObject);
+	G_OBJECT_CLASS(xfce_overview_workspaces_clock_view_settings_parent_class)->finalize(inObject);
 }
 
 /* Set/get properties */
-static void _xfdashboard_clock_view_settings_set_property(GObject *inObject,
+static void _xfce_overview_workspaces_clock_view_settings_set_property(GObject *inObject,
 															guint inPropID,
 															const GValue *inValue,
 															GParamSpec *inSpec)
 {
-	XfdashboardClockViewSettings			*self=XFDASHBOARD_CLOCK_VIEW_SETTINGS(inObject);
+	XfceOverviewWorkspacesClockViewSettings			*self=XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW_SETTINGS(inObject);
 
 	switch(inPropID)
 	{
 		case PROP_HOUR_COLOR:
-			xfdashboard_clock_view_settings_set_hour_color(self, clutter_value_get_color(inValue));
+			xfce_overview_workspaces_clock_view_settings_set_hour_color(self, clutter_value_get_color(inValue));
 			break;
 
 		case PROP_MINUTE_COLOR:
-			xfdashboard_clock_view_settings_set_minute_color(self, clutter_value_get_color(inValue));
+			xfce_overview_workspaces_clock_view_settings_set_minute_color(self, clutter_value_get_color(inValue));
 			break;
 
 		case PROP_SECOND_COLOR:
-			xfdashboard_clock_view_settings_set_second_color(self, clutter_value_get_color(inValue));
+			xfce_overview_workspaces_clock_view_settings_set_second_color(self, clutter_value_get_color(inValue));
 			break;
 
 		case PROP_BACKGROUOND_COLOR:
-			xfdashboard_clock_view_settings_set_background_color(self, clutter_value_get_color(inValue));
+			xfce_overview_workspaces_clock_view_settings_set_background_color(self, clutter_value_get_color(inValue));
 			break;
 
 		default:
@@ -170,13 +170,13 @@ static void _xfdashboard_clock_view_settings_set_property(GObject *inObject,
 	}
 }
 
-static void _xfdashboard_clock_view_settings_get_property(GObject *inObject,
+static void _xfce_overview_workspaces_clock_view_settings_get_property(GObject *inObject,
 															guint inPropID,
 															GValue *outValue,
 															GParamSpec *inSpec)
 {
-	XfdashboardClockViewSettings			*self=XFDASHBOARD_CLOCK_VIEW_SETTINGS(inObject);
-	XfdashboardClockViewSettingsPrivate		*priv=self->priv;
+	XfceOverviewWorkspacesClockViewSettings			*self=XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW_SETTINGS(inObject);
+	XfceOverviewWorkspacesClockViewSettingsPrivate		*priv=self->priv;
 
 	switch(inPropID)
 	{
@@ -206,62 +206,62 @@ static void _xfdashboard_clock_view_settings_get_property(GObject *inObject,
  * Override functions in parent classes and define properties
  * and signals
  */
-void xfdashboard_clock_view_settings_class_init(XfdashboardClockViewSettingsClass *klass)
+void xfce_overview_workspaces_clock_view_settings_class_init(XfceOverviewWorkspacesClockViewSettingsClass *klass)
 {
 	GObjectClass			*gobjectClass=G_OBJECT_CLASS(klass);
 
 	/* Override functions */
-	gobjectClass->constructor=_xfdashboard_clock_view_settings_constructor;
-	gobjectClass->dispose=_xfdashboard_clock_view_settings_dispose;
-	gobjectClass->finalize=_xfdashboard_clock_view_settings_finalize;
-	gobjectClass->set_property=_xfdashboard_clock_view_settings_set_property;
-	gobjectClass->get_property=_xfdashboard_clock_view_settings_get_property;
+	gobjectClass->constructor=_xfce_overview_workspaces_clock_view_settings_constructor;
+	gobjectClass->dispose=_xfce_overview_workspaces_clock_view_settings_dispose;
+	gobjectClass->finalize=_xfce_overview_workspaces_clock_view_settings_finalize;
+	gobjectClass->set_property=_xfce_overview_workspaces_clock_view_settings_set_property;
+	gobjectClass->get_property=_xfce_overview_workspaces_clock_view_settings_get_property;
 
 	/* Define properties */
-	XfdashboardClockViewSettingsProperties[PROP_HOUR_COLOR]=
+	XfceOverviewWorkspacesClockViewSettingsProperties[PROP_HOUR_COLOR]=
 		clutter_param_spec_color("hour-color",
 									"Hour color",
 									"Color to draw the hour hand with",
 									CLUTTER_COLOR_LightChameleon,
 									G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-	XfdashboardClockViewSettingsProperties[PROP_MINUTE_COLOR]=
+	XfceOverviewWorkspacesClockViewSettingsProperties[PROP_MINUTE_COLOR]=
 		clutter_param_spec_color("minute-color",
 									"Minute color",
 									"Color to draw the minute hand with",
 									CLUTTER_COLOR_LightChameleon,
 									G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-	XfdashboardClockViewSettingsProperties[PROP_SECOND_COLOR]=
+	XfceOverviewWorkspacesClockViewSettingsProperties[PROP_SECOND_COLOR]=
 		clutter_param_spec_color("second-color",
 									"Second color",
 									"Color to draw the second hand with",
 									CLUTTER_COLOR_White,
 									G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-	XfdashboardClockViewSettingsProperties[PROP_BACKGROUOND_COLOR]=
+	XfceOverviewWorkspacesClockViewSettingsProperties[PROP_BACKGROUOND_COLOR]=
 		clutter_param_spec_color("background-color",
 									"Background color",
 									"Color to draw the circle with that holds the second hand",
 									CLUTTER_COLOR_Blue,
 									G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-	g_object_class_install_properties(gobjectClass, PROP_LAST, XfdashboardClockViewSettingsProperties);
+	g_object_class_install_properties(gobjectClass, PROP_LAST, XfceOverviewWorkspacesClockViewSettingsProperties);
 }
 
 /* Class finalization */
-void xfdashboard_clock_view_settings_class_finalize(XfdashboardClockViewSettingsClass *klass)
+void xfce_overview_workspaces_clock_view_settings_class_finalize(XfceOverviewWorkspacesClockViewSettingsClass *klass)
 {
 }
 
 /* Object initialization
  * Create private structure and set up default values
  */
-void xfdashboard_clock_view_settings_init(XfdashboardClockViewSettings *self)
+void xfce_overview_workspaces_clock_view_settings_init(XfceOverviewWorkspacesClockViewSettings *self)
 {
-	XfdashboardClockViewSettingsPrivate		*priv;
+	XfceOverviewWorkspacesClockViewSettingsPrivate		*priv;
 
-	self->priv=priv=xfdashboard_clock_view_settings_get_instance_private(self);
+	self->priv=priv=xfce_overview_workspaces_clock_view_settings_get_instance_private(self);
 
 	/* Set up default values */
 	priv->hourColor=clutter_color_copy(CLUTTER_COLOR_LightChameleon);
@@ -274,28 +274,28 @@ void xfdashboard_clock_view_settings_init(XfdashboardClockViewSettings *self)
 /* IMPLEMENTATION: Public API */
 
 /* Create new plugin settings */
-XfdashboardClockViewSettings* xfdashboard_clock_view_settings_new(void)
+XfceOverviewWorkspacesClockViewSettings* xfce_overview_workspaces_clock_view_settings_new(void)
 {
 	GObject			*object;
 
-	object=g_object_new(XFDASHBOARD_TYPE_CLOCK_VIEW_SETTINGS, NULL);
+	object=g_object_new(XFCE_OVERVIEW_WORKSPACES_TYPE_CLOCK_VIEW_SETTINGS, NULL);
 
-	return(XFDASHBOARD_CLOCK_VIEW_SETTINGS(object));
+	return(XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW_SETTINGS(object));
 }
 
 /* Get/set color to draw hour hand with */
-const ClutterColor* xfdashboard_clock_view_settings_get_hour_color(XfdashboardClockViewSettings *self)
+const ClutterColor* xfce_overview_workspaces_clock_view_settings_get_hour_color(XfceOverviewWorkspacesClockViewSettings *self)
 {
-	g_return_val_if_fail(XFDASHBOARD_IS_CLOCK_VIEW_SETTINGS(self), NULL);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_CLOCK_VIEW_SETTINGS(self), NULL);
 
 	return(self->priv->hourColor);
 }
 
-void xfdashboard_clock_view_settings_set_hour_color(XfdashboardClockViewSettings *self, const ClutterColor *inColor)
+void xfce_overview_workspaces_clock_view_settings_set_hour_color(XfceOverviewWorkspacesClockViewSettings *self, const ClutterColor *inColor)
 {
-	XfdashboardClockViewSettingsPrivate		*priv;
+	XfceOverviewWorkspacesClockViewSettingsPrivate		*priv;
 
-	g_return_if_fail(XFDASHBOARD_IS_CLOCK_VIEW_SETTINGS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_CLOCK_VIEW_SETTINGS(self));
 	g_return_if_fail(inColor);
 
 	priv=self->priv;
@@ -309,23 +309,23 @@ void xfdashboard_clock_view_settings_set_hour_color(XfdashboardClockViewSettings
 		priv->hourColor=clutter_color_copy(inColor);
 
 		/* Notify about property change */
-		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardClockViewSettingsProperties[PROP_HOUR_COLOR]);
+		g_object_notify_by_pspec(G_OBJECT(self), XfceOverviewWorkspacesClockViewSettingsProperties[PROP_HOUR_COLOR]);
 	}
 }
 
 /* Get/set color to draw minute hand with */
-const ClutterColor* xfdashboard_clock_view_settings_get_minute_color(XfdashboardClockViewSettings *self)
+const ClutterColor* xfce_overview_workspaces_clock_view_settings_get_minute_color(XfceOverviewWorkspacesClockViewSettings *self)
 {
-	g_return_val_if_fail(XFDASHBOARD_IS_CLOCK_VIEW_SETTINGS(self), NULL);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_CLOCK_VIEW_SETTINGS(self), NULL);
 
 	return(self->priv->minuteColor);
 }
 
-void xfdashboard_clock_view_settings_set_minute_color(XfdashboardClockViewSettings *self, const ClutterColor *inColor)
+void xfce_overview_workspaces_clock_view_settings_set_minute_color(XfceOverviewWorkspacesClockViewSettings *self, const ClutterColor *inColor)
 {
-	XfdashboardClockViewSettingsPrivate		*priv;
+	XfceOverviewWorkspacesClockViewSettingsPrivate		*priv;
 
-	g_return_if_fail(XFDASHBOARD_IS_CLOCK_VIEW_SETTINGS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_CLOCK_VIEW_SETTINGS(self));
 	g_return_if_fail(inColor);
 
 	priv=self->priv;
@@ -339,23 +339,23 @@ void xfdashboard_clock_view_settings_set_minute_color(XfdashboardClockViewSettin
 		priv->minuteColor=clutter_color_copy(inColor);
 
 		/* Notify about property change */
-		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardClockViewSettingsProperties[PROP_MINUTE_COLOR]);
+		g_object_notify_by_pspec(G_OBJECT(self), XfceOverviewWorkspacesClockViewSettingsProperties[PROP_MINUTE_COLOR]);
 	}
 }
 
 /* Get/set color to draw second hand with */
-const ClutterColor* xfdashboard_clock_view_settings_get_second_color(XfdashboardClockViewSettings *self)
+const ClutterColor* xfce_overview_workspaces_clock_view_settings_get_second_color(XfceOverviewWorkspacesClockViewSettings *self)
 {
-	g_return_val_if_fail(XFDASHBOARD_IS_CLOCK_VIEW_SETTINGS(self), NULL);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_CLOCK_VIEW_SETTINGS(self), NULL);
 
 	return(self->priv->secondColor);
 }
 
-void xfdashboard_clock_view_settings_set_second_color(XfdashboardClockViewSettings *self, const ClutterColor *inColor)
+void xfce_overview_workspaces_clock_view_settings_set_second_color(XfceOverviewWorkspacesClockViewSettings *self, const ClutterColor *inColor)
 {
-	XfdashboardClockViewSettingsPrivate		*priv;
+	XfceOverviewWorkspacesClockViewSettingsPrivate		*priv;
 
-	g_return_if_fail(XFDASHBOARD_IS_CLOCK_VIEW_SETTINGS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_CLOCK_VIEW_SETTINGS(self));
 	g_return_if_fail(inColor);
 
 	priv=self->priv;
@@ -369,23 +369,23 @@ void xfdashboard_clock_view_settings_set_second_color(XfdashboardClockViewSettin
 		priv->secondColor=clutter_color_copy(inColor);
 
 		/* Notify about property change */
-		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardClockViewSettingsProperties[PROP_SECOND_COLOR]);
+		g_object_notify_by_pspec(G_OBJECT(self), XfceOverviewWorkspacesClockViewSettingsProperties[PROP_SECOND_COLOR]);
 	}
 }
 
 /* Get/set color to draw background with that holds second hand */
-const ClutterColor* xfdashboard_clock_view_settings_get_background_color(XfdashboardClockViewSettings *self)
+const ClutterColor* xfce_overview_workspaces_clock_view_settings_get_background_color(XfceOverviewWorkspacesClockViewSettings *self)
 {
-	g_return_val_if_fail(XFDASHBOARD_IS_CLOCK_VIEW_SETTINGS(self), NULL);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_CLOCK_VIEW_SETTINGS(self), NULL);
 
 	return(self->priv->backgroundColor);
 }
 
-void xfdashboard_clock_view_settings_set_background_color(XfdashboardClockViewSettings *self, const ClutterColor *inColor)
+void xfce_overview_workspaces_clock_view_settings_set_background_color(XfceOverviewWorkspacesClockViewSettings *self, const ClutterColor *inColor)
 {
-	XfdashboardClockViewSettingsPrivate		*priv;
+	XfceOverviewWorkspacesClockViewSettingsPrivate		*priv;
 
-	g_return_if_fail(XFDASHBOARD_IS_CLOCK_VIEW_SETTINGS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_CLOCK_VIEW_SETTINGS(self));
 	g_return_if_fail(inColor);
 
 	priv=self->priv;
@@ -399,6 +399,6 @@ void xfdashboard_clock_view_settings_set_background_color(XfdashboardClockViewSe
 		priv->backgroundColor=clutter_color_copy(inColor);
 
 		/* Notify about property change */
-		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardClockViewSettingsProperties[PROP_BACKGROUOND_COLOR]);
+		g_object_notify_by_pspec(G_OBJECT(self), XfceOverviewWorkspacesClockViewSettingsProperties[PROP_BACKGROUOND_COLOR]);
 	}
 }

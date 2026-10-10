@@ -4,8 +4,8 @@ subdir('metainfo')
 subdir('themes')
 
 autostart_desktop_in = configure_file(
-  input: 'org.xfce.xfdashboard-autostart.desktop.in.in',
-  output: 'org.xfce.xfdashboard-autostart.desktop.in',
+  input: 'org.xfce.xfce-overview-workspaces-autostart.desktop.in.in',
+  output: 'org.xfce.xfce-overview-workspaces-autostart.desktop.in',
   configuration: {
     'bindir': get_option('prefix') / get_option('bindir'),
   },
@@ -14,7 +14,7 @@ autostart_desktop_in = configure_file(
 
 i18n.merge_file(
   input: autostart_desktop_in,
-  output: 'org.xfce.xfdashboard-autostart.desktop',
+  output: 'org.xfce.xfce-overview-workspaces-autostart.desktop',
   type: 'desktop',
   po_dir: '..' / 'po',
   install: true,
@@ -22,8 +22,8 @@ i18n.merge_file(
 )
 
 desktop_files = [
-  'org.xfce.xfdashboard-settings.desktop',
-  'org.xfce.xfdashboard.desktop',
+  'org.xfce.xfce-overview-workspaces-settings.desktop',
+  'org.xfce.xfce-overview-workspaces.desktop',
 ]
 
 foreach desktop_file : desktop_files

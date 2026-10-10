@@ -23,7 +23,7 @@ autotools will be removed in a future release.
 - I18n: Update po/LINGUAS list
 - I18n: Update po/LINGUAS list
 - I18n: Update po/LINGUAS list
-- xfdashboard: Fix translation in g_option_context_set_summary
+- xfce-overview-workspaces: Fix translation in g_option_context_set_summary
 - build: Fix gettext warning about empty string
 - build: Use XDT_VERSION_INIT and get rid of configure.ac.in
 - build: Workaround *.theme translation

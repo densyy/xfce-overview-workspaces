@@ -1,0 +1,11 @@
+[Desktop Entry]
+Type=Application
+Name=Xfce Overview Workspaces
+Comment=Maybe a Gnome shell like dashboard for Xfce
+GenericName=Xfce Overview Workspaces
+TryExec=@bindir@/xfce-overview-workspaces
+Exec=@bindir@/xfce-overview-workspaces
+Icon=org.xfce.xfce-overview-workspaces
+Categories=System;
+NotShowIn=GNOME;KDE;Unity;
+Terminal=false

@@ -1,0 +1,16 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=Xfce Overview Workspaces Settings
+Comment=Configure Xfce Overview Workspaces
+GenericName=Xfce Overview Workspaces Settings
+TryExec=@bindir@/xfce-overview-workspaces-settings
+Exec=@bindir@/xfce-overview-workspaces-settings
+Icon=org.xfce.xfce-overview-workspaces
+Categories=XFCE;GTK;Settings;DesktopSettings;X-XFCE-SettingsDialog;X-XFCE-PersonalSettings;
+NotShowIn=GNOME;KDE;Unity;
+Terminal=false
+StartupNotify=true
+X-XfcePluggable=true
+X-XfceHelpComponent=xfce-overview-workspaces
+X-XfceHelpPage=start

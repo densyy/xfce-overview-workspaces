@@ -1,0 +1,66 @@
+<animations>
+	<trigger id="expand-workspace" sender="XfceOverviewWorkspacesCollapseBox" signal="expand">
+		<timeline delay="0" duration="500" mode="ease-out-cubic">
+			<apply>
+				<property name="collapse-progress" />
+			</apply>
+		</timeline>
+	</trigger>
+
+	<trigger id="collapse-workspace" sender="XfceOverviewWorkspacesCollapseBox" signal="collapse">
+		<timeline delay="0" duration="500" mode="ease-in-cubic">
+			<apply>
+				<property name="collapse-progress" />
+			</apply>
+		</timeline>
+	</trigger>
+
+	<trigger id="application-startup" sender="XfceOverviewWorkspacesStageInterface" signal="created">
+		<timeline delay="0" duration="500" mode="linear">
+			<apply>
+				<property name="opacity" from="0" to="255" />
+			</apply>
+		</timeline>
+	</trigger>
+
+	<trigger id="view-visible" sender="XfceOverviewWorkspacesView" signal="show">
+		<timeline delay="0" duration="1" mode="linear">
+			<apply>
+				<property name="opacity" from="0" to="0" />
+			</apply>
+		</timeline>
+		<timeline delay="500" duration="500" mode="linear">
+			<apply>
+				<property name="opacity" from="0" to="255" />
+			</apply>
+		</timeline>
+	</trigger>
+
+	<trigger id="view-hidden" sender="XfceOverviewWorkspacesView" signal="hide">
+		<timeline delay="0" duration="500" mode="linear">
+			<apply>
+				<property name="opacity" to="0" />
+			</apply>
+		</timeline>
+	</trigger>
+
+	<trigger id="window-moved" sender="XfceOverviewWorkspacesLiveWindow" signal="move-resize">
+		<timeline delay="0" duration="500" mode="linear">
+			<apply>
+				<property name="x" />
+				<property name="y" />
+				<property name="width" />
+				<property name="height" />
+			</apply>
+		</timeline>
+	</trigger>
+
+	<trigger id="window-destroyed" sender="XfceOverviewWorkspacesLiveWindowSimple" signal="destroy">
+		<timeline delay="0" duration="200" mode="linear">
+			<apply>
+				<property name="opacity" to="0" />
+			</apply>
+		</timeline>
+	</trigger>
+
+</animations>

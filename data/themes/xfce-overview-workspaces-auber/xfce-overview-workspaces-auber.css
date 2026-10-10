@@ -1,0 +1,81 @@
+@import(xfce-overview-workspaces.css)
+/* Small icons for minimized windows */
+
+XfceOverviewWorkspacesWindowContent
+{
+	include-window-frame: true;
+	unmapped-window-icon-x-fill: false;
+	unmapped-window-icon-y-fill: false;
+	unmapped-window-icon-x-align: 0.5;
+	unmapped-window-icon-y-align: 0.5;
+	unmapped-window-icon-x-scale: 2.0;
+	unmapped-window-icon-y-scale: 2.0;
+	unmapped-window-icon-anchor-point: center;
+}
+
+/* icons */
+
+XfceOverviewWorkspacesWindowsView
+{
+	view-icon: "view-paged-symbolic";
+}
+
+/* colors */
+
+#notification, #tooltip
+{
+	background-fill-color: #1a1a1a;
+	outline-color: #1a1a1a;
+}
+
+.drag-actor-XfceOverviewWorkspacesLiveWindow:drag-handle
+{
+	background-fill-color: #5E2750a0;
+	outline-color: #5E2750ff;
+}
+
+XfceOverviewWorkspacesWorkspaceSelector
+{
+	background-fill-color: #202020;
+	outline-color: #202020;
+	max-fraction: 0.22;
+	using-fraction: true;
+}
+
+XfceOverviewWorkspacesLiveWorkspace
+{
+	outline-color: #1a1a1aff;
+}
+
+XfceOverviewWorkspacesLiveWorkspace:active
+{
+	outline-color: #5E2750;
+}
+
+XfceOverviewWorkspacesLiveWindow
+{
+	background-type: outline;
+	outline-width: 2.0;
+	outline-color: #404040;
+}
+
+XfceOverviewWorkspacesWindowsView XfceOverviewWorkspacesLiveWindow:selected,
+XfceOverviewWorkspacesWindowsView XfceOverviewWorkspacesLiveWindow:hover
+{
+	outline-color: #5E2750ff;
+}
+
+XfceOverviewWorkspacesLiveWindow:selected XfceOverviewWorkspacesButton.title
+{
+	background-fill-color: #5E2750f0;
+	outline-color: #5E2750ff;
+}
+
+XfceOverviewWorkspacesLiveWindow:hover XfceOverviewWorkspacesButton.title
+{
+	background-fill-color: #5E2750f0;
+	outline-color: #5E2750ff;
+}
+
+/* effects */
+

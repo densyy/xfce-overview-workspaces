@@ -38,66 +38,66 @@
 
 
 /* Define this class in GObject system */
-struct _XfdashboardSettingsAppPrivate
+struct _XfceOverviewWorkspacesSettingsAppPrivate
 {
 	/* Instance related */
-	XfdashboardSettings				*settings;
+	XfceOverviewWorkspacesSettings				*settings;
 
 	GtkBuilder						*builder;
 	GObject							*dialog;
 
-	XfdashboardSettingsGeneral		*general;
-	XfdashboardSettingsThemes		*themes;
-	XfdashboardSettingsPlugins		*plugins;
+	XfceOverviewWorkspacesSettingsGeneral		*general;
+	XfceOverviewWorkspacesSettingsThemes		*themes;
+	XfceOverviewWorkspacesSettingsPlugins		*plugins;
 
 	GtkWidget						*widgetHelpButton;
 	GtkWidget						*widgetCloseButton;
 };
 
-G_DEFINE_TYPE_WITH_PRIVATE(XfdashboardSettingsApp,
-							xfdashboard_settings_app,
+G_DEFINE_TYPE_WITH_PRIVATE(XfceOverviewWorkspacesSettingsApp,
+							xfce_overview_workspaces_settings_app,
 							G_TYPE_OBJECT)
 
 /* IMPLEMENTATION: Private variables and methods */
-#define XFDASHBOARD_XFCONF_CHANNEL					"xfdashboard"
+#define XFCE_OVERVIEW_WORKSPACES_XFCONF_CHANNEL					"xfce-overview-workspaces"
 
 #define PREFERENCES_UI_FILE							"preferences.ui"
 
 
 /* Help button was clicked */
-static void _xfdashboard_settings_app_on_help_clicked(XfdashboardSettingsApp *self,
+static void _xfce_overview_workspaces_settings_app_on_help_clicked(XfceOverviewWorkspacesSettingsApp *self,
 														GtkWidget *inWidget)
 {
-	XfdashboardSettingsAppPrivate			*priv;
+	XfceOverviewWorkspacesSettingsAppPrivate			*priv;
 	GtkWindow								*window;
 
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_APP(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_APP(self));
 
 	priv=self->priv;
 
-	/* Show online manual for xfdashboard but ask user if needed */
+	/* Show online manual for xfce-overview-workspaces but ask user if needed */
 	window=NULL;
 	if(GTK_IS_WINDOW(priv->dialog)) window=GTK_WINDOW(priv->dialog);
 
 	xfce_dialog_show_help_with_version(window,
-										"xfdashboard",
+										"xfce-overview-workspaces",
 										"start",
 										NULL,
 										NULL);
 }
 
 /* Close button was clicked */
-static void _xfdashboard_settings_app_on_close_clicked(XfdashboardSettingsApp *self,
+static void _xfce_overview_workspaces_settings_app_on_close_clicked(XfceOverviewWorkspacesSettingsApp *self,
 														GtkWidget *inWidget)
 {
-	g_return_if_fail(XFDASHBOARD_IS_SETTINGS_APP(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_APP(self));
 
 	/* Quit main loop */
 	gtk_main_quit();
 }
 
 /* Set up search paths */
-static GList* _xfdashboard_settings_app_path_file_list_add(GList *inSearchPaths, const gchar *inPath, gboolean isFile)
+static GList* _xfce_overview_workspaces_settings_app_path_file_list_add(GList *inSearchPaths, const gchar *inPath, gboolean isFile)
 {
 	gchar								*normalizedPath;
 	GList								*iter;
@@ -149,7 +149,7 @@ static GList* _xfdashboard_settings_app_path_file_list_add(GList *inSearchPaths,
 /* Converts GList of paths of type string to NULL-terminated list, a strv.
  * It also frees the GList.
  */
-static gchar** _xfdashboard_settings_app_path_file_list_list_to_strv(GList *inPaths)
+static gchar** _xfce_overview_workspaces_settings_app_path_file_list_list_to_strv(GList *inPaths)
 {
 	guint			pathCount;
 	gchar			**strv;
@@ -187,9 +187,9 @@ static gchar** _xfdashboard_settings_app_path_file_list_list_to_strv(GList *inPa
 }
 
 /* Create and set up settings object instance */
-static gboolean _xfdashboard_settings_app_create_settings(XfdashboardSettingsApp *self)
+static gboolean _xfce_overview_workspaces_settings_app_create_settings(XfceOverviewWorkspacesSettingsApp *self)
 {
-	XfdashboardSettingsAppPrivate			*priv;
+	XfceOverviewWorkspacesSettingsAppPrivate			*priv;
 	GList									*pathFileList;
 	const gchar								*environmentVariable;
 	gchar									**themesSearchPaths;
@@ -198,7 +198,7 @@ static gboolean _xfdashboard_settings_app_create_settings(XfdashboardSettingsApp
 	gchar									*entry;
 	const gchar								*homeDirectory;
 
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS_APP(self), FALSE);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_APP(self), FALSE);
 
 	priv=self->priv;
 	themesSearchPaths=NULL;
@@ -211,7 +211,7 @@ static gboolean _xfdashboard_settings_app_create_settings(XfdashboardSettingsApp
 	/* Set up search path for themes */
 	pathFileList=NULL;
 
-	environmentVariable=g_getenv("XFDASHBOARD_THEME_PATH");
+	environmentVariable=g_getenv("XFCE_OVERVIEW_WORKSPACES_THEME_PATH");
 	if(environmentVariable)
 	{
 		gchar						**paths;
@@ -220,34 +220,34 @@ static gboolean _xfdashboard_settings_app_create_settings(XfdashboardSettingsApp
 		pathIter=paths=g_strsplit(environmentVariable, ":", -1);
 		while(*pathIter)
 		{
-			pathFileList=_xfdashboard_settings_app_path_file_list_add(pathFileList, *pathIter, FALSE);
+			pathFileList=_xfce_overview_workspaces_settings_app_path_file_list_add(pathFileList, *pathIter, FALSE);
 			pathIter++;
 		}
 		g_strfreev(paths);
 	}
 
 	entry=g_build_filename(g_get_user_data_dir(), "themes", NULL);
-	pathFileList=_xfdashboard_settings_app_path_file_list_add(pathFileList, entry, FALSE);
+	pathFileList=_xfce_overview_workspaces_settings_app_path_file_list_add(pathFileList, entry, FALSE);
 	g_free(entry);
 
 	homeDirectory=g_get_home_dir();
 	if(homeDirectory)
 	{
 		entry=g_build_filename(homeDirectory, ".themes", NULL);
-		pathFileList=_xfdashboard_settings_app_path_file_list_add(pathFileList, entry, FALSE);
+		pathFileList=_xfce_overview_workspaces_settings_app_path_file_list_add(pathFileList, entry, FALSE);
 		g_free(entry);
 	}
 
 	entry=g_build_filename(PACKAGE_DATADIR, "themes", NULL);
-	pathFileList=_xfdashboard_settings_app_path_file_list_add(pathFileList, entry, FALSE);
+	pathFileList=_xfce_overview_workspaces_settings_app_path_file_list_add(pathFileList, entry, FALSE);
 	g_free(entry);
 
-	themesSearchPaths=_xfdashboard_settings_app_path_file_list_list_to_strv(pathFileList);
+	themesSearchPaths=_xfce_overview_workspaces_settings_app_path_file_list_list_to_strv(pathFileList);
 
 	/* Set up search path for plugins */
 	pathFileList=NULL;
 
-	environmentVariable=g_getenv("XFDASHBOARD_PLUGINS_PATH");
+	environmentVariable=g_getenv("XFCE_OVERVIEW_WORKSPACES_PLUGINS_PATH");
 	if(environmentVariable)
 	{
 		gchar						**paths;
@@ -256,34 +256,34 @@ static gboolean _xfdashboard_settings_app_create_settings(XfdashboardSettingsApp
 		pathIter=paths=g_strsplit(environmentVariable, ":", -1);
 		while(*pathIter)
 		{
-			pathFileList=_xfdashboard_settings_app_path_file_list_add(pathFileList, *pathIter, FALSE);
+			pathFileList=_xfce_overview_workspaces_settings_app_path_file_list_add(pathFileList, *pathIter, FALSE);
 			pathIter++;
 		}
 		g_strfreev(paths);
 	}
 
-	entry=g_build_filename(g_get_user_data_dir(), "xfdashboard", "plugins", NULL);
-	pathFileList=_xfdashboard_settings_app_path_file_list_add(pathFileList, entry, FALSE);
+	entry=g_build_filename(g_get_user_data_dir(), "xfce-overview-workspaces", "plugins", NULL);
+	pathFileList=_xfce_overview_workspaces_settings_app_path_file_list_add(pathFileList, entry, FALSE);
 	g_free(entry);
 
-	entry=g_build_filename(PACKAGE_LIBDIR, "xfdashboard", "plugins", NULL);
-	pathFileList=_xfdashboard_settings_app_path_file_list_add(pathFileList, entry, FALSE);
+	entry=g_build_filename(PACKAGE_LIBDIR, "xfce-overview-workspaces", "plugins", NULL);
+	pathFileList=_xfce_overview_workspaces_settings_app_path_file_list_add(pathFileList, entry, FALSE);
 	g_free(entry);
 
-	pluginsSearchPaths=_xfdashboard_settings_app_path_file_list_list_to_strv(pathFileList);
+	pluginsSearchPaths=_xfce_overview_workspaces_settings_app_path_file_list_list_to_strv(pathFileList);
 
 	/* Set up file path for bindings */
 	pathFileList=NULL;
 
-	entry=g_build_filename(PACKAGE_DATADIR, "xfdashboard", "bindings.xml", NULL);
-	pathFileList=_xfdashboard_settings_app_path_file_list_add(pathFileList, entry, TRUE);
+	entry=g_build_filename(PACKAGE_DATADIR, "xfce-overview-workspaces", "bindings.xml", NULL);
+	pathFileList=_xfce_overview_workspaces_settings_app_path_file_list_add(pathFileList, entry, TRUE);
 	g_free(entry);
 
-	entry=g_build_filename(g_get_user_config_dir(), "xfdashboard", "bindings.xml", NULL);
-	pathFileList=_xfdashboard_settings_app_path_file_list_add(pathFileList, entry, TRUE);
+	entry=g_build_filename(g_get_user_config_dir(), "xfce-overview-workspaces", "bindings.xml", NULL);
+	pathFileList=_xfce_overview_workspaces_settings_app_path_file_list_add(pathFileList, entry, TRUE);
 	g_free(entry);
 
-	environmentVariable=g_getenv("XFDASHBOARD_BINDINGS_POOL_FILE");
+	environmentVariable=g_getenv("XFCE_OVERVIEW_WORKSPACES_BINDINGS_POOL_FILE");
 	if(environmentVariable)
 	{
 		gchar						**paths;
@@ -292,16 +292,16 @@ static gboolean _xfdashboard_settings_app_create_settings(XfdashboardSettingsApp
 		pathIter=paths=g_strsplit(environmentVariable, ":", -1);
 		while(*pathIter)
 		{
-			pathFileList=_xfdashboard_settings_app_path_file_list_add(pathFileList, *pathIter, TRUE);
+			pathFileList=_xfce_overview_workspaces_settings_app_path_file_list_add(pathFileList, *pathIter, TRUE);
 			pathIter++;
 		}
 		g_strfreev(paths);
 	}
 
-	bindingFilePaths=_xfdashboard_settings_app_path_file_list_list_to_strv(pathFileList);
+	bindingFilePaths=_xfce_overview_workspaces_settings_app_path_file_list_list_to_strv(pathFileList);
 
 	/* Create settings instance for Xfconf settings storage */
-	priv->settings=g_object_new(XFDASHBOARD_TYPE_XFCONF_SETTINGS,
+	priv->settings=g_object_new(XFCE_OVERVIEW_WORKSPACES_TYPE_XFCONF_SETTINGS,
 							"binding-files", bindingFilePaths,
 							"theme-search-paths", themesSearchPaths,
 							"plugin-search-paths", pluginsSearchPaths,
@@ -332,14 +332,14 @@ static gboolean _xfdashboard_settings_app_create_settings(XfdashboardSettingsApp
 }
 
 /* Create and set up GtkBuilder */
-static gboolean _xfdashboard_settings_app_create_builder(XfdashboardSettingsApp *self)
+static gboolean _xfce_overview_workspaces_settings_app_create_builder(XfceOverviewWorkspacesSettingsApp *self)
 {
-	XfdashboardSettingsAppPrivate			*priv;
+	XfceOverviewWorkspacesSettingsAppPrivate			*priv;
 	gchar									*builderFile;
 	GtkBuilder								*builder;
 	GError									*error;
 
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS_APP(self), FALSE);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_APP(self), FALSE);
 
 	priv=self->priv;
 	builderFile=NULL;
@@ -356,7 +356,7 @@ static gboolean _xfdashboard_settings_app_create_builder(XfdashboardSettingsApp 
 	{
 		const gchar		*envPath;
 
-		envPath=g_getenv("XFDASHBOARD_UI_PATH");
+		envPath=g_getenv("XFCE_OVERVIEW_WORKSPACES_UI_PATH");
 		if(envPath)
 		{
 			builderFile=g_build_filename(envPath, PREFERENCES_UI_FILE, NULL);
@@ -372,7 +372,7 @@ static gboolean _xfdashboard_settings_app_create_builder(XfdashboardSettingsApp 
 	/* Find UI file at install path */
 	if(!builderFile)
 	{
-		builderFile=g_build_filename(PACKAGE_DATADIR, "xfdashboard", PREFERENCES_UI_FILE, NULL);
+		builderFile=g_build_filename(PACKAGE_DATADIR, "xfce-overview-workspaces", PREFERENCES_UI_FILE, NULL);
 		g_debug("Trying UI file: %s", builderFile);
 		if(!g_file_test(builderFile, G_FILE_TEST_EXISTS | G_FILE_TEST_IS_REGULAR))
 		{
@@ -416,23 +416,23 @@ static gboolean _xfdashboard_settings_app_create_builder(XfdashboardSettingsApp 
 	priv->widgetHelpButton=GTK_WIDGET(gtk_builder_get_object(priv->builder, "help-button"));
 	g_signal_connect_swapped(priv->widgetHelpButton,
 								"clicked",
-								G_CALLBACK(_xfdashboard_settings_app_on_help_clicked),
+								G_CALLBACK(_xfce_overview_workspaces_settings_app_on_help_clicked),
 								self);
 
 	priv->widgetCloseButton=GTK_WIDGET(gtk_builder_get_object(priv->builder, "close-button"));
 	g_signal_connect_swapped(priv->widgetCloseButton,
 								"clicked",
-								G_CALLBACK(_xfdashboard_settings_app_on_close_clicked),
+								G_CALLBACK(_xfce_overview_workspaces_settings_app_on_close_clicked),
 								self);
 
 	/* Tab: General */
-	priv->general=xfdashboard_settings_general_new(self);
+	priv->general=xfce_overview_workspaces_settings_general_new(self);
 
 	/* Tab: Themes */
-	priv->themes=xfdashboard_settings_themes_new(self);
+	priv->themes=xfce_overview_workspaces_settings_themes_new(self);
 
 	/* Tab: Plugins */
-	priv->plugins=xfdashboard_settings_plugins_new(self);
+	priv->plugins=xfce_overview_workspaces_settings_plugins_new(self);
 
 	/* Release allocated resources */
 	g_free(builderFile);
@@ -443,15 +443,15 @@ static gboolean _xfdashboard_settings_app_create_builder(XfdashboardSettingsApp 
 }
 
 /* Set up settings application */
-static gboolean _xfdashboard_settings_app_setup(XfdashboardSettingsApp *self)
+static gboolean _xfce_overview_workspaces_settings_app_setup(XfceOverviewWorkspacesSettingsApp *self)
 {
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS_APP(self), FALSE);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_APP(self), FALSE);
 
 	/* First create settings if not done already */
-	if(!_xfdashboard_settings_app_create_settings(self)) return(FALSE);
+	if(!_xfce_overview_workspaces_settings_app_create_settings(self)) return(FALSE);
 
 	/* Next setup build if not done already */
-	if(!_xfdashboard_settings_app_create_builder(self)) return(FALSE);
+	if(!_xfce_overview_workspaces_settings_app_create_builder(self)) return(FALSE);
 
 	/* If we get here, setup was successful */
 	return(TRUE);
@@ -461,10 +461,10 @@ static gboolean _xfdashboard_settings_app_setup(XfdashboardSettingsApp *self)
 /* IMPLEMENTATION: GObject */
 
 /* Dispose this object */
-static void _xfdashboard_settings_app_dispose(GObject *inObject)
+static void _xfce_overview_workspaces_settings_app_dispose(GObject *inObject)
 {
-	XfdashboardSettingsApp			*self=XFDASHBOARD_SETTINGS_APP(inObject);
-	XfdashboardSettingsAppPrivate	*priv=self->priv;
+	XfceOverviewWorkspacesSettingsApp			*self=XFCE_OVERVIEW_WORKSPACES_SETTINGS_APP(inObject);
+	XfceOverviewWorkspacesSettingsAppPrivate	*priv=self->priv;
 
 	/* Release allocated resouces */
 	priv->dialog=NULL;
@@ -502,29 +502,29 @@ static void _xfdashboard_settings_app_dispose(GObject *inObject)
 	}
 
 	/* Call parent's class dispose method */
-	G_OBJECT_CLASS(xfdashboard_settings_app_parent_class)->dispose(inObject);
+	G_OBJECT_CLASS(xfce_overview_workspaces_settings_app_parent_class)->dispose(inObject);
 }
 
 /* Class initialization
  * Override functions in parent classes and define properties
  * and signals
  */
-static void xfdashboard_settings_app_class_init(XfdashboardSettingsAppClass *klass)
+static void xfce_overview_workspaces_settings_app_class_init(XfceOverviewWorkspacesSettingsAppClass *klass)
 {
 	GObjectClass		*gobjectClass=G_OBJECT_CLASS(klass);
 
 	/* Override functions */
-	gobjectClass->dispose=_xfdashboard_settings_app_dispose;
+	gobjectClass->dispose=_xfce_overview_workspaces_settings_app_dispose;
 }
 
 /* Object initialization
  * Create private structure and set up default values
  */
-static void xfdashboard_settings_app_init(XfdashboardSettingsApp *self)
+static void xfce_overview_workspaces_settings_app_init(XfceOverviewWorkspacesSettingsApp *self)
 {
-	XfdashboardSettingsAppPrivate	*priv;
+	XfceOverviewWorkspacesSettingsAppPrivate	*priv;
 
-	priv=self->priv=xfdashboard_settings_app_get_instance_private(self);
+	priv=self->priv=xfce_overview_workspaces_settings_app_get_instance_private(self);
 
 	/* Set default values */
 	priv->settings=NULL;
@@ -540,22 +540,22 @@ static void xfdashboard_settings_app_init(XfdashboardSettingsApp *self)
 /* IMPLEMENTATION: Public API */
 
 /* Create instance of this class */
-XfdashboardSettingsApp* xfdashboard_settings_app_new(void)
+XfceOverviewWorkspacesSettingsApp* xfce_overview_workspaces_settings_app_new(void)
 {
-	return(XFDASHBOARD_SETTINGS_APP(g_object_new(XFDASHBOARD_TYPE_SETTINGS_APP, NULL)));
+	return(XFCE_OVERVIEW_WORKSPACES_SETTINGS_APP(g_object_new(XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_APP, NULL)));
 }
 
 /* Create standalone dialog for this settings instance */
-GtkWidget* xfdashboard_settings_app_create_dialog(XfdashboardSettingsApp *self)
+GtkWidget* xfce_overview_workspaces_settings_app_create_dialog(XfceOverviewWorkspacesSettingsApp *self)
 {
-	XfdashboardSettingsAppPrivate	*priv;
+	XfceOverviewWorkspacesSettingsAppPrivate	*priv;
 
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS_APP(self), NULL);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_APP(self), NULL);
 
 	priv=self->priv;
 
 	/* Get builder if not available */
-	if(!_xfdashboard_settings_app_setup(self))
+	if(!_xfce_overview_workspaces_settings_app_setup(self))
 	{
 		/* An critical error message should be displayed so just return NULL */
 		return(NULL);
@@ -576,20 +576,20 @@ GtkWidget* xfdashboard_settings_app_create_dialog(XfdashboardSettingsApp *self)
 }
 
 /* Create "pluggable" dialog for this settings instance */
-GtkWidget* xfdashboard_settings_app_create_plug(XfdashboardSettingsApp *self, Window inSocketID)
+GtkWidget* xfce_overview_workspaces_settings_app_create_plug(XfceOverviewWorkspacesSettingsApp *self, Window inSocketID)
 {
-	XfdashboardSettingsAppPrivate	*priv;
+	XfceOverviewWorkspacesSettingsAppPrivate	*priv;
 	GtkWidget						*plug;
 	GObject							*dialogChild;
 	GtkWidget						*dialogParent;
 
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS_APP(self), NULL);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_APP(self), NULL);
 	g_return_val_if_fail(inSocketID, NULL);
 
 	priv=self->priv;
 
 	/* Get builder if not available */
-	if(!_xfdashboard_settings_app_setup(self))
+	if(!_xfce_overview_workspaces_settings_app_setup(self))
 	{
 		/* An critical error message should be displayed so just return NULL */
 		return(NULL);
@@ -619,17 +619,17 @@ GtkWidget* xfdashboard_settings_app_create_plug(XfdashboardSettingsApp *self, Wi
 }
 
 /* Get builder */
-GtkBuilder* xfdashboard_settings_app_get_builder(XfdashboardSettingsApp *self)
+GtkBuilder* xfce_overview_workspaces_settings_app_get_builder(XfceOverviewWorkspacesSettingsApp *self)
 {
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS_APP(self), NULL);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_APP(self), NULL);
 
 	return(self->priv->builder);
 }
 
 /* Get settings object instance */
-XfdashboardSettings* xfdashboard_settings_app_get_settings(XfdashboardSettingsApp *self)
+XfceOverviewWorkspacesSettings* xfce_overview_workspaces_settings_app_get_settings(XfceOverviewWorkspacesSettingsApp *self)
 {
-	g_return_val_if_fail(XFDASHBOARD_IS_SETTINGS_APP(self), NULL);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_APP(self), NULL);
 
 	return(self->priv->settings);
 }

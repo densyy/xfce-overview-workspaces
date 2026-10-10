@@ -21,48 +21,48 @@
  * 
  */
 
-#ifndef __XFDASHBOARD_HOT_CORNER__
-#define __XFDASHBOARD_HOT_CORNER__
+#ifndef __XFCE_OVERVIEW_WORKSPACES_HOT_CORNER__
+#define __XFCE_OVERVIEW_WORKSPACES_HOT_CORNER__
 
-#include <libxfdashboard/libxfdashboard.h>
+#include <libxfce-overview-workspaces/libxfce-overview-workspaces.h>
 
 G_BEGIN_DECLS
 
 /* Public definitions */
-typedef enum /*< prefix=XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER >*/
+typedef enum /*< prefix=XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER >*/
 {
-	XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_TOP_LEFT=0,
-	XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_TOP_RIGHT,
-	XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_LEFT,
-	XFDASHBOARD_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_RIGHT,
-} XfdashboardHotCornerActivationCorner;
+	XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_TOP_LEFT=0,
+	XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_TOP_RIGHT,
+	XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_LEFT,
+	XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_ACTIVATION_CORNER_BOTTOM_RIGHT,
+} XfceOverviewWorkspacesHotCornerActivationCorner;
 
-GType xfdashboard_hot_corner_activation_corner_get_type(void) G_GNUC_CONST;
-#define XFDASHBOARD_TYPE_HOT_CORNER_ACTIVATION_CORNER	(xfdashboard_hot_corner_activation_corner_get_type())
+GType xfce_overview_workspaces_hot_corner_activation_corner_get_type(void) G_GNUC_CONST;
+#define XFCE_OVERVIEW_WORKSPACES_TYPE_HOT_CORNER_ACTIVATION_CORNER	(xfce_overview_workspaces_hot_corner_activation_corner_get_type())
 
 
 /* Object declaration */
-#define XFDASHBOARD_TYPE_HOT_CORNER				(xfdashboard_hot_corner_get_type())
-#define XFDASHBOARD_HOT_CORNER(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFDASHBOARD_TYPE_HOT_CORNER, XfdashboardHotCorner))
-#define XFDASHBOARD_IS_HOT_CORNER(obj)			(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFDASHBOARD_TYPE_HOT_CORNER))
-#define XFDASHBOARD_HOT_CORNER_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFDASHBOARD_TYPE_HOT_CORNER, XfdashboardHotCornerClass))
-#define XFDASHBOARD_IS_HOT_CORNER_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE((klass), XFDASHBOARD_TYPE_HOT_CORNER))
-#define XFDASHBOARD_HOT_CORNER_GET_CLASS(obj)	(G_TYPE_INSTANCE_GET_CLASS((obj), XFDASHBOARD_TYPE_HOT_CORNER, XfdashboardHotCornerClass))
+#define XFCE_OVERVIEW_WORKSPACES_TYPE_HOT_CORNER				(xfce_overview_workspaces_hot_corner_get_type())
+#define XFCE_OVERVIEW_WORKSPACES_HOT_CORNER(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_HOT_CORNER, XfceOverviewWorkspacesHotCorner))
+#define XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER(obj)			(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_HOT_CORNER))
+#define XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_HOT_CORNER, XfceOverviewWorkspacesHotCornerClass))
+#define XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_HOT_CORNER))
+#define XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_GET_CLASS(obj)	(G_TYPE_INSTANCE_GET_CLASS((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_HOT_CORNER, XfceOverviewWorkspacesHotCornerClass))
 
-typedef struct _XfdashboardHotCorner			XfdashboardHotCorner; 
-typedef struct _XfdashboardHotCornerPrivate		XfdashboardHotCornerPrivate;
-typedef struct _XfdashboardHotCornerClass		XfdashboardHotCornerClass;
+typedef struct _XfceOverviewWorkspacesHotCorner			XfceOverviewWorkspacesHotCorner; 
+typedef struct _XfceOverviewWorkspacesHotCornerPrivate		XfceOverviewWorkspacesHotCornerPrivate;
+typedef struct _XfceOverviewWorkspacesHotCornerClass		XfceOverviewWorkspacesHotCornerClass;
 
-struct _XfdashboardHotCorner
+struct _XfceOverviewWorkspacesHotCorner
 {
 	/* Parent instance */
 	GObject						parent_instance;
 
 	/* Private structure */
-	XfdashboardHotCornerPrivate	*priv;
+	XfceOverviewWorkspacesHotCornerPrivate	*priv;
 };
 
-struct _XfdashboardHotCornerClass
+struct _XfceOverviewWorkspacesHotCornerClass
 {
 	/*< private >*/
 	/* Parent class */
@@ -70,11 +70,11 @@ struct _XfdashboardHotCornerClass
 };
 
 /* Public API */
-GType xfdashboard_hot_corner_get_type(void) G_GNUC_CONST;
+GType xfce_overview_workspaces_hot_corner_get_type(void) G_GNUC_CONST;
 
-XFDASHBOARD_DECLARE_PLUGIN_TYPE(xfdashboard_hot_corner);
+XFCE_OVERVIEW_WORKSPACES_DECLARE_PLUGIN_TYPE(xfce_overview_workspaces_hot_corner);
 
-XfdashboardHotCorner* xfdashboard_hot_corner_new(void);
+XfceOverviewWorkspacesHotCorner* xfce_overview_workspaces_hot_corner_new(void);
 
 G_END_DECLS
 

@@ -1,4 +1,4 @@
-xfdashboard_settings_sources = [
+xfce_overview_workspaces_settings_sources = [
   'general.c',
   'general.h',
   'main.c',
@@ -11,14 +11,14 @@ xfdashboard_settings_sources = [
 ]
 
 executable(
-  'xfdashboard-settings',
-  xfdashboard_settings_sources,
+  'xfce-overview-workspaces-settings',
+  xfce_overview_workspaces_settings_sources,
   include_directories: [
     include_directories('..'),
   ],
   c_args: [
-    '-DLIBXFDASHBOARD_COMPILATION=1',
-    '-DG_LOG_DOMAIN="@0@"'.format('xfdashboard-settings'),
+    '-DLIBXFCE_OVERVIEW_WORKSPACES_COMPILATION=1',
+    '-DG_LOG_DOMAIN="@0@"'.format('xfce-overview-workspaces-settings'),
   ],
   dependencies: [
     glib,
@@ -26,7 +26,7 @@ executable(
     libxfce4ui,
     libxfce4util,
     libxfconf_settings_dep,
-    libxfdashboard_dep,
+    libxfce_overview_workspaces_dep,
     xfconf,
   ],
   install: true,

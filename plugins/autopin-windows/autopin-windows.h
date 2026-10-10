@@ -22,34 +22,34 @@
  * 
  */
 
-#ifndef __XFDASHBOARD_AUTOPIN_WINDOWS__
-#define __XFDASHBOARD_AUTOPIN_WINDOWS__
+#ifndef __XFCE_OVERVIEW_WORKSPACES_AUTOPIN_WINDOWS__
+#define __XFCE_OVERVIEW_WORKSPACES_AUTOPIN_WINDOWS__
 
-#include <libxfdashboard/libxfdashboard.h>
+#include <libxfce-overview-workspaces/libxfce-overview-workspaces.h>
 
 G_BEGIN_DECLS
 
-#define XFDASHBOARD_TYPE_AUTOPIN_WINDOWS				(xfdashboard_autopin_windows_get_type())
-#define XFDASHBOARD_AUTOPIN_WINDOWS(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFDASHBOARD_TYPE_AUTOPIN_WINDOWS, XfdashboardAutopinWindows))
-#define XFDASHBOARD_IS_AUTOPIN_WINDOWS(obj)				(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFDASHBOARD_TYPE_AUTOPIN_WINDOWS))
-#define XFDASHBOARD_AUTOPIN_WINDOWS_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFDASHBOARD_TYPE_AUTOPIN_WINDOWS, XfdashboardAutopinWindowsClass))
-#define XFDASHBOARD_IS_AUTOPIN_WINDOWS_CLASS(klass)		(G_TYPE_CHECK_CLASS_TYPE((klass), XFDASHBOARD_TYPE_AUTOPIN_WINDOWS))
-#define XFDASHBOARD_AUTOPIN_WINDOWS_GET_CLASS(obj)		(G_TYPE_INSTANCE_GET_CLASS((obj), XFDASHBOARD_TYPE_AUTOPIN_WINDOWS, XfdashboardAutopinWindowsClass))
+#define XFCE_OVERVIEW_WORKSPACES_TYPE_AUTOPIN_WINDOWS				(xfce_overview_workspaces_autopin_windows_get_type())
+#define XFCE_OVERVIEW_WORKSPACES_AUTOPIN_WINDOWS(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_AUTOPIN_WINDOWS, XfceOverviewWorkspacesAutopinWindows))
+#define XFCE_OVERVIEW_WORKSPACES_IS_AUTOPIN_WINDOWS(obj)				(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_AUTOPIN_WINDOWS))
+#define XFCE_OVERVIEW_WORKSPACES_AUTOPIN_WINDOWS_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_AUTOPIN_WINDOWS, XfceOverviewWorkspacesAutopinWindowsClass))
+#define XFCE_OVERVIEW_WORKSPACES_IS_AUTOPIN_WINDOWS_CLASS(klass)		(G_TYPE_CHECK_CLASS_TYPE((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_AUTOPIN_WINDOWS))
+#define XFCE_OVERVIEW_WORKSPACES_AUTOPIN_WINDOWS_GET_CLASS(obj)		(G_TYPE_INSTANCE_GET_CLASS((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_AUTOPIN_WINDOWS, XfceOverviewWorkspacesAutopinWindowsClass))
 
-typedef struct _XfdashboardAutopinWindows				XfdashboardAutopinWindows; 
-typedef struct _XfdashboardAutopinWindowsPrivate		XfdashboardAutopinWindowsPrivate;
-typedef struct _XfdashboardAutopinWindowsClass			XfdashboardAutopinWindowsClass;
+typedef struct _XfceOverviewWorkspacesAutopinWindows				XfceOverviewWorkspacesAutopinWindows; 
+typedef struct _XfceOverviewWorkspacesAutopinWindowsPrivate		XfceOverviewWorkspacesAutopinWindowsPrivate;
+typedef struct _XfceOverviewWorkspacesAutopinWindowsClass			XfceOverviewWorkspacesAutopinWindowsClass;
 
-struct _XfdashboardAutopinWindows
+struct _XfceOverviewWorkspacesAutopinWindows
 {
 	/* Parent instance */
 	GObject								parent_instance;
 
 	/* Private structure */
-	XfdashboardAutopinWindowsPrivate	*priv;
+	XfceOverviewWorkspacesAutopinWindowsPrivate	*priv;
 };
 
-struct _XfdashboardAutopinWindowsClass
+struct _XfceOverviewWorkspacesAutopinWindowsClass
 {
 	/*< private >*/
 	/* Parent class */
@@ -57,11 +57,11 @@ struct _XfdashboardAutopinWindowsClass
 };
 
 /* Public API */
-GType xfdashboard_autopin_windows_get_type(void) G_GNUC_CONST;
+GType xfce_overview_workspaces_autopin_windows_get_type(void) G_GNUC_CONST;
 
-XFDASHBOARD_DECLARE_PLUGIN_TYPE(xfdashboard_autopin_windows);
+XFCE_OVERVIEW_WORKSPACES_DECLARE_PLUGIN_TYPE(xfce_overview_workspaces_autopin_windows);
 
-XfdashboardAutopinWindows* xfdashboard_autopin_windows_new(void);
+XfceOverviewWorkspacesAutopinWindows* xfce_overview_workspaces_autopin_windows_new(void);
 
 G_END_DECLS
 

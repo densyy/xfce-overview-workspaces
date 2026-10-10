@@ -25,7 +25,7 @@
 #include "config.h"
 #endif
 
-#include <libxfdashboard/utils.h>
+#include <libxfce-overview-workspaces/utils.h>
 #include <glib/gi18n-lib.h>
 #include <gdk/gdkx.h>
 #include <gtk/gtk.h>
@@ -38,7 +38,7 @@
 /* Main entry point */
 int main(int argc, char **argv)
 {
-	XfdashboardSettingsApp		*settings=NULL;
+	XfceOverviewWorkspacesSettingsApp		*settings=NULL;
 	GError						*error=NULL;
 	gboolean					optionsVersion=FALSE;
 	Window						optionsSocketID=0;
@@ -88,7 +88,7 @@ int main(int argc, char **argv)
 	}
 
 	/* Create settings instance */
-	settings=xfdashboard_settings_app_new();
+	settings=xfce_overview_workspaces_settings_app_new();
 	if(G_UNLIKELY(!settings))
 	{
 		g_error("Could not create the settings dialog.");
@@ -104,7 +104,7 @@ int main(int argc, char **argv)
 		GtkWidget			*dialog;
 
 		/* Create and show dialog */
-		dialog=xfdashboard_settings_app_create_dialog(settings);
+		dialog=xfce_overview_workspaces_settings_app_create_dialog(settings);
 		gtk_widget_show(dialog);
 
 		/* Connect signals */
@@ -127,7 +127,7 @@ int main(int argc, char **argv)
 			GtkWidget		*plug;
 
 			/* Create "pluggable" dialog for xfce settings manager */
-			plug=xfdashboard_settings_app_create_plug(settings, optionsSocketID);
+			plug=xfce_overview_workspaces_settings_app_create_plug(settings, optionsSocketID);
 			gtk_widget_show(plug);
 
 			/* Connect signals */

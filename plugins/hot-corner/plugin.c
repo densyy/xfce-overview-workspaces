@@ -33,12 +33,12 @@
 
 
 /* Forward declarations */
-G_MODULE_EXPORT void plugin_init(XfdashboardPlugin *self);
+G_MODULE_EXPORT void plugin_init(XfceOverviewWorkspacesPlugin *self);
 
 
-/* IMPLEMENTATION: XfdashboardPlugin */
+/* IMPLEMENTATION: XfceOverviewWorkspacesPlugin */
 
-static XfdashboardHotCorner			*hotCorner=NULL;
+static XfceOverviewWorkspacesHotCorner			*hotCorner=NULL;
 
 /* Value for activation corner was changed at widget */
 static void _plugin_on_corner_widget_value_changed(GtkWidget *inWidget,
@@ -46,7 +46,7 @@ static void _plugin_on_corner_widget_value_changed(GtkWidget *inWidget,
 													gpointer dummy1,
 													gpointer dummy2)
 {
-	XfdashboardHotCornerSettings	*settings;
+	XfceOverviewWorkspacesHotCornerSettings	*settings;
 	GtkTreeModel					*model;
 	GtkTreeIter						iter;
 	gint							value;
@@ -59,8 +59,8 @@ static void _plugin_on_corner_widget_value_changed(GtkWidget *inWidget,
 	gtk_tree_model_get(model, &iter, 1, &value, -1);
 
 	/* Store new value at settings */
-	settings=xfdashboard_hot_corner_settings_new();
-	xfdashboard_hot_corner_settings_set_activation_corner(settings, value);
+	settings=xfce_overview_workspaces_hot_corner_settings_new();
+	xfce_overview_workspaces_hot_corner_settings_set_activation_corner(settings, value);
 	g_object_unref(settings);
 }
 
@@ -69,21 +69,21 @@ static void _plugin_on_corner_settings_value_changed(GObject *inObject,
 														GParamSpec *inSpec,
 														gpointer inUserData)
 {
-	XfdashboardHotCornerSettings					*settings;
+	XfceOverviewWorkspacesHotCornerSettings					*settings;
 	GtkComboBox										*widget;
-	XfdashboardHotCornerSettingsActivationCorner	value;
+	XfceOverviewWorkspacesHotCornerSettingsActivationCorner	value;
 	guint											modelValue;
 	GtkTreeModel									*model;
 	GtkTreeIter										iter;
 
-	g_return_if_fail(XFDASHBOARD_IS_HOT_CORNER_SETTINGS(inObject));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER_SETTINGS(inObject));
 	g_return_if_fail(GTK_IS_COMBO_BOX(inUserData));
 
-	settings=XFDASHBOARD_HOT_CORNER_SETTINGS(inObject);
+	settings=XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS(inObject);
 	widget=GTK_COMBO_BOX(inUserData);
 
 	/* Get new value from settings */
-	value=xfdashboard_hot_corner_settings_get_activation_corner(settings);
+	value=xfce_overview_workspaces_hot_corner_settings_get_activation_corner(settings);
 
 	/* Iterate through combo box value and set new value if match is found */
 	model=gtk_combo_box_get_model(widget);
@@ -106,7 +106,7 @@ static void _plugin_on_corner_settings_value_changed(GObject *inObject,
 static void _plugin_on_radius_widget_value_changed(GtkWidget *inWidget,
 													gpointer inUserData)
 {
-	XfdashboardHotCornerSettings	*settings;
+	XfceOverviewWorkspacesHotCornerSettings	*settings;
 	gint							value;
 
 	g_return_if_fail(GTK_IS_SPIN_BUTTON(inWidget));
@@ -115,8 +115,8 @@ static void _plugin_on_radius_widget_value_changed(GtkWidget *inWidget,
 	value=gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(inWidget));
 
 	/* Store new value at settings */
-	settings=xfdashboard_hot_corner_settings_new();
-	xfdashboard_hot_corner_settings_set_activation_radius(settings, value);
+	settings=xfce_overview_workspaces_hot_corner_settings_new();
+	xfce_overview_workspaces_hot_corner_settings_set_activation_radius(settings, value);
 	g_object_unref(settings);
 }
 
@@ -125,18 +125,18 @@ static void _plugin_on_radius_settings_value_changed(GObject *inObject,
 														GParamSpec *inSpec,
 														gpointer inUserData)
 {
-	XfdashboardHotCornerSettings	*settings;
+	XfceOverviewWorkspacesHotCornerSettings	*settings;
 	GtkSpinButton					*widget;
 	gint							value;
 
-	g_return_if_fail(XFDASHBOARD_IS_HOT_CORNER_SETTINGS(inObject));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER_SETTINGS(inObject));
 	g_return_if_fail(GTK_IS_SPIN_BUTTON(inUserData));
 
-	settings=XFDASHBOARD_HOT_CORNER_SETTINGS(inObject);
+	settings=XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS(inObject);
 	widget=GTK_SPIN_BUTTON(inUserData);
 
 	/* Get new value from settings */
-	value=xfdashboard_hot_corner_settings_get_activation_radius(settings);
+	value=xfce_overview_workspaces_hot_corner_settings_get_activation_radius(settings);
 
 	/* Set new value at widget */
 	gtk_spin_button_set_value(widget, value);
@@ -146,7 +146,7 @@ static void _plugin_on_radius_settings_value_changed(GObject *inObject,
 static void _plugin_on_duration_widget_value_changed(GtkWidget *inWidget,
 														gpointer inUserData)
 {
-	XfdashboardHotCornerSettings	*settings;
+	XfceOverviewWorkspacesHotCornerSettings	*settings;
 	gint64							value;
 
 	g_return_if_fail(GTK_IS_RANGE(inWidget));
@@ -155,8 +155,8 @@ static void _plugin_on_duration_widget_value_changed(GtkWidget *inWidget,
 	value=gtk_range_get_value(GTK_RANGE(inWidget));
 
 	/* Store new value at settings */
-	settings=xfdashboard_hot_corner_settings_new();
-	xfdashboard_hot_corner_settings_set_activation_duration(settings, value);
+	settings=xfce_overview_workspaces_hot_corner_settings_new();
+	xfce_overview_workspaces_hot_corner_settings_set_activation_duration(settings, value);
 	g_object_unref(settings);
 }
 
@@ -165,18 +165,18 @@ static void _plugin_on_duration_settings_value_changed(GObject *inObject,
 														GParamSpec *inSpec,
 														gpointer inUserData)
 {
-	XfdashboardHotCornerSettings	*settings;
+	XfceOverviewWorkspacesHotCornerSettings	*settings;
 	GtkRange						*widget;
 	gint64							value;
 
-	g_return_if_fail(XFDASHBOARD_IS_HOT_CORNER_SETTINGS(inObject));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER_SETTINGS(inObject));
 	g_return_if_fail(GTK_IS_SPIN_BUTTON(inUserData));
 
-	settings=XFDASHBOARD_HOT_CORNER_SETTINGS(inObject);
+	settings=XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS(inObject);
 	widget=GTK_RANGE(inUserData);
 
 	/* Get new value from settings */
-	value=xfdashboard_hot_corner_settings_get_activation_duration(settings);
+	value=xfce_overview_workspaces_hot_corner_settings_get_activation_duration(settings);
 
 	/* Set new value at widget */
 	gtk_range_set_value(widget, value);
@@ -209,7 +209,7 @@ static gchar* _plugin_on_duration_settings_format_value(GtkScale *inWidget,
 static void _plugin_on_primary_monitor_only_widget_value_changed(GtkWidget *inWidget,
 																	gpointer inUserData)
 {
-	XfdashboardHotCornerSettings	*settings;
+	XfceOverviewWorkspacesHotCornerSettings	*settings;
 	gboolean						value;
 
 	g_return_if_fail(GTK_IS_TOGGLE_BUTTON(inWidget));
@@ -218,8 +218,8 @@ static void _plugin_on_primary_monitor_only_widget_value_changed(GtkWidget *inWi
 	value=gtk_toggle_button_get_active(GTK_TOGGLE_BUTTON(inWidget));
 
 	/* Store new value at settings */
-	settings=xfdashboard_hot_corner_settings_new();
-	xfdashboard_hot_corner_settings_set_primary_monitor_only(settings, value);
+	settings=xfce_overview_workspaces_hot_corner_settings_new();
+	xfce_overview_workspaces_hot_corner_settings_set_primary_monitor_only(settings, value);
 	g_object_unref(settings);
 }
 
@@ -228,18 +228,18 @@ static void _plugin_on_primary_monitor_only_settings_value_changed(GObject *inOb
 																	GParamSpec *inSpec,
 																	gpointer inUserData)
 {
-	XfdashboardHotCornerSettings	*settings;
+	XfceOverviewWorkspacesHotCornerSettings	*settings;
 	GtkToggleButton					*widget;
 	gboolean						value;
 
-	g_return_if_fail(XFDASHBOARD_IS_HOT_CORNER_SETTINGS(inObject));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER_SETTINGS(inObject));
 	g_return_if_fail(GTK_IS_TOGGLE_BUTTON(inUserData));
 
-	settings=XFDASHBOARD_HOT_CORNER_SETTINGS(inObject);
+	settings=XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS(inObject);
 	widget=GTK_TOGGLE_BUTTON(inUserData);
 
 	/* Get new value from settings */
-	value=xfdashboard_hot_corner_settings_get_primary_monitor_only(settings);
+	value=xfce_overview_workspaces_hot_corner_settings_get_primary_monitor_only(settings);
 
 	/* Set new value at widget */
 	gtk_toggle_button_set_active(widget, value);
@@ -249,7 +249,7 @@ static void _plugin_on_primary_monitor_only_settings_value_changed(GObject *inOb
 static void _plugin_on_widget_value_destroy(GtkWidget *inWidget,
 											gpointer inUserData)
 {
-	XfdashboardHotCornerSettings	*settings;
+	XfceOverviewWorkspacesHotCornerSettings	*settings;
 	guint							signalID;
 
 	g_return_if_fail(GTK_IS_WIDGET(inWidget));
@@ -261,14 +261,14 @@ static void _plugin_on_widget_value_destroy(GtkWidget *inWidget,
 	 * the updated settings value at will be destroyed. So it will
 	 * not exist anymore when the signal handler is called.
 	 */
-	settings=xfdashboard_hot_corner_settings_new();
+	settings=xfce_overview_workspaces_hot_corner_settings_new();
 	g_signal_handler_disconnect(settings, signalID);
 	g_object_unref(settings);
 }
 
 /* Connect signals and bind to widget */
 static void _plugin_configure_setup_widget(GtkWidget *inWidget,
-											XfdashboardHotCornerSettings *inSettings,
+											XfceOverviewWorkspacesHotCornerSettings *inSettings,
 											const gchar *inProperty,
 											GCallback inCallback)
 {
@@ -276,7 +276,7 @@ static void _plugin_configure_setup_widget(GtkWidget *inWidget,
 	guint							signalID;
 
 	g_return_if_fail(GTK_IS_WIDGET(inWidget));
-	g_return_if_fail(XFDASHBOARD_IS_HOT_CORNER_SETTINGS(inSettings));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER_SETTINGS(inSettings));
 	g_return_if_fail(inProperty && *inProperty);
 	g_return_if_fail(inCallback);
 
@@ -301,12 +301,12 @@ static void _plugin_configure_setup_widget(GtkWidget *inWidget,
 }
 
 /* Plugin configuration function */
-static GObject* plugin_configure(XfdashboardPlugin *self, gpointer inUserData)
+static GObject* plugin_configure(XfceOverviewWorkspacesPlugin *self, gpointer inUserData)
 {
 	GtkWidget						*layout;
 	GtkWidget						*widgetLabel;
 	GtkWidget						*widgetValue;
-	XfdashboardHotCornerSettings	*settings;
+	XfceOverviewWorkspacesHotCornerSettings	*settings;
 	GtkListStore					*listModel;
 	GtkTreeIter						modelIter;
 	GEnumClass						*enumClass;
@@ -314,7 +314,7 @@ static GObject* plugin_configure(XfdashboardPlugin *self, gpointer inUserData)
 	GtkCellRenderer					*renderer;
 
 	/* Get settings of plugin */
-	settings=xfdashboard_hot_corner_settings_new();
+	settings=xfce_overview_workspaces_hot_corner_settings_new();
 
 	/* Create layout widget */
 	layout=gtk_grid_new();
@@ -338,7 +338,7 @@ static GObject* plugin_configure(XfdashboardPlugin *self, gpointer inUserData)
 	gtk_grid_attach_next_to(GTK_GRID(layout), widgetValue, widgetLabel, GTK_POS_RIGHT, 1, 1);
 
 	listModel=gtk_list_store_new(2, G_TYPE_STRING, G_TYPE_INT);
-	enumClass=g_type_class_ref(XFDASHBOARD_TYPE_HOT_CORNER_ACTIVATION_CORNER);
+	enumClass=g_type_class_ref(XFCE_OVERVIEW_WORKSPACES_TYPE_HOT_CORNER_ACTIVATION_CORNER);
 	for(i=0; i<enumClass->n_values; i++)
 	{
 		gtk_list_store_append(listModel, &modelIter);
@@ -372,7 +372,7 @@ static GObject* plugin_configure(XfdashboardPlugin *self, gpointer inUserData)
 						G_CALLBACK(_plugin_on_radius_widget_value_changed),
 						NULL);
 	gtk_spin_button_set_value(GTK_SPIN_BUTTON(widgetValue),
-								xfdashboard_hot_corner_settings_get_activation_radius(settings));
+								xfce_overview_workspaces_hot_corner_settings_get_activation_radius(settings));
 	gtk_grid_attach_next_to(GTK_GRID(layout), widgetValue, widgetLabel, GTK_POS_RIGHT, 1, 1);
 
 	/* Add widget to choose activation duration */
@@ -394,7 +394,7 @@ static GObject* plugin_configure(XfdashboardPlugin *self, gpointer inUserData)
 						G_CALLBACK(_plugin_on_duration_settings_format_value),
 						NULL);
 	gtk_range_set_value(GTK_RANGE(widgetValue),
-						xfdashboard_hot_corner_settings_get_activation_duration(settings));
+						xfce_overview_workspaces_hot_corner_settings_get_activation_duration(settings));
 	gtk_grid_attach_next_to(GTK_GRID(layout), widgetValue, widgetLabel, GTK_POS_RIGHT, 1, 1);
 
 	/* Add widget to limit checks to primary monitor only or to all monitors */
@@ -408,7 +408,7 @@ static GObject* plugin_configure(XfdashboardPlugin *self, gpointer inUserData)
 						G_CALLBACK(_plugin_on_primary_monitor_only_widget_value_changed),
 						NULL);
 	gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(widgetValue),
-								xfdashboard_hot_corner_settings_get_primary_monitor_only(settings));
+								xfce_overview_workspaces_hot_corner_settings_get_primary_monitor_only(settings));
 	gtk_grid_attach(GTK_GRID(layout), widgetValue, 0, 3, 2, 1);
 
 	/* Release allocated resources */
@@ -422,17 +422,17 @@ static GObject* plugin_configure(XfdashboardPlugin *self, gpointer inUserData)
 }
 
 /* Plugin enable function */
-static void plugin_enable(XfdashboardPlugin *self, gpointer inUserData)
+static void plugin_enable(XfceOverviewWorkspacesPlugin *self, gpointer inUserData)
 {
 	/* Create instance of hot corner */
 	if(!hotCorner)
 	{
-		hotCorner=xfdashboard_hot_corner_new();
+		hotCorner=xfce_overview_workspaces_hot_corner_new();
 	}
 }
 
 /* Plugin disable function */
-static void plugin_disable(XfdashboardPlugin *self, gpointer inUserData)
+static void plugin_disable(XfceOverviewWorkspacesPlugin *self, gpointer inUserData)
 {
 	/* Destroy instance of hot corner */
 	if(hotCorner)
@@ -443,21 +443,21 @@ static void plugin_disable(XfdashboardPlugin *self, gpointer inUserData)
 }
 
 /* Plugin initialization function */
-G_MODULE_EXPORT void plugin_init(XfdashboardPlugin *self)
+G_MODULE_EXPORT void plugin_init(XfceOverviewWorkspacesPlugin *self)
 {
 	/* Set up localization */
 	xfce_textdomain(GETTEXT_PACKAGE, PACKAGE_LOCALE_DIR, "UTF-8");
 
 	/* Register GObject types of this plugin */
-	XFDASHBOARD_REGISTER_PLUGIN_TYPE(self, xfdashboard_hot_corner);
-	XFDASHBOARD_REGISTER_PLUGIN_TYPE(self, xfdashboard_hot_corner_settings);
+	XFCE_OVERVIEW_WORKSPACES_REGISTER_PLUGIN_TYPE(self, xfce_overview_workspaces_hot_corner);
+	XFCE_OVERVIEW_WORKSPACES_REGISTER_PLUGIN_TYPE(self, xfce_overview_workspaces_hot_corner_settings);
 
 	/* Set plugin info */
-	xfdashboard_plugin_set_info(self,
+	xfce_overview_workspaces_plugin_set_info(self,
 								"name", _("Hot corner"),
-								"description", _("Activates xfdashboard when pointer is moved to a configured corner of monitor"),
+								"description", _("Activates xfce-overview-workspaces when pointer is moved to a configured corner of monitor"),
 								"author", "Stephan Haller <nomad@froevel.de>",
-								"settings", xfdashboard_hot_corner_settings_new(),
+								"settings", xfce_overview_workspaces_hot_corner_settings_new(),
 								NULL);
 
 	/* Connect plugin action handlers */

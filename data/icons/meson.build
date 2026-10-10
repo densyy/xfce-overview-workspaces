@@ -2,12 +2,12 @@ sizes = [16, 24, 32, 48, 64, 96, 128]
 
 foreach size : sizes
   install_data(
-    '@0@x@0@'.format(size) / 'org.xfce.xfdashboard.png',
+    '@0@x@0@'.format(size) / 'org.xfce.xfce-overview-workspaces.png',
     install_dir: get_option('prefix') / get_option('datadir') / 'icons' / 'hicolor' / '@0@x@0@'.format(size) / 'apps',
   )
 endforeach
 
 install_data(
-  'scalable' / 'org.xfce.xfdashboard.svg',
+  'scalable' / 'org.xfce.xfce-overview-workspaces.svg',
   install_dir: get_option('prefix') / get_option('datadir') / 'icons' / 'hicolor' / 'scalable' / 'apps',
 )

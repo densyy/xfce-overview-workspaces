@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=Xfce Overview Workspaces
+Comment=Start Xfce Overview Workspaces as daemon in background
+TryExec=@bindir@/xfce-overview-workspaces
+Exec=@bindir@/xfce-overview-workspaces -d
+Icon=org.xfce.xfce-overview-workspaces
+NotShowIn=GNOME;KDE;Unity;
+Terminal=false
+Hidden=true

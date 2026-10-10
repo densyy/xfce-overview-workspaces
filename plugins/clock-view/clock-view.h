@@ -21,44 +21,44 @@
  * 
  */
 
-#ifndef __XFDASHBOARD_CLOCK_VIEW__
-#define __XFDASHBOARD_CLOCK_VIEW__
+#ifndef __XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW__
+#define __XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW__
 
-#include <libxfdashboard/libxfdashboard.h>
+#include <libxfce-overview-workspaces/libxfce-overview-workspaces.h>
 
 G_BEGIN_DECLS
 
-#define XFDASHBOARD_TYPE_CLOCK_VIEW				(xfdashboard_clock_view_get_type())
-#define XFDASHBOARD_CLOCK_VIEW(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFDASHBOARD_TYPE_CLOCK_VIEW, XfdashboardClockView))
-#define XFDASHBOARD_IS_CLOCK_VIEW(obj)			(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFDASHBOARD_TYPE_CLOCK_VIEW))
-#define XFDASHBOARD_CLOCK_VIEW_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFDASHBOARD_TYPE_CLOCK_VIEW, XfdashboardClockViewClass))
-#define XFDASHBOARD_IS_CLOCK_VIEW_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE((klass), XFDASHBOARD_TYPE_CLOCK_VIEW))
-#define XFDASHBOARD_CLOCK_VIEW_GET_CLASS(obj)	(G_TYPE_INSTANCE_GET_CLASS((obj), XFDASHBOARD_TYPE_CLOCK_VIEW, XfdashboardClockViewClass))
+#define XFCE_OVERVIEW_WORKSPACES_TYPE_CLOCK_VIEW				(xfce_overview_workspaces_clock_view_get_type())
+#define XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_CLOCK_VIEW, XfceOverviewWorkspacesClockView))
+#define XFCE_OVERVIEW_WORKSPACES_IS_CLOCK_VIEW(obj)			(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_CLOCK_VIEW))
+#define XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_CLOCK_VIEW, XfceOverviewWorkspacesClockViewClass))
+#define XFCE_OVERVIEW_WORKSPACES_IS_CLOCK_VIEW_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_CLOCK_VIEW))
+#define XFCE_OVERVIEW_WORKSPACES_CLOCK_VIEW_GET_CLASS(obj)	(G_TYPE_INSTANCE_GET_CLASS((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_CLOCK_VIEW, XfceOverviewWorkspacesClockViewClass))
 
-typedef struct _XfdashboardClockView			XfdashboardClockView; 
-typedef struct _XfdashboardClockViewPrivate		XfdashboardClockViewPrivate;
-typedef struct _XfdashboardClockViewClass		XfdashboardClockViewClass;
+typedef struct _XfceOverviewWorkspacesClockView			XfceOverviewWorkspacesClockView; 
+typedef struct _XfceOverviewWorkspacesClockViewPrivate		XfceOverviewWorkspacesClockViewPrivate;
+typedef struct _XfceOverviewWorkspacesClockViewClass		XfceOverviewWorkspacesClockViewClass;
 
-struct _XfdashboardClockView
+struct _XfceOverviewWorkspacesClockView
 {
 	/* Parent instance */
-	XfdashboardView						parent_instance;
+	XfceOverviewWorkspacesView						parent_instance;
 
 	/* Private structure */
-	XfdashboardClockViewPrivate			*priv;
+	XfceOverviewWorkspacesClockViewPrivate			*priv;
 };
 
-struct _XfdashboardClockViewClass
+struct _XfceOverviewWorkspacesClockViewClass
 {
 	/*< private >*/
 	/* Parent class */
-	XfdashboardViewClass				parent_class;
+	XfceOverviewWorkspacesViewClass				parent_class;
 };
 
 /* Public API */
-GType xfdashboard_clock_view_get_type(void) G_GNUC_CONST;
+GType xfce_overview_workspaces_clock_view_get_type(void) G_GNUC_CONST;
 
-XFDASHBOARD_DECLARE_PLUGIN_TYPE(xfdashboard_clock_view);
+XFCE_OVERVIEW_WORKSPACES_DECLARE_PLUGIN_TYPE(xfce_overview_workspaces_clock_view);
 
 G_END_DECLS
 

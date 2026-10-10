@@ -21,35 +21,35 @@
  * 
  */
 
-#ifndef __XFDASHBOARD_SETTINGS_APP__
-#define __XFDASHBOARD_SETTINGS_APP__
+#ifndef __XFCE_OVERVIEW_WORKSPACES_SETTINGS_APP__
+#define __XFCE_OVERVIEW_WORKSPACES_SETTINGS_APP__
 
 #include <gtk/gtkx.h>
-#include <libxfdashboard/settings.h>
+#include <libxfce-overview-workspaces/settings.h>
 
 G_BEGIN_DECLS
 
-#define XFDASHBOARD_TYPE_SETTINGS_APP				(xfdashboard_settings_app_get_type())
-#define XFDASHBOARD_SETTINGS_APP(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFDASHBOARD_TYPE_SETTINGS_APP, XfdashboardSettingsApp))
-#define XFDASHBOARD_IS_SETTINGS_APP(obj)			(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFDASHBOARD_TYPE_SETTINGS_APP))
-#define XFDASHBOARD_SETTINGS_APP_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFDASHBOARD_TYPE_SETTINGS_APP, XfdashboardSettingsAppClass))
-#define XFDASHBOARD_IS_SETTINGS_APP_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE((klass), XFDASHBOARD_TYPE_SETTINGS_APP))
-#define XFDASHBOARD_SETTINGS_APP_GET_CLASS(obj)		(G_TYPE_INSTANCE_GET_CLASS((obj), XFDASHBOARD_TYPE_SETTINGS_APP, XfdashboardSettingsAppClass))
+#define XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_APP				(xfce_overview_workspaces_settings_app_get_type())
+#define XFCE_OVERVIEW_WORKSPACES_SETTINGS_APP(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_APP, XfceOverviewWorkspacesSettingsApp))
+#define XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_APP(obj)			(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_APP))
+#define XFCE_OVERVIEW_WORKSPACES_SETTINGS_APP_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_APP, XfceOverviewWorkspacesSettingsAppClass))
+#define XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_APP_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_APP))
+#define XFCE_OVERVIEW_WORKSPACES_SETTINGS_APP_GET_CLASS(obj)		(G_TYPE_INSTANCE_GET_CLASS((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_APP, XfceOverviewWorkspacesSettingsAppClass))
 
-typedef struct _XfdashboardSettingsApp				XfdashboardSettingsApp;
-typedef struct _XfdashboardSettingsAppClass			XfdashboardSettingsAppClass;
-typedef struct _XfdashboardSettingsAppPrivate		XfdashboardSettingsAppPrivate;
+typedef struct _XfceOverviewWorkspacesSettingsApp				XfceOverviewWorkspacesSettingsApp;
+typedef struct _XfceOverviewWorkspacesSettingsAppClass			XfceOverviewWorkspacesSettingsAppClass;
+typedef struct _XfceOverviewWorkspacesSettingsAppPrivate		XfceOverviewWorkspacesSettingsAppPrivate;
 
-struct _XfdashboardSettingsApp
+struct _XfceOverviewWorkspacesSettingsApp
 {
 	/* Parent instance */
 	GObject							parent_instance;
 
 	/* Private structure */
-	XfdashboardSettingsAppPrivate	*priv;
+	XfceOverviewWorkspacesSettingsAppPrivate	*priv;
 };
 
-struct _XfdashboardSettingsAppClass
+struct _XfceOverviewWorkspacesSettingsAppClass
 {
 	/*< private >*/
 	/* Parent class */
@@ -60,16 +60,16 @@ struct _XfdashboardSettingsAppClass
 };
 
 /* Public API */
-GType xfdashboard_settings_app_get_type(void) G_GNUC_CONST;
+GType xfce_overview_workspaces_settings_app_get_type(void) G_GNUC_CONST;
 
-XfdashboardSettingsApp* xfdashboard_settings_app_new(void);
+XfceOverviewWorkspacesSettingsApp* xfce_overview_workspaces_settings_app_new(void);
 
-GtkWidget* xfdashboard_settings_app_create_dialog(XfdashboardSettingsApp *self);
-GtkWidget* xfdashboard_settings_app_create_plug(XfdashboardSettingsApp *self, Window inSocketID);
+GtkWidget* xfce_overview_workspaces_settings_app_create_dialog(XfceOverviewWorkspacesSettingsApp *self);
+GtkWidget* xfce_overview_workspaces_settings_app_create_plug(XfceOverviewWorkspacesSettingsApp *self, Window inSocketID);
 
-GtkBuilder* xfdashboard_settings_app_get_builder(XfdashboardSettingsApp *self);
-XfdashboardSettings* xfdashboard_settings_app_get_settings(XfdashboardSettingsApp *self);
+GtkBuilder* xfce_overview_workspaces_settings_app_get_builder(XfceOverviewWorkspacesSettingsApp *self);
+XfceOverviewWorkspacesSettings* xfce_overview_workspaces_settings_app_get_settings(XfceOverviewWorkspacesSettingsApp *self);
 
 G_END_DECLS
 
-#endif	/* __XFDASHBOARD_SETTINGS_APP__ */
+#endif	/* __XFCE_OVERVIEW_WORKSPACES_SETTINGS_APP__ */

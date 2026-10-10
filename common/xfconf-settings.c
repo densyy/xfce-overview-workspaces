@@ -26,7 +26,7 @@
  * @short_description: The xfconf settings storage driver
  * @include: common/xfconf-settings.h
  *
- * This class #XfdashboardXfconfSettings contains all settings for this
+ * This class #XfceOverviewWorkspacesXfconfSettings contains all settings for this
  * library and stores them at xfconf permanently.
  */
 
@@ -40,11 +40,11 @@
 #include <libxfce4ui/libxfce4ui.h>
 #include <xfconf/xfconf.h>
 
-#include <libxfdashboard/debug.h>
+#include <libxfce-overview-workspaces/debug.h>
 
 
 /* Define this class in GObject system */
-struct _XfdashboardXfconfSettingsPrivate
+struct _XfceOverviewWorkspacesXfconfSettingsPrivate
 {
 	/* Instance related */
 	XfconfChannel		*channel;
@@ -52,19 +52,19 @@ struct _XfdashboardXfconfSettingsPrivate
 	GList				*blockedSettings;
 };
 
-G_DEFINE_TYPE_WITH_PRIVATE(XfdashboardXfconfSettings,
-							xfdashboard_xfconf_settings,
-							XFDASHBOARD_TYPE_SETTINGS);
+G_DEFINE_TYPE_WITH_PRIVATE(XfceOverviewWorkspacesXfconfSettings,
+							xfce_overview_workspaces_xfconf_settings,
+							XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS);
 
 
 /* IMPLEMENTATION: Private variables and methods */
-#define XFDASHBOARD_XFCONF_CHANNEL					"xfdashboard"
-#define XFDASHBOARD_XFCONF_SETTINGS_PLUGINS_PATH	"plugins"
+#define XFCE_OVERVIEW_WORKSPACES_XFCONF_CHANNEL					"xfce-overview-workspaces"
+#define XFCE_OVERVIEW_WORKSPACES_XFCONF_SETTINGS_PLUGINS_PATH	"plugins"
 
 #if 0==1
 
 // OLD: #define THEME_NAME_XFCONF_PROP		"/theme"
-#define THEME_NAME_XFCONF_PROP				"theme" -> "xfdashboard" (G_TYPE_STRING)
+#define THEME_NAME_XFCONF_PROP				"theme" -> "xfce-overview-workspaces" (G_TYPE_STRING)
 
 // OLD: #define SHOW_ALL_APPS_XFCONF_PROP	"/components/applications-view/show-all-apps"
 #define SHOW_ALL_APPS_XFCONF_PROP			"show-all-applications" -> FALSE (G_TYPE_BOOLEAN)
@@ -78,7 +78,7 @@ G_DEFINE_TYPE_WITH_PRIVATE(XfdashboardXfconfSettings,
 
 #define WORKAROUND_UNMAPPED_WINDOW_XFCONF_PROP				"enable-unmapped-window-workaround" -> FALSE (G_TYPE_BOOLEAN)
 
-#define WINDOW_CONTENT_CREATION_PRIORITY_XFCONF_PROP		"window-content-creation-priority" -> "immediate" (XFDASHBOARD_TYPE_WINDOW_CONTENT_X11_WORKAROUND_MODE ? string?)
+#define WINDOW_CONTENT_CREATION_PRIORITY_XFCONF_PROP		"window-content-creation-priority" -> "immediate" (XFCE_OVERVIEW_WORKSPACES_TYPE_WINDOW_CONTENT_X11_WORKAROUND_MODE ? string?)
 
 #define ENABLE_ANIMATIONS_XFCONF_PROP		"enable-animations"
 
@@ -88,23 +88,23 @@ G_DEFINE_TYPE_WITH_PRIVATE(XfdashboardXfconfSettings,
 
 #endif
 
-typedef struct _XfdashboardXfconfSettingsBlockedProperty	XfdashboardXfconfSettingsBlockedProperty;
-struct _XfdashboardXfconfSettingsBlockedProperty
+typedef struct _XfceOverviewWorkspacesXfconfSettingsBlockedProperty	XfceOverviewWorkspacesXfconfSettingsBlockedProperty;
+struct _XfceOverviewWorkspacesXfconfSettingsBlockedProperty
 {
 	guint					refCount;
 	gchar					*pluginID;
 	gchar					*property;
 };
 
-typedef struct _XfdashboardXfconfSettingsMapping	XfdashboardXfconfSettingsMapping;
-struct _XfdashboardXfconfSettingsMapping
+typedef struct _XfceOverviewWorkspacesXfconfSettingsMapping	XfceOverviewWorkspacesXfconfSettingsMapping;
+struct _XfceOverviewWorkspacesXfconfSettingsMapping
 {
 	const gchar				*pluginID;
 	const gchar				*settingsName;
 	const gchar				*xfconfPropertyName;
 };
 
-static XfdashboardXfconfSettingsMapping		_xfdashboard_xfconf_settings_mapping[]=
+static XfceOverviewWorkspacesXfconfSettingsMapping		_xfce_overview_workspaces_xfconf_settings_mapping[]=
 												{
 													{ NULL, "show-all-applications", "/components/applications-view/show-all-apps" },
 													{ NULL, "scroll-event-changes-workspace", "/components/windows-view/scroll-event-changes-workspace" },
@@ -113,15 +113,15 @@ static XfdashboardXfconfSettingsMapping		_xfdashboard_xfconf_settings_mapping[]=
 												};
 
 /* Create new or reference existing blocking of property changed notification */
-static void _xfdashboard_xfconf_settings_block_property_notification_ref(XfdashboardXfconfSettings *self,
+static void _xfce_overview_workspaces_xfconf_settings_block_property_notification_ref(XfceOverviewWorkspacesXfconfSettings *self,
 																			const gchar *inPluginID,
 																			const gchar *inProperty)
 {
-	XfdashboardXfconfSettingsPrivate			*priv;
+	XfceOverviewWorkspacesXfconfSettingsPrivate			*priv;
 	GList										*iter;
-	XfdashboardXfconfSettingsBlockedProperty	*block;
+	XfceOverviewWorkspacesXfconfSettingsBlockedProperty	*block;
 
-	g_return_if_fail(XFDASHBOARD_IS_XFCONF_SETTINGS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_XFCONF_SETTINGS(self));
 	g_return_if_fail(inPluginID==NULL || *inPluginID);
 	g_return_if_fail(inProperty && *inProperty);
 
@@ -131,7 +131,7 @@ static void _xfdashboard_xfconf_settings_block_property_notification_ref(Xfdashb
 	for(iter=priv->blockedSettings; iter; iter=g_list_next(iter))
 	{
 		/* Get currently iterated blocking */
-		block=(XfdashboardXfconfSettingsBlockedProperty*)iter->data;
+		block=(XfceOverviewWorkspacesXfconfSettingsBlockedProperty*)iter->data;
 		if(!block) continue;
 
 		/* Check if currently iterated blocking is matches the property to lookup */
@@ -147,7 +147,7 @@ static void _xfdashboard_xfconf_settings_block_property_notification_ref(Xfdashb
 	}
 
 	/* No blocking for property found, so create new entry */
-	block=g_new0(XfdashboardXfconfSettingsBlockedProperty, 1);
+	block=g_new0(XfceOverviewWorkspacesXfconfSettingsBlockedProperty, 1);
 	block->refCount=1;
 	block->pluginID=g_strdup(inPluginID);
 	block->property=g_strdup(inProperty);
@@ -157,7 +157,7 @@ static void _xfdashboard_xfconf_settings_block_property_notification_ref(Xfdashb
 }
 
 /* Frees allocated resources of a property notification blocking */
-static void _xfdashboard_xfconf_settings_block_property_notification_free(XfdashboardXfconfSettingsBlockedProperty *inBlock)
+static void _xfce_overview_workspaces_xfconf_settings_block_property_notification_free(XfceOverviewWorkspacesXfconfSettingsBlockedProperty *inBlock)
 {
 	g_return_if_fail(inBlock);
 
@@ -170,15 +170,15 @@ static void _xfdashboard_xfconf_settings_block_property_notification_free(Xfdash
 /* Unreference existing blocking of property changed notification and destroy
  * if counter drops to zero.
  */
-static void _xfdashboard_xfconf_settings_block_property_notification_unref(XfdashboardXfconfSettings *self,
+static void _xfce_overview_workspaces_xfconf_settings_block_property_notification_unref(XfceOverviewWorkspacesXfconfSettings *self,
 																			const gchar *inPluginID,
 																			const gchar *inProperty)
 {
-	XfdashboardXfconfSettingsPrivate			*priv;
+	XfceOverviewWorkspacesXfconfSettingsPrivate			*priv;
 	GList										*iter;
-	XfdashboardXfconfSettingsBlockedProperty	*block;
+	XfceOverviewWorkspacesXfconfSettingsBlockedProperty	*block;
 
-	g_return_if_fail(XFDASHBOARD_IS_XFCONF_SETTINGS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_XFCONF_SETTINGS(self));
 	g_return_if_fail(inPluginID==NULL || *inPluginID);
 	g_return_if_fail(inProperty && *inProperty);
 
@@ -188,7 +188,7 @@ static void _xfdashboard_xfconf_settings_block_property_notification_unref(Xfdas
 	for(iter=priv->blockedSettings; iter; iter=g_list_next(iter))
 	{
 		/* Get currently iterated blocking */
-		block=(XfdashboardXfconfSettingsBlockedProperty*)iter->data;
+		block=(XfceOverviewWorkspacesXfconfSettingsBlockedProperty*)iter->data;
 		if(!block) continue;
 
 		/* Check if currently iterated blocking is matches the property to lookup */
@@ -202,7 +202,7 @@ static void _xfdashboard_xfconf_settings_block_property_notification_unref(Xfdas
 			if(block->refCount==0)
 			{
 				/* Release allocated resources of blocking */
-				_xfdashboard_xfconf_settings_block_property_notification_free(block);
+				_xfce_overview_workspaces_xfconf_settings_block_property_notification_free(block);
 
 				/* Remove from list */
 				priv->blockedSettings=g_list_delete_link(priv->blockedSettings, iter);
@@ -215,15 +215,15 @@ static void _xfdashboard_xfconf_settings_block_property_notification_unref(Xfdas
 }
 
 /* Checks for blocking of changed notification for requested property */
-static gboolean _xfdashboard_xfconf_settings_block_property_notification_is_blocked(XfdashboardXfconfSettings *self,
+static gboolean _xfce_overview_workspaces_xfconf_settings_block_property_notification_is_blocked(XfceOverviewWorkspacesXfconfSettings *self,
 																					const gchar *inPluginID,
 																					const gchar *inProperty)
 {
-	XfdashboardXfconfSettingsPrivate			*priv;
+	XfceOverviewWorkspacesXfconfSettingsPrivate			*priv;
 	GList										*iter;
-	XfdashboardXfconfSettingsBlockedProperty	*block;
+	XfceOverviewWorkspacesXfconfSettingsBlockedProperty	*block;
 
-	g_return_val_if_fail(XFDASHBOARD_IS_XFCONF_SETTINGS(self), FALSE);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_XFCONF_SETTINGS(self), FALSE);
 	g_return_val_if_fail(inPluginID==NULL || *inPluginID, FALSE);
 	g_return_val_if_fail(inProperty && *inProperty, FALSE);
 
@@ -233,7 +233,7 @@ static gboolean _xfdashboard_xfconf_settings_block_property_notification_is_bloc
 	for(iter=priv->blockedSettings; iter; iter=g_list_next(iter))
 	{
 		/* Get currently iterated blocking */
-		block=(XfdashboardXfconfSettingsBlockedProperty*)iter->data;
+		block=(XfceOverviewWorkspacesXfconfSettingsBlockedProperty*)iter->data;
 		if(!block) continue;
 
 		/* Check if currently iterated blocking is matches the property to lookup */
@@ -249,10 +249,10 @@ static gboolean _xfdashboard_xfconf_settings_block_property_notification_is_bloc
 }
 
 /* Find mapping for xfconf property for requested plugin ID and settings name */
-static const XfdashboardXfconfSettingsMapping* _xfdashboard_xfconf_settings_find_xfconf_property(const gchar *inPluginID,
+static const XfceOverviewWorkspacesXfconfSettingsMapping* _xfce_overview_workspaces_xfconf_settings_find_xfconf_property(const gchar *inPluginID,
 																									const gchar *inSettingsName)
 {
-	const XfdashboardXfconfSettingsMapping	*iter;
+	const XfceOverviewWorkspacesXfconfSettingsMapping	*iter;
 
 	g_return_val_if_fail(inPluginID==NULL || *inPluginID, NULL);
 	g_return_val_if_fail(*inSettingsName, NULL);
@@ -260,7 +260,7 @@ static const XfdashboardXfconfSettingsMapping* _xfdashboard_xfconf_settings_find
 	/* Iterate through mapping and lookup match for requested plugin ID and settings
 	 * name. If found, return the xfconf property.
 	 */
-	for(iter=_xfdashboard_xfconf_settings_mapping; iter->settingsName!=NULL; iter++)
+	for(iter=_xfce_overview_workspaces_xfconf_settings_mapping; iter->settingsName!=NULL; iter++)
 	{
 		if(g_strcmp0(iter->pluginID, inPluginID)==0 &&
 			g_strcmp0(iter->settingsName, inSettingsName)==0)
@@ -282,7 +282,7 @@ static const XfdashboardXfconfSettingsMapping* _xfdashboard_xfconf_settings_find
  * Extra context parameters (settings and xfconf property names plus the
  * instance for debug) only preserve the original messages.
  */
-static gboolean _value_to_xfconf(XfdashboardXfconfSettings *self,
+static gboolean _value_to_xfconf(XfceOverviewWorkspacesXfconfSettings *self,
 									const gchar *inSettingsName,
 									const gchar *inXfconfPropertyName,
 									const GValue *inValue,
@@ -315,7 +315,7 @@ static gboolean _value_to_xfconf(XfdashboardXfconfSettings *self,
 
 		g_value_init(&convertedValue, transformType);
 #ifdef DEBUG
-		XFDASHBOARD_DEBUG(self, MISC,
+		XFCE_OVERVIEW_WORKSPACES_DEBUG(self, MISC,
 							"Need to convert value of settings '%s' of type '%s' to type '%s' for xfconf property '%s'",
 							inSettingsName,
 							G_VALUE_TYPE_NAME(inValue),
@@ -362,7 +362,7 @@ static gboolean _value_to_xfconf(XfdashboardXfconfSettings *self,
  * preserve the original messages; fallback and migration logic is
  * unchanged and stays inside this helper.
  */
-static gboolean _value_from_xfconf(XfdashboardXfconfSettings *self,
+static gboolean _value_from_xfconf(XfceOverviewWorkspacesXfconfSettings *self,
 									GParamSpec *inSpec,
 									const GValue *inValue,
 									GValue *outValue,
@@ -372,7 +372,7 @@ static gboolean _value_from_xfconf(XfdashboardXfconfSettings *self,
 	const GValue					*effectiveValue;
 	gboolean						success;
 
-	g_return_val_if_fail(XFDASHBOARD_IS_XFCONF_SETTINGS(self), FALSE);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_XFCONF_SETTINGS(self), FALSE);
 	g_return_val_if_fail(G_IS_PARAM_SPEC(inSpec), FALSE);
 	g_return_val_if_fail(inValue!=NULL, FALSE);
 	g_return_val_if_fail(outValue!=NULL, FALSE);
@@ -463,7 +463,7 @@ static gboolean _value_from_xfconf(XfdashboardXfconfSettings *self,
 	if(G_VALUE_TYPE(effectiveValue)==G_TYPE_INVALID)
 	{
 		effectiveValue=g_param_spec_get_default_value(inSpec);
-		XFDASHBOARD_DEBUG(self, MISC,
+		XFCE_OVERVIEW_WORKSPACES_DEBUG(self, MISC,
 							"Using default value of type %s for settings '%s' of %s%s as the provided value was of invalid type",
 							G_VALUE_TYPE_NAME(effectiveValue),
 							inSettingsName,
@@ -488,7 +488,7 @@ static gboolean _value_from_xfconf(XfdashboardXfconfSettings *self,
 			g_value_init(&convertedValue, inSpec->value_type);
 
 #ifdef DEBUG
-			XFDASHBOARD_DEBUG(self, MISC,
+			XFCE_OVERVIEW_WORKSPACES_DEBUG(self, MISC,
 								"Need to convert xfconf value for setting '%s' of %s%s from type '%s' to type '%s'",
 								inSettingsName,
 								inPluginID ? "plug-in " : "core settings",
@@ -528,24 +528,24 @@ static gboolean _value_from_xfconf(XfdashboardXfconfSettings *self,
 }
 
 /* Signal handler for changed settings */
-static void _xfdashboard_xfconf_settings_on_settings_changed(XfdashboardSettings *inSettings,
+static void _xfce_overview_workspaces_xfconf_settings_on_settings_changed(XfceOverviewWorkspacesSettings *inSettings,
 																const gchar *inPluginID,
 																GParamSpec *inParamSpec)
 {
-	XfdashboardXfconfSettings				*self;
-	XfdashboardXfconfSettingsPrivate		*priv;
+	XfceOverviewWorkspacesXfconfSettings				*self;
+	XfceOverviewWorkspacesXfconfSettingsPrivate		*priv;
 	GObject									*pluginSettings;
 	const gchar								*settingsName;
-	const XfdashboardXfconfSettingsMapping	*mapping;
+	const XfceOverviewWorkspacesXfconfSettingsMapping	*mapping;
 	const gchar								*xfconfPropertyName;
 	gboolean								success;
 	GValue									value=G_VALUE_INIT;
 
-	g_return_if_fail(XFDASHBOARD_IS_XFCONF_SETTINGS(inSettings));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_XFCONF_SETTINGS(inSettings));
 	g_return_if_fail(inPluginID==NULL || *inPluginID);
 	g_return_if_fail(G_IS_PARAM_SPEC(inParamSpec));
 
-	self=XFDASHBOARD_XFCONF_SETTINGS(inSettings);
+	self=XFCE_OVERVIEW_WORKSPACES_XFCONF_SETTINGS(inSettings);
 	priv=self->priv;
 	pluginSettings=NULL;
 	success=TRUE;
@@ -554,9 +554,9 @@ static void _xfdashboard_xfconf_settings_on_settings_changed(XfdashboardSettings
 	settingsName=g_param_spec_get_name(inParamSpec);
 
 	/* If settings name of plugin ID is blocked, skip it */
-	if(_xfdashboard_xfconf_settings_block_property_notification_is_blocked(self, inPluginID, settingsName))
+	if(_xfce_overview_workspaces_xfconf_settings_block_property_notification_is_blocked(self, inPluginID, settingsName))
 	{
-		XFDASHBOARD_DEBUG(self, MISC,
+		XFCE_OVERVIEW_WORKSPACES_DEBUG(self, MISC,
 							"Skipping blocked setting '%s' at %s%s",
 							settingsName,
 							inPluginID ? "plug-in settings for plug-in " : "core settings",
@@ -568,7 +568,7 @@ static void _xfdashboard_xfconf_settings_on_settings_changed(XfdashboardSettings
 	 * property name as usual.
 	 */
 	xfconfPropertyName=settingsName;
-	mapping=_xfdashboard_xfconf_settings_find_xfconf_property(inPluginID, settingsName);
+	mapping=_xfce_overview_workspaces_xfconf_settings_find_xfconf_property(inPluginID, settingsName);
 	if(mapping)
 	{
 		inPluginID=mapping->pluginID;
@@ -580,14 +580,14 @@ static void _xfdashboard_xfconf_settings_on_settings_changed(XfdashboardSettings
 	 */
 	if(inPluginID)
 	{
-		XfdashboardPlugin					*plugin;
-		XfdashboardPluginSettings			*settings;
+		XfceOverviewWorkspacesPlugin					*plugin;
+		XfceOverviewWorkspacesPluginSettings			*settings;
 
 		/* Get plugin for plugin ID provided */
-		plugin=xfdashboard_settings_lookup_plugin_by_id(XFDASHBOARD_SETTINGS(self), inPluginID);
+		plugin=xfce_overview_workspaces_settings_lookup_plugin_by_id(XFCE_OVERVIEW_WORKSPACES_SETTINGS(self), inPluginID);
 		if(!plugin)
 		{
-			XFDASHBOARD_DEBUG(self, MISC,
+			XFCE_OVERVIEW_WORKSPACES_DEBUG(self, MISC,
 								"Could not get settings object for unknown plug-in ID '%s'",
 								inPluginID);
 			return;
@@ -597,10 +597,10 @@ static void _xfdashboard_xfconf_settings_on_settings_changed(XfdashboardSettings
 		 * instance, we cannot modify any settings at it, so return immediately
 		 * and do nothing.
 		 */
-		settings=xfdashboard_plugin_get_settings(plugin);
+		settings=xfce_overview_workspaces_plugin_get_settings(plugin);
 		if(!settings)
 		{
-			XFDASHBOARD_DEBUG(self, MISC,
+			XFCE_OVERVIEW_WORKSPACES_DEBUG(self, MISC,
 								"No settings object instance for plug-in ID '%s'",
 								inPluginID);
 			return;
@@ -645,7 +645,7 @@ static void _xfdashboard_xfconf_settings_on_settings_changed(XfdashboardSettings
 		if(inPluginID)
 		{
 			realXfconfPropertyName=g_strdup_printf("/%s/%s%s%s",
-													XFDASHBOARD_XFCONF_SETTINGS_PLUGINS_PATH,
+													XFCE_OVERVIEW_WORKSPACES_XFCONF_SETTINGS_PLUGINS_PATH,
 													inPluginID,
 													*xfconfPropertyName!='/' ? "/" : "",
 													xfconfPropertyName);
@@ -658,7 +658,7 @@ static void _xfdashboard_xfconf_settings_on_settings_changed(XfdashboardSettings
 			}
 
 		/* Block setting of plugin ID to prevent recursion by signal handling */ 
-		_xfdashboard_xfconf_settings_block_property_notification_ref(self, inPluginID, settingsName);
+		_xfce_overview_workspaces_xfconf_settings_block_property_notification_ref(self, inPluginID, settingsName);
 
 		/* Check if property needs to be resetted, i.e. strings or string list
 		 * with NULL pointer.
@@ -669,7 +669,7 @@ static void _xfdashboard_xfconf_settings_on_settings_changed(XfdashboardSettings
 		{
 			if(value.data[0].v_pointer==NULL)
 			{
-				XFDASHBOARD_DEBUG(self, MISC,
+				XFCE_OVERVIEW_WORKSPACES_DEBUG(self, MISC,
 									"Need to reset xfconf property '%s' as value of settings '%s' of type '%s' has null pointer",
 									xfconfPropertyName,
 									settingsName,
@@ -681,7 +681,7 @@ static void _xfdashboard_xfconf_settings_on_settings_changed(XfdashboardSettings
 		/* Set or reset value at (real) xfconf property */
 #ifdef DEBUG
 		valueText=g_strdup_value_contents(&value);
-		XFDASHBOARD_DEBUG(self, MISC,
+		XFCE_OVERVIEW_WORKSPACES_DEBUG(self, MISC,
 							"Setting value '%s' of type '%s' of settings '%s' at xfconf property '%s'",
 							valueText,
 							g_type_name(G_VALUE_TYPE(&value)),
@@ -710,7 +710,7 @@ static void _xfdashboard_xfconf_settings_on_settings_changed(XfdashboardSettings
 		}
 
 		/* Unblock setting of plugin ID */ 
-		_xfdashboard_xfconf_settings_block_property_notification_unref(self, inPluginID, settingsName);
+		_xfce_overview_workspaces_xfconf_settings_block_property_notification_unref(self, inPluginID, settingsName);
 
 		/* Release allocated resources */
 		g_free(realXfconfPropertyName);
@@ -721,11 +721,11 @@ static void _xfdashboard_xfconf_settings_on_settings_changed(XfdashboardSettings
 }
 
 /* Determine plugin ID and settings name for xfconf property */
-static gboolean _xfdashboard_xfconf_settings_find_plugin_and_setting(const gchar *inXfconfProperty,
+static gboolean _xfce_overview_workspaces_xfconf_settings_find_plugin_and_setting(const gchar *inXfconfProperty,
 																		gchar **outPluginID,
 																		gchar **outSettingsName)
 {
-	const XfdashboardXfconfSettingsMapping	*iter;
+	const XfceOverviewWorkspacesXfconfSettingsMapping	*iter;
 	gchar									**pathElements;
 	guint									pathCount;
 
@@ -736,7 +736,7 @@ static gboolean _xfdashboard_xfconf_settings_find_plugin_and_setting(const gchar
 	/* Iterate through mapping and lookup match for requested xfconf property. If found,
 	 * return plugin ID and settings name.
 	 */
-	for(iter=_xfdashboard_xfconf_settings_mapping; iter->settingsName!=NULL; iter++)
+	for(iter=_xfce_overview_workspaces_xfconf_settings_mapping; iter->settingsName!=NULL; iter++)
 	{
 		/* Check if iterated mapping matches xfconf property */
 		if(g_strcmp0(iter->xfconfPropertyName, inXfconfProperty)==0)
@@ -803,7 +803,7 @@ static gboolean _xfdashboard_xfconf_settings_find_plugin_and_setting(const gchar
 		 * release allocated memory and return TRUE. If not correct,
 		 * return FALSE.
 		 */
-		if(g_strcmp0(pathElements[1], XFDASHBOARD_XFCONF_SETTINGS_PLUGINS_PATH)!=0)
+		if(g_strcmp0(pathElements[1], XFCE_OVERVIEW_WORKSPACES_XFCONF_SETTINGS_PLUGINS_PATH)!=0)
 		{
 			/* Is not sub-path for plugin settings, so release allocated
 			 * memory and return FALSE.
@@ -831,7 +831,7 @@ static gboolean _xfdashboard_xfconf_settings_find_plugin_and_setting(const gchar
 }
 
 /* Set settings at core or plugin */
-static gboolean _xfdashboard_xfconf_settings_set_settings_value(XfdashboardXfconfSettings *self,
+static gboolean _xfce_overview_workspaces_xfconf_settings_set_settings_value(XfceOverviewWorkspacesXfconfSettings *self,
 																	const gchar *inPluginID,
 																	const gchar *inSettingsName,
 																	const GValue *inValue)
@@ -841,7 +841,7 @@ static gboolean _xfdashboard_xfconf_settings_set_settings_value(XfdashboardXfcon
 	GValue								value=G_VALUE_INIT;
 	gboolean							success;
 
-	g_return_val_if_fail(XFDASHBOARD_IS_XFCONF_SETTINGS(self), FALSE);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_XFCONF_SETTINGS(self), FALSE);
 	g_return_val_if_fail(inPluginID==NULL || *inPluginID, FALSE);
 	g_return_val_if_fail(inSettingsName && *inSettingsName, FALSE);
 	g_return_val_if_fail(inValue, FALSE);
@@ -850,9 +850,9 @@ static gboolean _xfdashboard_xfconf_settings_set_settings_value(XfdashboardXfcon
 	success=TRUE;
 
 	/* If settings name of plugin ID is blocked, skip it but indicate success */
-	if(_xfdashboard_xfconf_settings_block_property_notification_is_blocked(self, inPluginID, inSettingsName))
+	if(_xfce_overview_workspaces_xfconf_settings_block_property_notification_is_blocked(self, inPluginID, inSettingsName))
 	{
-		XFDASHBOARD_DEBUG(self, MISC,
+		XFCE_OVERVIEW_WORKSPACES_DEBUG(self, MISC,
 							"Skipping blocked setting '%s' at %s%s",
 							inSettingsName,
 							inPluginID ? "plug-in settings for plug-in " : "core settings",
@@ -865,14 +865,14 @@ static gboolean _xfdashboard_xfconf_settings_set_settings_value(XfdashboardXfcon
 	 */
 	if(inPluginID)
 	{
-		XfdashboardPlugin					*plugin;
-		XfdashboardPluginSettings			*settings;
+		XfceOverviewWorkspacesPlugin					*plugin;
+		XfceOverviewWorkspacesPluginSettings			*settings;
 
 		/* Get plugin for plugin ID provided */
-		plugin=xfdashboard_settings_lookup_plugin_by_id(XFDASHBOARD_SETTINGS(self), inPluginID);
+		plugin=xfce_overview_workspaces_settings_lookup_plugin_by_id(XFCE_OVERVIEW_WORKSPACES_SETTINGS(self), inPluginID);
 		if(!plugin)
 		{
-			XFDASHBOARD_DEBUG(self, MISC,
+			XFCE_OVERVIEW_WORKSPACES_DEBUG(self, MISC,
 								"Could not get settings object for unknown plug-in ID '%s'",
 								inPluginID);
 			return(FALSE);
@@ -881,10 +881,10 @@ static gboolean _xfdashboard_xfconf_settings_set_settings_value(XfdashboardXfcon
 		/* If we did not find a settings object instance, we cannot
 		 * modify any settings at it, so return FALSE.
 		 */
-		settings=xfdashboard_plugin_get_settings(plugin);
+		settings=xfce_overview_workspaces_plugin_get_settings(plugin);
 		if(!settings)
 		{
-			XFDASHBOARD_DEBUG(self, MISC,
+			XFCE_OVERVIEW_WORKSPACES_DEBUG(self, MISC,
 								"No settings object instance for plug-in ID '%s'",
 								inPluginID);
 			return(FALSE);
@@ -898,7 +898,7 @@ static gboolean _xfdashboard_xfconf_settings_set_settings_value(XfdashboardXfcon
 	paramSpec=g_object_class_find_property(G_OBJECT_GET_CLASS(pluginSettings), inSettingsName);
 	if(!paramSpec)
 	{
-		XFDASHBOARD_DEBUG(self, MISC,
+		XFCE_OVERVIEW_WORKSPACES_DEBUG(self, MISC,
 							"No setting '%s' found at %s%s",
 							inSettingsName,
 							inPluginID ? "plug-in settings for plug-in " : "core settings",
@@ -915,13 +915,13 @@ static gboolean _xfdashboard_xfconf_settings_set_settings_value(XfdashboardXfcon
 	if(success)
 	{
 		/* Block setting of plugin ID to prevent recursion by signal handling */ 
-		_xfdashboard_xfconf_settings_block_property_notification_ref(self, inPluginID, inSettingsName);
+		_xfce_overview_workspaces_xfconf_settings_block_property_notification_ref(self, inPluginID, inSettingsName);
 
 		/* Set value at setting of plugin */
 		g_object_set_property(pluginSettings, inSettingsName, &value);
 
 		/* Unblock setting of plugin ID */ 
-		_xfdashboard_xfconf_settings_block_property_notification_unref(self, inPluginID, inSettingsName);
+		_xfce_overview_workspaces_xfconf_settings_block_property_notification_unref(self, inPluginID, inSettingsName);
 	}
 
 	/* Release allocated resources */
@@ -932,7 +932,7 @@ static gboolean _xfdashboard_xfconf_settings_set_settings_value(XfdashboardXfcon
 }
 
 /* Signal handler for property changed at xfconf */
-static void _xfdashboard_xfconf_settings_on_xfconf_property_changed(XfdashboardXfconfSettings *self,
+static void _xfce_overview_workspaces_xfconf_settings_on_xfconf_property_changed(XfceOverviewWorkspacesXfconfSettings *self,
 																	const gchar *inProperty,
 																	const GValue *inValue,
 																	gpointer inUserData)
@@ -940,7 +940,7 @@ static void _xfdashboard_xfconf_settings_on_xfconf_property_changed(XfdashboardX
 	gchar								*pluginID;
 	gchar								*settingsName;
 
-	g_return_if_fail(XFDASHBOARD_IS_XFCONF_SETTINGS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_XFCONF_SETTINGS(self));
 	g_return_if_fail(inProperty && *inProperty);
 	g_return_if_fail(inValue);
 
@@ -948,10 +948,10 @@ static void _xfdashboard_xfconf_settings_on_xfconf_property_changed(XfdashboardX
 	settingsName=NULL;
 
 	/* Determine plug-in ID and settings name from xfconf property */
-	if(_xfdashboard_xfconf_settings_find_plugin_and_setting(inProperty, &pluginID, &settingsName))
+	if(_xfce_overview_workspaces_xfconf_settings_find_plugin_and_setting(inProperty, &pluginID, &settingsName))
 	{
 		/* Set new value from xfconf property at plug-in ID and settings name */
-		_xfdashboard_xfconf_settings_set_settings_value(self, pluginID, settingsName, inValue);
+		_xfce_overview_workspaces_xfconf_settings_set_settings_value(self, pluginID, settingsName, inValue);
 
 		/* Release allocated memory */
 		g_free(pluginID);
@@ -966,15 +966,15 @@ static void _xfdashboard_xfconf_settings_on_xfconf_property_changed(XfdashboardX
 }
 
 /* Initialize initial settings from xfconf */
-static void _xfdashboard_xfconf_settings_initialize_settings(XfdashboardXfconfSettings *self, const gchar *inPluginID)
+static void _xfce_overview_workspaces_xfconf_settings_initialize_settings(XfceOverviewWorkspacesXfconfSettings *self, const gchar *inPluginID)
 {
-	XfdashboardXfconfSettingsPrivate	*priv;
+	XfceOverviewWorkspacesXfconfSettingsPrivate	*priv;
 	GHashTable							*xfconfProperties;
 	GHashTableIter						iter;
 	const gchar							*iterKey;
 	const GValue						*iterValue;
 
-	g_return_if_fail(XFDASHBOARD_IS_XFCONF_SETTINGS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_XFCONF_SETTINGS(self));
 
 	priv=self->priv;
 
@@ -995,13 +995,13 @@ static void _xfdashboard_xfconf_settings_initialize_settings(XfdashboardXfconfSe
 		settingsName=NULL;
 
 		/* Determine plug-in ID and settings name from xfconf property */
-		if(_xfdashboard_xfconf_settings_find_plugin_and_setting(iterKey, &pluginID, &settingsName))
+		if(_xfce_overview_workspaces_xfconf_settings_find_plugin_and_setting(iterKey, &pluginID, &settingsName))
 		{
 			/* Plugin ID must be NULL to be a core setting and skip plugin settings */
 			if((!inPluginID && !pluginID) ||
 				g_strcmp0(pluginID, inPluginID)==0)
 			{
-				_xfdashboard_xfconf_settings_set_settings_value(self, pluginID, settingsName, iterValue);
+				_xfce_overview_workspaces_xfconf_settings_set_settings_value(self, pluginID, settingsName, iterValue);
 			}
 
 			/* Release allocated memory */
@@ -1018,22 +1018,22 @@ static void _xfdashboard_xfconf_settings_initialize_settings(XfdashboardXfconfSe
 }
 
 /* A plugin was added to settings */
-static void _xfdashboard_xfconf_settings_plugin_added(XfdashboardSettings *inSettings, XfdashboardPlugin *inPlugin)
+static void _xfce_overview_workspaces_xfconf_settings_plugin_added(XfceOverviewWorkspacesSettings *inSettings, XfceOverviewWorkspacesPlugin *inPlugin)
 {
-	g_return_if_fail(XFDASHBOARD_IS_XFCONF_SETTINGS(inSettings));
-	g_return_if_fail(XFDASHBOARD_IS_PLUGIN(inPlugin));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_XFCONF_SETTINGS(inSettings));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_PLUGIN(inPlugin));
 
-	_xfdashboard_xfconf_settings_initialize_settings(XFDASHBOARD_XFCONF_SETTINGS(inSettings), xfdashboard_plugin_get_id(inPlugin));
+	_xfce_overview_workspaces_xfconf_settings_initialize_settings(XFCE_OVERVIEW_WORKSPACES_XFCONF_SETTINGS(inSettings), xfce_overview_workspaces_plugin_get_id(inPlugin));
 }
 
 
 /* IMPLEMENTATION: GObject */
 
 /* Dispose this object */
-static void _xfdashboard_xfconf_settings_dispose(GObject *inObject)
+static void _xfce_overview_workspaces_xfconf_settings_dispose(GObject *inObject)
 {
-	XfdashboardXfconfSettings			*self=XFDASHBOARD_XFCONF_SETTINGS(inObject);
-	XfdashboardXfconfSettingsPrivate	*priv=self->priv;
+	XfceOverviewWorkspacesXfconfSettings			*self=XFCE_OVERVIEW_WORKSPACES_XFCONF_SETTINGS(inObject);
+	XfceOverviewWorkspacesXfconfSettingsPrivate	*priv=self->priv;
 
 	/* Release allocated resources */
 	if(priv->channel)
@@ -1049,41 +1049,41 @@ static void _xfdashboard_xfconf_settings_dispose(GObject *inObject)
 
 	if(priv->blockedSettings)
 	{
-		g_list_free_full(priv->blockedSettings, (GDestroyNotify)_xfdashboard_xfconf_settings_block_property_notification_free);
+		g_list_free_full(priv->blockedSettings, (GDestroyNotify)_xfce_overview_workspaces_xfconf_settings_block_property_notification_free);
 		priv->blockedSettings=NULL;
 	}
 
 	/* Call parent's class dispose method */
-	G_OBJECT_CLASS(xfdashboard_xfconf_settings_parent_class)->dispose(inObject);
+	G_OBJECT_CLASS(xfce_overview_workspaces_xfconf_settings_parent_class)->dispose(inObject);
 }
 
 /* Class initialization
  * Override functions in parent classes and define properties
  * and signals
  */
-static void xfdashboard_xfconf_settings_class_init(XfdashboardXfconfSettingsClass *klass)
+static void xfce_overview_workspaces_xfconf_settings_class_init(XfceOverviewWorkspacesXfconfSettingsClass *klass)
 {
 	GObjectClass				*gobjectClass=G_OBJECT_CLASS(klass);
-	XfdashboardSettingsClass	*settingsClass=XFDASHBOARD_SETTINGS_CLASS(klass);
+	XfceOverviewWorkspacesSettingsClass	*settingsClass=XFCE_OVERVIEW_WORKSPACES_SETTINGS_CLASS(klass);
 
 	/* Override functions */
-	gobjectClass->dispose=_xfdashboard_xfconf_settings_dispose;
+	gobjectClass->dispose=_xfce_overview_workspaces_xfconf_settings_dispose;
 
-	settingsClass->changed=_xfdashboard_xfconf_settings_on_settings_changed;
-	settingsClass->plugin_added=_xfdashboard_xfconf_settings_plugin_added;
+	settingsClass->changed=_xfce_overview_workspaces_xfconf_settings_on_settings_changed;
+	settingsClass->plugin_added=_xfce_overview_workspaces_xfconf_settings_plugin_added;
 }
 
 /* Object initialization
  * Create private structure and set up default values
  */
-static void xfdashboard_xfconf_settings_init(XfdashboardXfconfSettings *self)
+static void xfce_overview_workspaces_xfconf_settings_init(XfceOverviewWorkspacesXfconfSettings *self)
 {
-	XfdashboardXfconfSettingsPrivate	*priv;
+	XfceOverviewWorkspacesXfconfSettingsPrivate	*priv;
 
-	priv=self->priv=xfdashboard_xfconf_settings_get_instance_private(self);
+	priv=self->priv=xfce_overview_workspaces_xfconf_settings_get_instance_private(self);
 
 	/* Set default values */
-	priv->channel=xfconf_channel_get(XFDASHBOARD_XFCONF_CHANNEL);
+	priv->channel=xfconf_channel_get(XFCE_OVERVIEW_WORKSPACES_XFCONF_CHANNEL);
 	priv->xfconfNotifySignalID=0;
 	priv->blockedSettings=NULL;
 
@@ -1091,11 +1091,11 @@ static void xfdashboard_xfconf_settings_init(XfdashboardXfconfSettings *self)
 	priv->xfconfNotifySignalID=
 		g_signal_connect_swapped(priv->channel,
 									"property-changed",
-									G_CALLBACK(_xfdashboard_xfconf_settings_on_xfconf_property_changed),
+									G_CALLBACK(_xfce_overview_workspaces_xfconf_settings_on_xfconf_property_changed),
 									self);
 
 	/* Initialize initial core settings from xfconf */
-	_xfdashboard_xfconf_settings_initialize_settings(self, NULL);
+	_xfce_overview_workspaces_xfconf_settings_initialize_settings(self, NULL);
 }
 
 

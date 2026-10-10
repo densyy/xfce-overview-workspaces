@@ -27,30 +27,30 @@
 
 #include "hot-corner-settings.h"
 
-#include <libxfdashboard/libxfdashboard.h>
+#include <libxfce-overview-workspaces/libxfce-overview-workspaces.h>
 #include <glib/gi18n-lib.h>
 #include <gtk/gtk.h>
 #include <math.h>
 
 
 /* Define this class in GObject system */
-struct _XfdashboardHotCornerSettingsPrivate
+struct _XfceOverviewWorkspacesHotCornerSettingsPrivate
 {
 	/* Properties related */
-	XfdashboardHotCornerSettingsActivationCorner	activationCorner;
+	XfceOverviewWorkspacesHotCornerSettingsActivationCorner	activationCorner;
 	gint											activationRadius;
 	gint64											activationDuration;
 	gboolean										primaryMonitorOnly;
 };
 
-G_DEFINE_DYNAMIC_TYPE_EXTENDED(XfdashboardHotCornerSettings,
-								xfdashboard_hot_corner_settings,
-								XFDASHBOARD_TYPE_PLUGIN_SETTINGS,
+G_DEFINE_DYNAMIC_TYPE_EXTENDED(XfceOverviewWorkspacesHotCornerSettings,
+								xfce_overview_workspaces_hot_corner_settings,
+								XFCE_OVERVIEW_WORKSPACES_TYPE_PLUGIN_SETTINGS,
 								0,
-								G_ADD_PRIVATE_DYNAMIC(XfdashboardHotCornerSettings))
+								G_ADD_PRIVATE_DYNAMIC(XfceOverviewWorkspacesHotCornerSettings))
 
 /* Define this class in this plugin */
-XFDASHBOARD_DEFINE_PLUGIN_TYPE(xfdashboard_hot_corner_settings);
+XFCE_OVERVIEW_WORKSPACES_DEFINE_PLUGIN_TYPE(xfce_overview_workspaces_hot_corner_settings);
 
 /* Properties */
 enum
@@ -65,12 +65,12 @@ enum
 	PROP_LAST
 };
 
-static GParamSpec* XfdashboardHotCornerSettingsProperties[PROP_LAST]={ 0, };
+static GParamSpec* XfceOverviewWorkspacesHotCornerSettingsProperties[PROP_LAST]={ 0, };
 
 
-/* IMPLEMENTATION: Enum XFDASHBOARD_TYPE_HOT_CORNER_SETTINGS_ACTIVATION_CORNER */
+/* IMPLEMENTATION: Enum XFCE_OVERVIEW_WORKSPACES_TYPE_HOT_CORNER_SETTINGS_ACTIVATION_CORNER */
 
-GType xfdashboard_hot_corner_settings_activation_corner_get_type(void)
+GType xfce_overview_workspaces_hot_corner_settings_activation_corner_get_type(void)
 {
 	static gsize	static_g_define_type_id=0;
 
@@ -78,14 +78,14 @@ GType xfdashboard_hot_corner_settings_activation_corner_get_type(void)
 	{
 		static const GEnumValue values[]=
 		{
-			{ XFDASHBOARD_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_TOP_LEFT, "XFDASHBOARD_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_TOP_LEFT", "top-left" },
-			{ XFDASHBOARD_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_TOP_RIGHT, "XFDASHBOARD_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_TOP_RIGHT", "top-right" },
-			{ XFDASHBOARD_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_BOTTOM_LEFT, "XFDASHBOARD_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_BOTTOM_LEFT", "bottom-left" },
-			{ XFDASHBOARD_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_BOTTOM_RIGHT, "XFDASHBOARD_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_BOTTOM_RIGHT", "bottom-right" },
+			{ XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_TOP_LEFT, "XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_TOP_LEFT", "top-left" },
+			{ XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_TOP_RIGHT, "XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_TOP_RIGHT", "top-right" },
+			{ XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_BOTTOM_LEFT, "XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_BOTTOM_LEFT", "bottom-left" },
+			{ XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_BOTTOM_RIGHT, "XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_BOTTOM_RIGHT", "bottom-right" },
 			{ 0, NULL, NULL }
 		};
 
-		GType	g_define_type_id=g_enum_register_static(g_intern_static_string("XfdashboardHotCornerSettingsActivationCorner"), values);
+		GType	g_define_type_id=g_enum_register_static(g_intern_static_string("XfceOverviewWorkspacesHotCornerSettingsActivationCorner"), values);
 		g_once_init_leave(&static_g_define_type_id, g_define_type_id);
 	}
 
@@ -96,76 +96,76 @@ GType xfdashboard_hot_corner_settings_activation_corner_get_type(void)
 /* IMPLEMENTATION: Private variables and methods */
 #define POLL_POINTER_POSITION_INTERVAL			100
 
-typedef struct _XfdashboardHotCornerSettingsBox		XfdashboardHotCornerSettingsBox;
-struct _XfdashboardHotCornerSettingsBox
+typedef struct _XfceOverviewWorkspacesHotCornerSettingsBox		XfceOverviewWorkspacesHotCornerSettingsBox;
+struct _XfceOverviewWorkspacesHotCornerSettingsBox
 {
 	gint		x1, y1;
 	gint		x2, y2;
 };
 
 /* Single instance of plugin settings */
-static XfdashboardHotCornerSettings*		_xfdashboard_hot_corner_settings=NULL;
+static XfceOverviewWorkspacesHotCornerSettings*		_xfce_overview_workspaces_hot_corner_settings=NULL;
 
 
 /* IMPLEMENTATION: GObject */
 
 /* Construct this object */
-static GObject* _xfdashboard_hot_corner_settings_constructor(GType inType,
+static GObject* _xfce_overview_workspaces_hot_corner_settings_constructor(GType inType,
 																guint inNumberConstructParams,
 																GObjectConstructParam *inConstructParams)
 {
 	GObject									*object;
 
-	if(!_xfdashboard_hot_corner_settings)
+	if(!_xfce_overview_workspaces_hot_corner_settings)
 	{
-		object=G_OBJECT_CLASS(xfdashboard_hot_corner_settings_parent_class)->constructor(inType, inNumberConstructParams, inConstructParams);
-		_xfdashboard_hot_corner_settings=XFDASHBOARD_HOT_CORNER_SETTINGS(object);
+		object=G_OBJECT_CLASS(xfce_overview_workspaces_hot_corner_settings_parent_class)->constructor(inType, inNumberConstructParams, inConstructParams);
+		_xfce_overview_workspaces_hot_corner_settings=XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS(object);
 	}
 		else
 		{
-			object=g_object_ref(G_OBJECT(_xfdashboard_hot_corner_settings));
+			object=g_object_ref(G_OBJECT(_xfce_overview_workspaces_hot_corner_settings));
 		}
 
 	return(object);
 }
 
 /* Finalize this object */
-static void _xfdashboard_hot_corner_settings_finalize(GObject *inObject)
+static void _xfce_overview_workspaces_hot_corner_settings_finalize(GObject *inObject)
 {
 	/* Release allocated resources finally, e.g. unset singleton */
-	if(G_LIKELY(G_OBJECT(_xfdashboard_hot_corner_settings)==inObject))
+	if(G_LIKELY(G_OBJECT(_xfce_overview_workspaces_hot_corner_settings)==inObject))
 	{
-		_xfdashboard_hot_corner_settings=NULL;
+		_xfce_overview_workspaces_hot_corner_settings=NULL;
 	}
 
 	/* Call parent's class dispose method */
-	G_OBJECT_CLASS(xfdashboard_hot_corner_settings_parent_class)->finalize(inObject);
+	G_OBJECT_CLASS(xfce_overview_workspaces_hot_corner_settings_parent_class)->finalize(inObject);
 }
 
 /* Set/get properties */
-static void _xfdashboard_hot_corner_settings_set_property(GObject *inObject,
+static void _xfce_overview_workspaces_hot_corner_settings_set_property(GObject *inObject,
 													guint inPropID,
 													const GValue *inValue,
 													GParamSpec *inSpec)
 {
-	XfdashboardHotCornerSettings			*self=XFDASHBOARD_HOT_CORNER_SETTINGS(inObject);
+	XfceOverviewWorkspacesHotCornerSettings			*self=XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS(inObject);
 
 	switch(inPropID)
 	{
 		case PROP_ACTIVATION_CORNER:
-			xfdashboard_hot_corner_settings_set_activation_corner(self, g_value_get_enum(inValue));
+			xfce_overview_workspaces_hot_corner_settings_set_activation_corner(self, g_value_get_enum(inValue));
 			break;
 
 		case PROP_ACTIVATION_RADIUS:
-			xfdashboard_hot_corner_settings_set_activation_radius(self, g_value_get_int(inValue));
+			xfce_overview_workspaces_hot_corner_settings_set_activation_radius(self, g_value_get_int(inValue));
 			break;
 
 		case PROP_ACTIVATION_DURATION:
-			xfdashboard_hot_corner_settings_set_activation_duration(self, g_value_get_uint64(inValue));
+			xfce_overview_workspaces_hot_corner_settings_set_activation_duration(self, g_value_get_uint64(inValue));
 			break;
 
 		case PROP_PRIMARY_MONITOR_ONLY:
-			xfdashboard_hot_corner_settings_set_primary_monitor_only(self, g_value_get_boolean(inValue));
+			xfce_overview_workspaces_hot_corner_settings_set_primary_monitor_only(self, g_value_get_boolean(inValue));
 			break;
 
 		default:
@@ -174,13 +174,13 @@ static void _xfdashboard_hot_corner_settings_set_property(GObject *inObject,
 	}
 }
 
-static void _xfdashboard_hot_corner_settings_get_property(GObject *inObject,
+static void _xfce_overview_workspaces_hot_corner_settings_get_property(GObject *inObject,
 													guint inPropID,
 													GValue *outValue,
 													GParamSpec *inSpec)
 {
-	XfdashboardHotCornerSettings			*self=XFDASHBOARD_HOT_CORNER_SETTINGS(inObject);
-	XfdashboardHotCornerSettingsPrivate		*priv=self->priv;
+	XfceOverviewWorkspacesHotCornerSettings			*self=XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS(inObject);
+	XfceOverviewWorkspacesHotCornerSettingsPrivate		*priv=self->priv;
 
 	switch(inPropID)
 	{
@@ -209,26 +209,26 @@ static void _xfdashboard_hot_corner_settings_get_property(GObject *inObject,
  * Override functions in parent classes and define properties
  * and signals
  */
-void xfdashboard_hot_corner_settings_class_init(XfdashboardHotCornerSettingsClass *klass)
+void xfce_overview_workspaces_hot_corner_settings_class_init(XfceOverviewWorkspacesHotCornerSettingsClass *klass)
 {
 	GObjectClass			*gobjectClass=G_OBJECT_CLASS(klass);
 
 	/* Override functions */
-	gobjectClass->constructor=_xfdashboard_hot_corner_settings_constructor;
-	gobjectClass->finalize=_xfdashboard_hot_corner_settings_finalize;
-	gobjectClass->set_property=_xfdashboard_hot_corner_settings_set_property;
-	gobjectClass->get_property=_xfdashboard_hot_corner_settings_get_property;
+	gobjectClass->constructor=_xfce_overview_workspaces_hot_corner_settings_constructor;
+	gobjectClass->finalize=_xfce_overview_workspaces_hot_corner_settings_finalize;
+	gobjectClass->set_property=_xfce_overview_workspaces_hot_corner_settings_set_property;
+	gobjectClass->get_property=_xfce_overview_workspaces_hot_corner_settings_get_property;
 
 	/* Define properties */
-	XfdashboardHotCornerSettingsProperties[PROP_ACTIVATION_CORNER]=
+	XfceOverviewWorkspacesHotCornerSettingsProperties[PROP_ACTIVATION_CORNER]=
 		g_param_spec_enum("activation-corner",
 							"Activation corner",
 							"The hot corner where to trigger the application to suspend or to resume",
-							XFDASHBOARD_TYPE_HOT_CORNER_SETTINGS_ACTIVATION_CORNER,
-							XFDASHBOARD_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_TOP_LEFT,
+							XFCE_OVERVIEW_WORKSPACES_TYPE_HOT_CORNER_SETTINGS_ACTIVATION_CORNER,
+							XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_TOP_LEFT,
 							G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-	XfdashboardHotCornerSettingsProperties[PROP_ACTIVATION_RADIUS]=
+	XfceOverviewWorkspacesHotCornerSettingsProperties[PROP_ACTIVATION_RADIUS]=
 		g_param_spec_int("activation-radius",
 							"Activation radius",
 							"The radius around hot corner where the pointer must be inside",
@@ -236,7 +236,7 @@ void xfdashboard_hot_corner_settings_class_init(XfdashboardHotCornerSettingsClas
 							4,
 							G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-	XfdashboardHotCornerSettingsProperties[PROP_ACTIVATION_DURATION]=
+	XfceOverviewWorkspacesHotCornerSettingsProperties[PROP_ACTIVATION_DURATION]=
 		g_param_spec_uint64("activation-duration",
 							"Activation duration",
 							"The time in milliseconds the pointer must stay inside the radius at hot corner to trigger",
@@ -244,32 +244,32 @@ void xfdashboard_hot_corner_settings_class_init(XfdashboardHotCornerSettingsClas
 							300,
 							G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-	XfdashboardHotCornerSettingsProperties[PROP_PRIMARY_MONITOR_ONLY]=
+	XfceOverviewWorkspacesHotCornerSettingsProperties[PROP_PRIMARY_MONITOR_ONLY]=
 		g_param_spec_boolean("primary-monitor-only",
 								"Primary monitor only",
 								"A flag indicating if all monitors or only the primary one should be check for hot corner",
 								TRUE,
 								G_PARAM_READWRITE | G_PARAM_STATIC_STRINGS);
 
-	g_object_class_install_properties(gobjectClass, PROP_LAST, XfdashboardHotCornerSettingsProperties);
+	g_object_class_install_properties(gobjectClass, PROP_LAST, XfceOverviewWorkspacesHotCornerSettingsProperties);
 }
 
 /* Class finalization */
-void xfdashboard_hot_corner_settings_class_finalize(XfdashboardHotCornerSettingsClass *klass)
+void xfce_overview_workspaces_hot_corner_settings_class_finalize(XfceOverviewWorkspacesHotCornerSettingsClass *klass)
 {
 }
 
 /* Object initialization
  * Create private structure and set up default values
  */
-void xfdashboard_hot_corner_settings_init(XfdashboardHotCornerSettings *self)
+void xfce_overview_workspaces_hot_corner_settings_init(XfceOverviewWorkspacesHotCornerSettings *self)
 {
-	XfdashboardHotCornerSettingsPrivate		*priv;
+	XfceOverviewWorkspacesHotCornerSettingsPrivate		*priv;
 
-	self->priv=priv=xfdashboard_hot_corner_settings_get_instance_private(self);
+	self->priv=priv=xfce_overview_workspaces_hot_corner_settings_get_instance_private(self);
 
 	/* Set up default values */
-	priv->activationCorner=XFDASHBOARD_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_TOP_LEFT;
+	priv->activationCorner=XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_TOP_LEFT;
 	priv->activationRadius=4;
 	priv->activationDuration=300;
 	priv->primaryMonitorOnly=TRUE;
@@ -279,30 +279,30 @@ void xfdashboard_hot_corner_settings_init(XfdashboardHotCornerSettings *self)
 /* IMPLEMENTATION: Public API */
 
 /* Create new instance */
-XfdashboardHotCornerSettings* xfdashboard_hot_corner_settings_new(void)
+XfceOverviewWorkspacesHotCornerSettings* xfce_overview_workspaces_hot_corner_settings_new(void)
 {
 	GObject		*hotCorner;
 
-	hotCorner=g_object_new(XFDASHBOARD_TYPE_HOT_CORNER_SETTINGS, NULL);
+	hotCorner=g_object_new(XFCE_OVERVIEW_WORKSPACES_TYPE_HOT_CORNER_SETTINGS, NULL);
 	if(!hotCorner) return(NULL);
 
-	return(XFDASHBOARD_HOT_CORNER_SETTINGS(hotCorner));
+	return(XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS(hotCorner));
 }
 
 /* Get/set hot corner */
-XfdashboardHotCornerSettingsActivationCorner xfdashboard_hot_corner_settings_get_activation_corner(XfdashboardHotCornerSettings *self)
+XfceOverviewWorkspacesHotCornerSettingsActivationCorner xfce_overview_workspaces_hot_corner_settings_get_activation_corner(XfceOverviewWorkspacesHotCornerSettings *self)
 {
-	g_return_val_if_fail(XFDASHBOARD_IS_HOT_CORNER_SETTINGS(self), XFDASHBOARD_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_TOP_LEFT);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER_SETTINGS(self), XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_TOP_LEFT);
 
 	return(self->priv->activationCorner);
 }
 
-void xfdashboard_hot_corner_settings_set_activation_corner(XfdashboardHotCornerSettings *self, XfdashboardHotCornerSettingsActivationCorner inCorner)
+void xfce_overview_workspaces_hot_corner_settings_set_activation_corner(XfceOverviewWorkspacesHotCornerSettings *self, XfceOverviewWorkspacesHotCornerSettingsActivationCorner inCorner)
 {
-	XfdashboardHotCornerSettingsPrivate		*priv;
+	XfceOverviewWorkspacesHotCornerSettingsPrivate		*priv;
 
-	g_return_if_fail(XFDASHBOARD_IS_HOT_CORNER_SETTINGS(self));
-	g_return_if_fail(inCorner<=XFDASHBOARD_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_BOTTOM_RIGHT);
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER_SETTINGS(self));
+	g_return_if_fail(inCorner<=XFCE_OVERVIEW_WORKSPACES_HOT_CORNER_SETTINGS_ACTIVATION_CORNER_BOTTOM_RIGHT);
 
 	priv=self->priv;
 
@@ -313,23 +313,23 @@ void xfdashboard_hot_corner_settings_set_activation_corner(XfdashboardHotCornerS
 		priv->activationCorner=inCorner;
 
 		/* Notify about property change */
-		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardHotCornerSettingsProperties[PROP_ACTIVATION_CORNER]);
+		g_object_notify_by_pspec(G_OBJECT(self), XfceOverviewWorkspacesHotCornerSettingsProperties[PROP_ACTIVATION_CORNER]);
 	}
 }
 
 /* Get/set radius around hot corner */
-gint xfdashboard_hot_corner_settings_get_activation_radius(XfdashboardHotCornerSettings *self)
+gint xfce_overview_workspaces_hot_corner_settings_get_activation_radius(XfceOverviewWorkspacesHotCornerSettings *self)
 {
-	g_return_val_if_fail(XFDASHBOARD_IS_HOT_CORNER_SETTINGS(self), 0);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER_SETTINGS(self), 0);
 
 	return(self->priv->activationRadius);
 }
 
-void xfdashboard_hot_corner_settings_set_activation_radius(XfdashboardHotCornerSettings *self, gint inRadius)
+void xfce_overview_workspaces_hot_corner_settings_set_activation_radius(XfceOverviewWorkspacesHotCornerSettings *self, gint inRadius)
 {
-	XfdashboardHotCornerSettingsPrivate		*priv;
+	XfceOverviewWorkspacesHotCornerSettingsPrivate		*priv;
 
-	g_return_if_fail(XFDASHBOARD_IS_HOT_CORNER_SETTINGS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER_SETTINGS(self));
 	g_return_if_fail(inRadius>0);
 
 	priv=self->priv;
@@ -341,23 +341,23 @@ void xfdashboard_hot_corner_settings_set_activation_radius(XfdashboardHotCornerS
 		priv->activationRadius=inRadius;
 
 		/* Notify about property change */
-		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardHotCornerSettingsProperties[PROP_ACTIVATION_RADIUS]);
+		g_object_notify_by_pspec(G_OBJECT(self), XfceOverviewWorkspacesHotCornerSettingsProperties[PROP_ACTIVATION_RADIUS]);
 	}
 }
 
 /* Get/set duration when to trigger hot corner */
-gint64 xfdashboard_hot_corner_settings_get_activation_duration(XfdashboardHotCornerSettings *self)
+gint64 xfce_overview_workspaces_hot_corner_settings_get_activation_duration(XfceOverviewWorkspacesHotCornerSettings *self)
 {
-	g_return_val_if_fail(XFDASHBOARD_IS_HOT_CORNER_SETTINGS(self), 0);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER_SETTINGS(self), 0);
 
 	return(self->priv->activationDuration);
 }
 
-void xfdashboard_hot_corner_settings_set_activation_duration(XfdashboardHotCornerSettings *self, gint64 inDuration)
+void xfce_overview_workspaces_hot_corner_settings_set_activation_duration(XfceOverviewWorkspacesHotCornerSettings *self, gint64 inDuration)
 {
-	XfdashboardHotCornerSettingsPrivate		*priv;
+	XfceOverviewWorkspacesHotCornerSettingsPrivate		*priv;
 
-	g_return_if_fail(XFDASHBOARD_IS_HOT_CORNER_SETTINGS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER_SETTINGS(self));
 	g_return_if_fail(inDuration>0);
 
 	priv=self->priv;
@@ -369,23 +369,23 @@ void xfdashboard_hot_corner_settings_set_activation_duration(XfdashboardHotCorne
 		priv->activationDuration=inDuration;
 
 		/* Notify about property change */
-		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardHotCornerSettingsProperties[PROP_ACTIVATION_DURATION]);
+		g_object_notify_by_pspec(G_OBJECT(self), XfceOverviewWorkspacesHotCornerSettingsProperties[PROP_ACTIVATION_DURATION]);
 	}
 }
 
 /* Get/set flag to check primary monitor only if hot corner was entered */
-gboolean xfdashboard_hot_corner_settings_get_primary_monitor_only(XfdashboardHotCornerSettings *self)
+gboolean xfce_overview_workspaces_hot_corner_settings_get_primary_monitor_only(XfceOverviewWorkspacesHotCornerSettings *self)
 {
-	g_return_val_if_fail(XFDASHBOARD_IS_HOT_CORNER_SETTINGS(self), 0);
+	g_return_val_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER_SETTINGS(self), 0);
 
 	return(self->priv->primaryMonitorOnly);
 }
 
-void xfdashboard_hot_corner_settings_set_primary_monitor_only(XfdashboardHotCornerSettings *self, gboolean inPrimaryOnly)
+void xfce_overview_workspaces_hot_corner_settings_set_primary_monitor_only(XfceOverviewWorkspacesHotCornerSettings *self, gboolean inPrimaryOnly)
 {
-	XfdashboardHotCornerSettingsPrivate		*priv;
+	XfceOverviewWorkspacesHotCornerSettingsPrivate		*priv;
 
-	g_return_if_fail(XFDASHBOARD_IS_HOT_CORNER_SETTINGS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_HOT_CORNER_SETTINGS(self));
 
 	priv=self->priv;
 
@@ -396,6 +396,6 @@ void xfdashboard_hot_corner_settings_set_primary_monitor_only(XfdashboardHotCorn
 		priv->primaryMonitorOnly=inPrimaryOnly;
 
 		/* Notify about property change */
-		g_object_notify_by_pspec(G_OBJECT(self), XfdashboardHotCornerSettingsProperties[PROP_PRIMARY_MONITOR_ONLY]);
+		g_object_notify_by_pspec(G_OBJECT(self), XfceOverviewWorkspacesHotCornerSettingsProperties[PROP_PRIMARY_MONITOR_ONLY]);
 	}
 }

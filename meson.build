@@ -1,5 +1,5 @@
 project(
-  'xfdashboard',
+  'xfce-overview-workspaces',
   'c',
 version : '1.1.0',
   license : 'GPL-2.0-or-later',
@@ -92,7 +92,7 @@ if get_option('debug') and optimization in ['0', 'g']
     '-DDEBUG=1',
     '-DDEBUG_TRACE=1',
     '-DG_ENABLE_DEBUG',
-    '-DXFDASHBOARD_ENABLE_DEBUG'
+    '-DXFCE_OVERVIEW_WORKSPACES_ENABLE_DEBUG'
   ]
 elif optimization in ['3', 'minsize']
   extra_cflags += [
@@ -159,8 +159,8 @@ xfce_revision_h = vcs_tag(
 
 subdir('data')
 subdir('common')
-subdir('libxfdashboard')
+subdir('libxfce-overview-workspaces')
 subdir('settings')
-subdir('xfdashboard')
+subdir('xfce-overview-workspaces')
 subdir('plugins')
 subdir('po')

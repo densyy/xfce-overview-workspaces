@@ -28,17 +28,17 @@
 
 #include "autopin-windows.h"
 
-#include <libxfdashboard/libxfdashboard.h>
+#include <libxfce-overview-workspaces/libxfce-overview-workspaces.h>
 #include <glib/gi18n-lib.h>
 #include <gtk/gtk.h>
 #include <math.h>
 
 
 /* Define this class in GObject system */
-struct _XfdashboardAutopinWindowsPrivate
+struct _XfceOverviewWorkspacesAutopinWindowsPrivate
 {
 	/* Instance related */
-	XfdashboardWindowTracker				*windowTracker;
+	XfceOverviewWorkspacesWindowTracker				*windowTracker;
 	guint									windowOpenedSignaledID;
 	guint									windowClosedSignaledID;
 	guint									windowMonitorChangedSignalID;
@@ -47,69 +47,69 @@ struct _XfdashboardAutopinWindowsPrivate
 	GSList									*pinnedWindows;
 };
 
-G_DEFINE_DYNAMIC_TYPE_EXTENDED(XfdashboardAutopinWindows,
-								xfdashboard_autopin_windows,
+G_DEFINE_DYNAMIC_TYPE_EXTENDED(XfceOverviewWorkspacesAutopinWindows,
+								xfce_overview_workspaces_autopin_windows,
 								G_TYPE_OBJECT,
 								0,
-								G_ADD_PRIVATE_DYNAMIC(XfdashboardAutopinWindows))
+								G_ADD_PRIVATE_DYNAMIC(XfceOverviewWorkspacesAutopinWindows))
 
 /* Define this class in this plugin */
-XFDASHBOARD_DEFINE_PLUGIN_TYPE(xfdashboard_autopin_windows);
+XFCE_OVERVIEW_WORKSPACES_DEFINE_PLUGIN_TYPE(xfce_overview_workspaces_autopin_windows);
 
 
 /* IMPLEMENTATION: Private variables and methods */
 
 /* Update pin state of window depending on monitor it is located on */
-static void _xfdashboard_autopin_windows_update_window_pin_state(XfdashboardAutopinWindows *self, XfdashboardWindowTrackerWindow *inWindow)
+static void _xfce_overview_workspaces_autopin_windows_update_window_pin_state(XfceOverviewWorkspacesAutopinWindows *self, XfceOverviewWorkspacesWindowTrackerWindow *inWindow)
 {
-	XfdashboardAutopinWindowsPrivate		*priv;
-	XfdashboardWindowTrackerMonitor			*currentMonitor;
+	XfceOverviewWorkspacesAutopinWindowsPrivate		*priv;
+	XfceOverviewWorkspacesWindowTrackerMonitor			*currentMonitor;
 	gboolean								isPrimary;
-	XfdashboardWindowTrackerWindowState		windowState;
+	XfceOverviewWorkspacesWindowTrackerWindowState		windowState;
 
-	g_return_if_fail(XFDASHBOARD_IS_AUTOPIN_WINDOWS(self));
-	g_return_if_fail(XFDASHBOARD_IS_WINDOW_TRACKER_WINDOW(inWindow));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_AUTOPIN_WINDOWS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_WINDOW_TRACKER_WINDOW(inWindow));
 
 	priv=self->priv;
 
 	/* Get monitor the window is located on */
-	currentMonitor=xfdashboard_window_tracker_window_get_monitor(inWindow);
+	currentMonitor=xfce_overview_workspaces_window_tracker_window_get_monitor(inWindow);
 	if(!currentMonitor)
 	{
-		XFDASHBOARD_DEBUG(self, PLUGINS,
+		XFCE_OVERVIEW_WORKSPACES_DEBUG(self, PLUGINS,
 							"Skipping window '%s' because we could not get monitor",
-							xfdashboard_window_tracker_window_get_name(inWindow));
+							xfce_overview_workspaces_window_tracker_window_get_name(inWindow));
 		return;
 	}
 
 	/* Get primary state of new monitor and window state */
-	isPrimary=xfdashboard_window_tracker_monitor_is_primary(currentMonitor);
-	windowState=xfdashboard_window_tracker_window_get_state(inWindow);
-	XFDASHBOARD_DEBUG(self, PLUGINS,
+	isPrimary=xfce_overview_workspaces_window_tracker_monitor_is_primary(currentMonitor);
+	windowState=xfce_overview_workspaces_window_tracker_window_get_state(inWindow);
+	XFCE_OVERVIEW_WORKSPACES_DEBUG(self, PLUGINS,
 						"Window '%s' is on %s monitor with state %u (%s)",
-						xfdashboard_window_tracker_window_get_name(inWindow),
+						xfce_overview_workspaces_window_tracker_window_get_name(inWindow),
 						isPrimary ? "primary" : "non-primary",
 						windowState,
-						(windowState & XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_PINNED) ? "pinned" : "unpinned");
+						(windowState & XFCE_OVERVIEW_WORKSPACES_WINDOW_TRACKER_WINDOW_STATE_PINNED) ? "pinned" : "unpinned");
 
 	/* Check if window is a "normal" window which could be pinned by user or
 	 * this plugin. This depends on its state and role (meaning it is not a
 	 * stage window).
 	 */
 	if(windowState &
-		(XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_SKIP_PAGER | XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_SKIP_TASKLIST))
+		(XFCE_OVERVIEW_WORKSPACES_WINDOW_TRACKER_WINDOW_STATE_SKIP_PAGER | XFCE_OVERVIEW_WORKSPACES_WINDOW_TRACKER_WINDOW_STATE_SKIP_TASKLIST))
 	{
-		XFDASHBOARD_DEBUG(self, PLUGINS,
+		XFCE_OVERVIEW_WORKSPACES_DEBUG(self, PLUGINS,
 							"Skipping window '%s' because it is skipped from pager and/or tasklist",
-							xfdashboard_window_tracker_window_get_name(inWindow));
+							xfce_overview_workspaces_window_tracker_window_get_name(inWindow));
 		return;
 	}
 
-	if(xfdashboard_window_tracker_window_is_stage(inWindow))
+	if(xfce_overview_workspaces_window_tracker_window_is_stage(inWindow))
 	{
-		XFDASHBOARD_DEBUG(self, PLUGINS,
+		XFCE_OVERVIEW_WORKSPACES_DEBUG(self, PLUGINS,
 							"Skipping window '%s' because it is the stage window",
-							xfdashboard_window_tracker_window_get_name(inWindow));
+							xfce_overview_workspaces_window_tracker_window_get_name(inWindow));
 		return;
 	}
 
@@ -118,27 +118,27 @@ static void _xfdashboard_autopin_windows_update_window_pin_state(XfdashboardAuto
 	 * keep window untouched.
 	 */
 	if(isPrimary &&
-		(windowState & XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_PINNED))
+		(windowState & XFCE_OVERVIEW_WORKSPACES_WINDOW_TRACKER_WINDOW_STATE_PINNED))
 	{
-		XFDASHBOARD_DEBUG(self, PLUGINS,
+		XFCE_OVERVIEW_WORKSPACES_DEBUG(self, PLUGINS,
 							"Unpinning window '%s' as it is located on primary monitor",
-							xfdashboard_window_tracker_window_get_name(inWindow));
+							xfce_overview_workspaces_window_tracker_window_get_name(inWindow));
 
-		windowState=windowState & ~XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_PINNED;
-		xfdashboard_window_tracker_window_set_state(inWindow, windowState);
+		windowState=windowState & ~XFCE_OVERVIEW_WORKSPACES_WINDOW_TRACKER_WINDOW_STATE_PINNED;
+		xfce_overview_workspaces_window_tracker_window_set_state(inWindow, windowState);
 
 		/* Forget this window as it is unpinned if we remebered it */
 		priv->pinnedWindows=g_slist_remove(priv->pinnedWindows, inWindow);
 	}
 		else if(!isPrimary &&
-				!(windowState & XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_PINNED))
+				!(windowState & XFCE_OVERVIEW_WORKSPACES_WINDOW_TRACKER_WINDOW_STATE_PINNED))
 		{
-			XFDASHBOARD_DEBUG(self, PLUGINS,
+			XFCE_OVERVIEW_WORKSPACES_DEBUG(self, PLUGINS,
 								"Pinning window '%s' as it is located on non-primary monitor",
-								xfdashboard_window_tracker_window_get_name(inWindow));
+								xfce_overview_workspaces_window_tracker_window_get_name(inWindow));
 
-			windowState=windowState | XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_PINNED;
-			xfdashboard_window_tracker_window_set_state(inWindow, windowState);
+			windowState=windowState | XFCE_OVERVIEW_WORKSPACES_WINDOW_TRACKER_WINDOW_STATE_PINNED;
+			xfce_overview_workspaces_window_tracker_window_set_state(inWindow, windowState);
 
 			/* Remember that we pinned this window, so we can unpin it on dispose of
 			 * this object instance.
@@ -148,65 +148,65 @@ static void _xfdashboard_autopin_windows_update_window_pin_state(XfdashboardAuto
 }
 
 /* Callback for windows moved to another monitor */
-static void _xfdashboard_autopin_windows_on_window_monitor_changed(XfdashboardAutopinWindows *self,
-																	XfdashboardWindowTrackerWindow *inWindow,
-																	XfdashboardWindowTrackerMonitor *inOldMonitor,
-																	XfdashboardWindowTrackerMonitor *inNewMonitor,
+static void _xfce_overview_workspaces_autopin_windows_on_window_monitor_changed(XfceOverviewWorkspacesAutopinWindows *self,
+																	XfceOverviewWorkspacesWindowTrackerWindow *inWindow,
+																	XfceOverviewWorkspacesWindowTrackerMonitor *inOldMonitor,
+																	XfceOverviewWorkspacesWindowTrackerMonitor *inNewMonitor,
 																	gpointer inUserData)
 {
 
-	g_return_if_fail(XFDASHBOARD_IS_AUTOPIN_WINDOWS(self));
-	g_return_if_fail(XFDASHBOARD_IS_WINDOW_TRACKER_WINDOW(inWindow));
-	g_return_if_fail(XFDASHBOARD_IS_WINDOW_TRACKER_MONITOR(inNewMonitor));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_AUTOPIN_WINDOWS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_WINDOW_TRACKER_WINDOW(inWindow));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_WINDOW_TRACKER_MONITOR(inNewMonitor));
 
 	/* Check moved window if it needs to be pinned or unpinned */
-	XFDASHBOARD_DEBUG(self, PLUGINS,
+	XFCE_OVERVIEW_WORKSPACES_DEBUG(self, PLUGINS,
 						"Window '%s' with state %u (%s) moved from monitor %d (%s) to %d (%s) and needs to be %s",
-						xfdashboard_window_tracker_window_get_name(inWindow),
-						xfdashboard_window_tracker_window_get_state(inWindow),
-						(xfdashboard_window_tracker_window_get_state(inWindow) & XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_PINNED) ? "pinned" : "unpinned",
-						inOldMonitor ? xfdashboard_window_tracker_monitor_get_number(inOldMonitor) : -1,
-						(inOldMonitor && xfdashboard_window_tracker_monitor_is_primary(inOldMonitor)) ? "primary" : "non-primary",
-						inNewMonitor ? xfdashboard_window_tracker_monitor_get_number(inNewMonitor) : -1,
-						(inNewMonitor && xfdashboard_window_tracker_monitor_is_primary(inNewMonitor)) ? "primary" : "non-primary",
-						(inNewMonitor && xfdashboard_window_tracker_monitor_is_primary(inNewMonitor)) ? "unpinned" : "pinned");
+						xfce_overview_workspaces_window_tracker_window_get_name(inWindow),
+						xfce_overview_workspaces_window_tracker_window_get_state(inWindow),
+						(xfce_overview_workspaces_window_tracker_window_get_state(inWindow) & XFCE_OVERVIEW_WORKSPACES_WINDOW_TRACKER_WINDOW_STATE_PINNED) ? "pinned" : "unpinned",
+						inOldMonitor ? xfce_overview_workspaces_window_tracker_monitor_get_number(inOldMonitor) : -1,
+						(inOldMonitor && xfce_overview_workspaces_window_tracker_monitor_is_primary(inOldMonitor)) ? "primary" : "non-primary",
+						inNewMonitor ? xfce_overview_workspaces_window_tracker_monitor_get_number(inNewMonitor) : -1,
+						(inNewMonitor && xfce_overview_workspaces_window_tracker_monitor_is_primary(inNewMonitor)) ? "primary" : "non-primary",
+						(inNewMonitor && xfce_overview_workspaces_window_tracker_monitor_is_primary(inNewMonitor)) ? "unpinned" : "pinned");
 
-	_xfdashboard_autopin_windows_update_window_pin_state(self, inWindow);
+	_xfce_overview_workspaces_autopin_windows_update_window_pin_state(self, inWindow);
 }
 
 /* Callback for new windows opened */
-static void _xfdashboard_autopin_windows_on_window_opened(XfdashboardAutopinWindows *self,
-															XfdashboardWindowTrackerWindow *inWindow,
+static void _xfce_overview_workspaces_autopin_windows_on_window_opened(XfceOverviewWorkspacesAutopinWindows *self,
+															XfceOverviewWorkspacesWindowTrackerWindow *inWindow,
 															gpointer inUserData)
 {
-	g_return_if_fail(XFDASHBOARD_IS_AUTOPIN_WINDOWS(self));
-	g_return_if_fail(XFDASHBOARD_IS_WINDOW_TRACKER_WINDOW(inWindow));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_AUTOPIN_WINDOWS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_WINDOW_TRACKER_WINDOW(inWindow));
 
 	/* Check window if newly opened window needs to be pinned or unpinned */
-	XFDASHBOARD_DEBUG(self, PLUGINS,
+	XFCE_OVERVIEW_WORKSPACES_DEBUG(self, PLUGINS,
 						"Window '%s' was opened, checking pin state",
-						xfdashboard_window_tracker_window_get_name(inWindow));
-	_xfdashboard_autopin_windows_update_window_pin_state(self, inWindow);
+						xfce_overview_workspaces_window_tracker_window_get_name(inWindow));
+	_xfce_overview_workspaces_autopin_windows_update_window_pin_state(self, inWindow);
 }
 
 /* Callback for windows closed */
-static void _xfdashboard_autopin_windows_on_window_closed(XfdashboardAutopinWindows *self,
-															XfdashboardWindowTrackerWindow *inWindow,
+static void _xfce_overview_workspaces_autopin_windows_on_window_closed(XfceOverviewWorkspacesAutopinWindows *self,
+															XfceOverviewWorkspacesWindowTrackerWindow *inWindow,
 															gpointer inUserData)
 {
-	XfdashboardAutopinWindowsPrivate		*priv;
+	XfceOverviewWorkspacesAutopinWindowsPrivate		*priv;
 
-	g_return_if_fail(XFDASHBOARD_IS_AUTOPIN_WINDOWS(self));
-	g_return_if_fail(XFDASHBOARD_IS_WINDOW_TRACKER_WINDOW(inWindow));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_AUTOPIN_WINDOWS(self));
+	g_return_if_fail(XFCE_OVERVIEW_WORKSPACES_IS_WINDOW_TRACKER_WINDOW(inWindow));
 
 	priv=self->priv;
 
 	/* Forget this window as it was closed so we cannot unping it when this
 	 * object will be destroyed.
 	 */
-	XFDASHBOARD_DEBUG(self, PLUGINS,
+	XFCE_OVERVIEW_WORKSPACES_DEBUG(self, PLUGINS,
 						"Forget window '%s' which was closed",
-						xfdashboard_window_tracker_window_get_name(inWindow));
+						xfce_overview_workspaces_window_tracker_window_get_name(inWindow));
 	priv->pinnedWindows=g_slist_remove(priv->pinnedWindows, inWindow);
 }
 
@@ -214,13 +214,13 @@ static void _xfdashboard_autopin_windows_on_window_closed(XfdashboardAutopinWind
 /* IMPLEMENTATION: GObject */
 
 /* Dispose this object */
-static void _xfdashboard_autopin_windows_dispose(GObject *inObject)
+static void _xfce_overview_workspaces_autopin_windows_dispose(GObject *inObject)
 {
-	XfdashboardAutopinWindows				*self=XFDASHBOARD_AUTOPIN_WINDOWS(inObject);
-	XfdashboardAutopinWindowsPrivate		*priv=self->priv;
+	XfceOverviewWorkspacesAutopinWindows				*self=XFCE_OVERVIEW_WORKSPACES_AUTOPIN_WINDOWS(inObject);
+	XfceOverviewWorkspacesAutopinWindowsPrivate		*priv=self->priv;
 	GSList									*windowIter;
-	XfdashboardWindowTrackerWindow			*window;
-	XfdashboardWindowTrackerWindowState		windowState;
+	XfceOverviewWorkspacesWindowTrackerWindow			*window;
+	XfceOverviewWorkspacesWindowTrackerWindowState		windowState;
 
 	/* Iterate through all windows and unpin them as this plugin will be disposed */
 	if(priv->unpinOnDispose && priv->pinnedWindows)
@@ -228,15 +228,15 @@ static void _xfdashboard_autopin_windows_dispose(GObject *inObject)
 		for(windowIter=priv->pinnedWindows; windowIter; windowIter=g_slist_next(windowIter))
 		{
 			/* Get window from iterator */
-			window=XFDASHBOARD_WINDOW_TRACKER_WINDOW(windowIter->data);
+			window=XFCE_OVERVIEW_WORKSPACES_WINDOW_TRACKER_WINDOW(windowIter->data);
 			if(!window) continue;
 
 			/* Unpinned window */
-			windowState=xfdashboard_window_tracker_window_get_state(window);
-			xfdashboard_window_tracker_window_set_state(window, windowState & ~XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_PINNED);
-			XFDASHBOARD_DEBUG(self, PLUGINS,
+			windowState=xfce_overview_workspaces_window_tracker_window_get_state(window);
+			xfce_overview_workspaces_window_tracker_window_set_state(window, windowState & ~XFCE_OVERVIEW_WORKSPACES_WINDOW_TRACKER_WINDOW_STATE_PINNED);
+			XFCE_OVERVIEW_WORKSPACES_DEBUG(self, PLUGINS,
 								"Unpinned window '%s' because it was pinned by us and this plugin is shut down",
-								xfdashboard_window_tracker_window_get_name(window));
+								xfce_overview_workspaces_window_tracker_window_get_name(window));
 		}
 
 		/* Free and release list */
@@ -272,40 +272,40 @@ static void _xfdashboard_autopin_windows_dispose(GObject *inObject)
 	}
 
 	/* Call parent's class dispose method */
-	G_OBJECT_CLASS(xfdashboard_autopin_windows_parent_class)->dispose(inObject);
+	G_OBJECT_CLASS(xfce_overview_workspaces_autopin_windows_parent_class)->dispose(inObject);
 }
 
 /* Class initialization
  * Override functions in parent classes and define properties
  * and signals
  */
-void xfdashboard_autopin_windows_class_init(XfdashboardAutopinWindowsClass *klass)
+void xfce_overview_workspaces_autopin_windows_class_init(XfceOverviewWorkspacesAutopinWindowsClass *klass)
 {
 	GObjectClass			*gobjectClass=G_OBJECT_CLASS(klass);
 
 	/* Override functions */
-	gobjectClass->dispose=_xfdashboard_autopin_windows_dispose;
+	gobjectClass->dispose=_xfce_overview_workspaces_autopin_windows_dispose;
 }
 
 /* Class finalization */
-void xfdashboard_autopin_windows_class_finalize(XfdashboardAutopinWindowsClass *klass)
+void xfce_overview_workspaces_autopin_windows_class_finalize(XfceOverviewWorkspacesAutopinWindowsClass *klass)
 {
 }
 
 /* Object initialization
  * Create private structure and set up default values
  */
-void xfdashboard_autopin_windows_init(XfdashboardAutopinWindows *self)
+void xfce_overview_workspaces_autopin_windows_init(XfceOverviewWorkspacesAutopinWindows *self)
 {
-	XfdashboardAutopinWindowsPrivate		*priv;
-	XfdashboardCore							*core;
+	XfceOverviewWorkspacesAutopinWindowsPrivate		*priv;
+	XfceOverviewWorkspacesCore							*core;
 	GList									*windowList;
-	XfdashboardWindowTrackerWindow			*window;
+	XfceOverviewWorkspacesWindowTrackerWindow			*window;
 
-	self->priv=priv=xfdashboard_autopin_windows_get_instance_private(self);
+	self->priv=priv=xfce_overview_workspaces_autopin_windows_get_instance_private(self);
 
 	/* Set up default values */
-	priv->windowTracker=xfdashboard_core_get_window_tracker(NULL);
+	priv->windowTracker=xfce_overview_workspaces_core_get_window_tracker(NULL);
 	priv->windowMonitorChangedSignalID=0;
 	priv->windowOpenedSignaledID=0;
 	priv->windowClosedSignaledID=0;
@@ -313,8 +313,8 @@ void xfdashboard_autopin_windows_init(XfdashboardAutopinWindows *self)
 	priv->pinnedWindows=NULL;
 
 	/* Check if application can suspend, i.e. it is running in daemon mode */
-	core=xfdashboard_core_get_default();
-	if(!xfdashboard_core_can_suspend(core))
+	core=xfce_overview_workspaces_core_get_default();
+	if(!xfce_overview_workspaces_core_can_suspend(core))
 	{
 		g_warning("Disabling autopin-windows plugin because core cannot suspend.");
 		return;
@@ -323,20 +323,20 @@ void xfdashboard_autopin_windows_init(XfdashboardAutopinWindows *self)
 	/* Iterate through all windows and pin or unpin them depending on which
 	 * monitor they are located at.
 	 */
-	XFDASHBOARD_DEBUG(self, PLUGINS,
+	XFCE_OVERVIEW_WORKSPACES_DEBUG(self, PLUGINS,
 						"Initializing plugin class %s so iterate through active window list",
 						G_OBJECT_TYPE_NAME(self));
-	windowList=xfdashboard_window_tracker_get_windows(priv->windowTracker);
+	windowList=xfce_overview_workspaces_window_tracker_get_windows(priv->windowTracker);
 	for(; windowList; windowList=g_list_next(windowList))
 	{
 		/* Get window from iterator */
-		window=XFDASHBOARD_WINDOW_TRACKER_WINDOW(windowList->data);
+		window=XFCE_OVERVIEW_WORKSPACES_WINDOW_TRACKER_WINDOW(windowList->data);
 		if(!window) continue;
 
 		/* Check window if it needs to be pinned or unpinned */
-		_xfdashboard_autopin_windows_update_window_pin_state(self, window);
+		_xfce_overview_workspaces_autopin_windows_update_window_pin_state(self, window);
 	}
-	XFDASHBOARD_DEBUG(self, PLUGINS,
+	XFCE_OVERVIEW_WORKSPACES_DEBUG(self, PLUGINS,
 						"Initialization of plugin class %s completed",
 						G_OBJECT_TYPE_NAME(self));
 
@@ -346,19 +346,19 @@ void xfdashboard_autopin_windows_init(XfdashboardAutopinWindows *self)
 	priv->windowMonitorChangedSignalID=
 		g_signal_connect_swapped(priv->windowTracker,
 									"window-monitor-changed",
-									G_CALLBACK(_xfdashboard_autopin_windows_on_window_monitor_changed),
+									G_CALLBACK(_xfce_overview_workspaces_autopin_windows_on_window_monitor_changed),
 									self);
 
 	priv->windowOpenedSignaledID=
 		g_signal_connect_swapped(priv->windowTracker,
 									"window-opened",
-									G_CALLBACK(_xfdashboard_autopin_windows_on_window_opened),
+									G_CALLBACK(_xfce_overview_workspaces_autopin_windows_on_window_opened),
 									self);
 
 	priv->windowClosedSignaledID=
 		g_signal_connect_swapped(priv->windowTracker,
 									"window-closed",
-									G_CALLBACK(_xfdashboard_autopin_windows_on_window_closed),
+									G_CALLBACK(_xfce_overview_workspaces_autopin_windows_on_window_closed),
 									self);
 }
 
@@ -366,12 +366,12 @@ void xfdashboard_autopin_windows_init(XfdashboardAutopinWindows *self)
 /* IMPLEMENTATION: Public API */
 
 /* Create new instance */
-XfdashboardAutopinWindows* xfdashboard_autopin_windows_new(void)
+XfceOverviewWorkspacesAutopinWindows* xfce_overview_workspaces_autopin_windows_new(void)
 {
 	GObject		*autopinWindows;
 
-	autopinWindows=g_object_new(XFDASHBOARD_TYPE_AUTOPIN_WINDOWS, NULL);
+	autopinWindows=g_object_new(XFCE_OVERVIEW_WORKSPACES_TYPE_AUTOPIN_WINDOWS, NULL);
 	if(!autopinWindows) return(NULL);
 
-	return(XFDASHBOARD_AUTOPIN_WINDOWS(autopinWindows));
+	return(XFCE_OVERVIEW_WORKSPACES_AUTOPIN_WINDOWS(autopinWindows));
 }

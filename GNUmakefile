@@ -1,6 +1,6 @@
-# Fork xfdashboard — wrapper Meson para build/install/autostart rápido
-# Uso num PC zerado (Debian/Ubuntu com Xfce):
-#   make deps      # dependências de build (precisa sudo/apt)
+# Fork xfce-overview-workspaces — wrapper Meson para build/install/autostart rápido
+# Uso num PC zerado (Arch ou Debian/Ubuntu com Xfce):
+#   make deps      # dependências de build (precisa sudo; detecta pacman ou apt)
 #   make install   # compila + instala em $(PREFIX) + ldconfig
 #   make autostart # daemon no login
 #   make on        # mostra a faixa agora
@@ -22,7 +22,7 @@ NINJA   ?= ninja
 
 help:
 	@echo "Alvos:"
-	@echo "  make deps      - instala dependências de build (Debian/Ubuntu)"
+	@echo "  make deps      - instala dependências (detecta pacman/Arch ou apt/Debian)"
 	@echo "  make build     - configura (se preciso) e compila"
 	@echo "  make install   - compila + instala em $(PREFIX) + ldconfig"
 	@echo "  make autostart - registra o daemon no login"
@@ -36,11 +36,19 @@ help:
 	@echo "Ex:  make install PREFIX=/usr SUDO=sudo"
 
 deps:
-	sudo apt install git gcc meson ninja-build pkg-config \
-	  libwnck-3-dev libgtk-3-dev libgarcon-1-0-dev libxfconf-0-dev \
-	  libxfce4ui-2-dev libxfce4util-dev libcogl-dev libclutter-1.0-dev \
-	  libclutter-gtk-1.0-dev libx11-dev libxcomposite-dev libxdamage-dev \
-	  libxinerama-dev
+	@if command -v pacman >/dev/null 2>&1; then \
+		sudo pacman -S --needed git gcc meson ninja pkgconf \
+		  libwnck3 gtk3 garcon xfconf \
+		  libxfce4ui libxfce4util libx11 libxcomposite libxdamage \
+		  libxinerama; \
+		echo "No Arch, cogl/clutter/clutter-gtk sao AUR: yay -S cogl clutter clutter-gtk"; \
+	else \
+		sudo apt install git gcc meson ninja-build pkg-config \
+		  libwnck-3-dev libgtk-3-dev libgarcon-1-0-dev libxfconf-0-dev \
+		  libxfce4ui-2-dev libxfce4util-dev libcogl-dev libclutter-1.0-dev \
+		  libclutter-gtk-1.0-dev libx11-dev libxcomposite-dev libxdamage-dev \
+		  libxinerama-dev; \
+	fi
 
 setup:
 	@if [ ! -f "$(BUILDDIR)/build.ninja" ]; then \
@@ -58,27 +66,27 @@ build all: setup
 install: build
 	$(SUDO) $(MESON) install -C $(BUILDDIR)
 	$(SUDO) ldconfig
-	@echo "OK. Teste: LD_LIBRARY_PATH=$(PREFIX)/lib/x86_64-linux-gnu xfdashboard --version"
+	@echo "OK. Teste: LD_LIBRARY_PATH=$(PREFIX)/lib/x86_64-linux-gnu xfce-overview-workspaces --version"
 
 autostart:
 	mkdir -p $(AUTOSTART_DIR)
 	printf '%s\n' \
 	  '[Desktop Entry]' \
 	  'Type=Application' \
-	  'Name=xfdashboard' \
+	  'Name=xfce-overview-workspaces' \
 	  'Comment=Faixa de workspaces no topo (daemon)' \
-	  'Exec=$(PREFIX)/bin/xfdashboard -d' \
+	  'Exec=$(PREFIX)/bin/xfce-overview-workspaces -d' \
 	  'Hidden=false' \
 	  'X-GNOME-Autostart-enabled=true' \
-	  > $(AUTOSTART_DIR)/xfdashboard.desktop
-	@echo "autostart em $(AUTOSTART_DIR)/xfdashboard.desktop"
+	  > $(AUTOSTART_DIR)/xfce-overview-workspaces.desktop
+	@echo "autostart em $(AUTOSTART_DIR)/xfce-overview-workspaces.desktop"
 
 on:
-	-$(PREFIX)/bin/xfdashboard -d
-	$(PREFIX)/bin/xfdashboard -t
+	-$(PREFIX)/bin/xfce-overview-workspaces -d
+	$(PREFIX)/bin/xfce-overview-workspaces -t
 
 off:
-	-$(PREFIX)/bin/xfdashboard -q
+	-$(PREFIX)/bin/xfce-overview-workspaces -q
 
 uninstall:
 	$(SUDO) $(NINJA) uninstall -C $(BUILDDIR) || $(SUDO) $(MESON) --internal uninstall -C $(BUILDDIR)

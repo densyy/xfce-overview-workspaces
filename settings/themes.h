@@ -21,8 +21,8 @@
  * 
  */
 
-#ifndef __XFDASHBOARD_SETTINGS_THEMES__
-#define __XFDASHBOARD_SETTINGS_THEMES__
+#ifndef __XFCE_OVERVIEW_WORKSPACES_SETTINGS_THEMES__
+#define __XFCE_OVERVIEW_WORKSPACES_SETTINGS_THEMES__
 
 #include <gtk/gtkx.h>
 
@@ -30,27 +30,27 @@
 
 G_BEGIN_DECLS
 
-#define XFDASHBOARD_TYPE_SETTINGS_THEMES				(xfdashboard_settings_themes_get_type())
-#define XFDASHBOARD_SETTINGS_THEMES(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFDASHBOARD_TYPE_SETTINGS_THEMES, XfdashboardSettingsThemes))
-#define XFDASHBOARD_IS_SETTINGS_THEMES(obj)				(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFDASHBOARD_TYPE_SETTINGS_THEMES))
-#define XFDASHBOARD_SETTINGS_THEMES_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFDASHBOARD_TYPE_SETTINGS_THEMES, XfdashboardSettingsThemesClass))
-#define XFDASHBOARD_IS_SETTINGS_THEMES_CLASS(klass)		(G_TYPE_CHECK_CLASS_TYPE((klass), XFDASHBOARD_TYPE_SETTINGS_THEMES))
-#define XFDASHBOARD_SETTINGS_THEMES_GET_CLASS(obj)		(G_TYPE_INSTANCE_GET_CLASS((obj), XFDASHBOARD_TYPE_SETTINGS_THEMES, XfdashboardSettingsThemesClass))
+#define XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_THEMES				(xfce_overview_workspaces_settings_themes_get_type())
+#define XFCE_OVERVIEW_WORKSPACES_SETTINGS_THEMES(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_THEMES, XfceOverviewWorkspacesSettingsThemes))
+#define XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_THEMES(obj)				(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_THEMES))
+#define XFCE_OVERVIEW_WORKSPACES_SETTINGS_THEMES_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_THEMES, XfceOverviewWorkspacesSettingsThemesClass))
+#define XFCE_OVERVIEW_WORKSPACES_IS_SETTINGS_THEMES_CLASS(klass)		(G_TYPE_CHECK_CLASS_TYPE((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_THEMES))
+#define XFCE_OVERVIEW_WORKSPACES_SETTINGS_THEMES_GET_CLASS(obj)		(G_TYPE_INSTANCE_GET_CLASS((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_SETTINGS_THEMES, XfceOverviewWorkspacesSettingsThemesClass))
 
-typedef struct _XfdashboardSettingsThemes				XfdashboardSettingsThemes;
-typedef struct _XfdashboardSettingsThemesClass			XfdashboardSettingsThemesClass;
-typedef struct _XfdashboardSettingsThemesPrivate		XfdashboardSettingsThemesPrivate;
+typedef struct _XfceOverviewWorkspacesSettingsThemes				XfceOverviewWorkspacesSettingsThemes;
+typedef struct _XfceOverviewWorkspacesSettingsThemesClass			XfceOverviewWorkspacesSettingsThemesClass;
+typedef struct _XfceOverviewWorkspacesSettingsThemesPrivate		XfceOverviewWorkspacesSettingsThemesPrivate;
 
-struct _XfdashboardSettingsThemes
+struct _XfceOverviewWorkspacesSettingsThemes
 {
 	/* Parent instance */
 	GObject							parent_instance;
 
 	/* Private structure */
-	XfdashboardSettingsThemesPrivate	*priv;
+	XfceOverviewWorkspacesSettingsThemesPrivate	*priv;
 };
 
-struct _XfdashboardSettingsThemesClass
+struct _XfceOverviewWorkspacesSettingsThemesClass
 {
 	/*< private >*/
 	/* Parent class */
@@ -61,10 +61,10 @@ struct _XfdashboardSettingsThemesClass
 };
 
 /* Public API */
-GType xfdashboard_settings_themes_get_type(void) G_GNUC_CONST;
+GType xfce_overview_workspaces_settings_themes_get_type(void) G_GNUC_CONST;
 
-XfdashboardSettingsThemes* xfdashboard_settings_themes_new(XfdashboardSettingsApp *inApp);
+XfceOverviewWorkspacesSettingsThemes* xfce_overview_workspaces_settings_themes_new(XfceOverviewWorkspacesSettingsApp *inApp);
 
 G_END_DECLS
 
-#endif	/* __XFDASHBOARD_SETTINGS_THEMES__ */
+#endif	/* __XFCE_OVERVIEW_WORKSPACES_SETTINGS_THEMES__ */

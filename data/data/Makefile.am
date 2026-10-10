@@ -2,7 +2,7 @@ EXTRA_DIST = \
 	meson.build \
 	$(Data_DATA)
 
-Datadir = $(datadir)/xfdashboard
+Datadir = $(datadir)/xfce-overview-workspaces
 
 Data_DATA = \
 	bindings.xml \

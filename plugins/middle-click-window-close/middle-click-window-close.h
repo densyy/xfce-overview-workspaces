@@ -21,34 +21,34 @@
  * 
  */
 
-#ifndef __XFDASHBOARD_MIDDLE_CLICK_WINDOW_CLOSE__
-#define __XFDASHBOARD_MIDDLE_CLICK_WINDOW_CLOSE__
+#ifndef __XFCE_OVERVIEW_WORKSPACES_MIDDLE_CLICK_WINDOW_CLOSE__
+#define __XFCE_OVERVIEW_WORKSPACES_MIDDLE_CLICK_WINDOW_CLOSE__
 
-#include <libxfdashboard/libxfdashboard.h>
+#include <libxfce-overview-workspaces/libxfce-overview-workspaces.h>
 
 G_BEGIN_DECLS
 
-#define XFDASHBOARD_TYPE_MIDDLE_CLICK_WINDOW_CLOSE				(xfdashboard_middle_click_window_close_get_type())
-#define XFDASHBOARD_MIDDLE_CLICK_WINDOW_CLOSE(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFDASHBOARD_TYPE_MIDDLE_CLICK_WINDOW_CLOSE, XfdashboardMiddleClickWindowClose))
-#define XFDASHBOARD_IS_MIDDLE_CLICK_WINDOW_CLOSE(obj)			(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFDASHBOARD_TYPE_MIDDLE_CLICK_WINDOW_CLOSE))
-#define XFDASHBOARD_MIDDLE_CLICK_WINDOW_CLOSE_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFDASHBOARD_TYPE_MIDDLE_CLICK_WINDOW_CLOSE, XfdashboardMiddleClickWindowCloseClass))
-#define XFDASHBOARD_IS_MIDDLE_CLICK_WINDOW_CLOSE_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE((klass), XFDASHBOARD_TYPE_MIDDLE_CLICK_WINDOW_CLOSE))
-#define XFDASHBOARD_MIDDLE_CLICK_WINDOW_CLOSE_GET_CLASS(obj)	(G_TYPE_INSTANCE_GET_CLASS((obj), XFDASHBOARD_TYPE_MIDDLE_CLICK_WINDOW_CLOSE, XfdashboardMiddleClickWindowCloseClass))
+#define XFCE_OVERVIEW_WORKSPACES_TYPE_MIDDLE_CLICK_WINDOW_CLOSE				(xfce_overview_workspaces_middle_click_window_close_get_type())
+#define XFCE_OVERVIEW_WORKSPACES_MIDDLE_CLICK_WINDOW_CLOSE(obj)				(G_TYPE_CHECK_INSTANCE_CAST((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_MIDDLE_CLICK_WINDOW_CLOSE, XfceOverviewWorkspacesMiddleClickWindowClose))
+#define XFCE_OVERVIEW_WORKSPACES_IS_MIDDLE_CLICK_WINDOW_CLOSE(obj)			(G_TYPE_CHECK_INSTANCE_TYPE((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_MIDDLE_CLICK_WINDOW_CLOSE))
+#define XFCE_OVERVIEW_WORKSPACES_MIDDLE_CLICK_WINDOW_CLOSE_CLASS(klass)		(G_TYPE_CHECK_CLASS_CAST((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_MIDDLE_CLICK_WINDOW_CLOSE, XfceOverviewWorkspacesMiddleClickWindowCloseClass))
+#define XFCE_OVERVIEW_WORKSPACES_IS_MIDDLE_CLICK_WINDOW_CLOSE_CLASS(klass)	(G_TYPE_CHECK_CLASS_TYPE((klass), XFCE_OVERVIEW_WORKSPACES_TYPE_MIDDLE_CLICK_WINDOW_CLOSE))
+#define XFCE_OVERVIEW_WORKSPACES_MIDDLE_CLICK_WINDOW_CLOSE_GET_CLASS(obj)	(G_TYPE_INSTANCE_GET_CLASS((obj), XFCE_OVERVIEW_WORKSPACES_TYPE_MIDDLE_CLICK_WINDOW_CLOSE, XfceOverviewWorkspacesMiddleClickWindowCloseClass))
 
-typedef struct _XfdashboardMiddleClickWindowClose				XfdashboardMiddleClickWindowClose; 
-typedef struct _XfdashboardMiddleClickWindowClosePrivate		XfdashboardMiddleClickWindowClosePrivate;
-typedef struct _XfdashboardMiddleClickWindowCloseClass			XfdashboardMiddleClickWindowCloseClass;
+typedef struct _XfceOverviewWorkspacesMiddleClickWindowClose				XfceOverviewWorkspacesMiddleClickWindowClose; 
+typedef struct _XfceOverviewWorkspacesMiddleClickWindowClosePrivate		XfceOverviewWorkspacesMiddleClickWindowClosePrivate;
+typedef struct _XfceOverviewWorkspacesMiddleClickWindowCloseClass			XfceOverviewWorkspacesMiddleClickWindowCloseClass;
 
-struct _XfdashboardMiddleClickWindowClose
+struct _XfceOverviewWorkspacesMiddleClickWindowClose
 {
 	/* Parent instance */
 	GObject										parent_instance;
 
 	/* Private structure */
-	XfdashboardMiddleClickWindowClosePrivate	*priv;
+	XfceOverviewWorkspacesMiddleClickWindowClosePrivate	*priv;
 };
 
-struct _XfdashboardMiddleClickWindowCloseClass
+struct _XfceOverviewWorkspacesMiddleClickWindowCloseClass
 {
 	/*< private >*/
 	/* Parent class */
@@ -56,11 +56,11 @@ struct _XfdashboardMiddleClickWindowCloseClass
 };
 
 /* Public API */
-GType xfdashboard_middle_click_window_close_get_type(void) G_GNUC_CONST;
+GType xfce_overview_workspaces_middle_click_window_close_get_type(void) G_GNUC_CONST;
 
-XFDASHBOARD_DECLARE_PLUGIN_TYPE(xfdashboard_middle_click_window_close);
+XFCE_OVERVIEW_WORKSPACES_DECLARE_PLUGIN_TYPE(xfce_overview_workspaces_middle_click_window_close);
 
-XfdashboardMiddleClickWindowClose* xfdashboard_middle_click_window_close_new(void);
+XfceOverviewWorkspacesMiddleClickWindowClose* xfce_overview_workspaces_middle_click_window_close_new(void);
 
 G_END_DECLS
 
