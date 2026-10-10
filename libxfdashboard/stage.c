@@ -454,6 +454,36 @@ static void _xfdashboard_stage_on_desktop_window_opened(XfdashboardStage *self,
 	}
 }
 
+/* The active window changed: hide when focus leaves the stage, i.e. the
+ * user clicked outside. Only reacts when the stage itself was active to
+ * avoid hiding right after resume before the stage took focus, and does
+ * nothing while suspended.
+ */
+static void _xfdashboard_stage_on_active_window_changed(XfdashboardStage *self,
+															XfdashboardWindowTrackerWindow *inOldWindow,
+															XfdashboardWindowTrackerWindow *inNewWindow,
+															gpointer inUserData)
+{
+	XfdashboardStagePrivate				*priv;
+	XfdashboardCore						*core;
+
+	g_return_if_fail(XFDASHBOARD_IS_STAGE(self));
+
+	priv=self->priv;
+
+	/* Only hide when focus actually left the stage window */
+	if(!priv->stageWindow) return;
+	if(inOldWindow!=priv->stageWindow) return;
+	if(inNewWindow==priv->stageWindow) return;
+
+	/* Do nothing while suspended (already hidden) */
+	core=xfdashboard_core_get_default();
+	if(!core || xfdashboard_core_is_suspended(core)) return;
+
+	XFDASHBOARD_DEBUG(self, ACTOR, "Active window left stage window, hiding");
+	xfdashboard_core_quit(NULL);
+}
+
 /* The application will be suspended */
 static void _xfdashboard_stage_on_application_suspend(XfdashboardStage *self, gpointer inUserData)
 {
@@ -1556,6 +1586,10 @@ static void xfdashboard_stage_init(XfdashboardStage *self)
 	g_signal_connect_swapped(priv->windowTracker,
 								"primary-monitor-changed",
 								G_CALLBACK(_xfdashboard_stage_on_primary_monitor_changed),
+								self);
+	g_signal_connect_swapped(priv->windowTracker,
+								"active-window-changed",
+								G_CALLBACK(_xfdashboard_stage_on_active_window_changed),
 								self);
 
 	/* Connect signal to core */

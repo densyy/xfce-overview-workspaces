@@ -102,54 +102,6 @@ static void _xfdashboard_window_tracker_backend_x11_on_stage_state_changed(WnckW
 	}
 }
 
-/* The active window changed. Reselect stage window as active one if it is visible */
-static void _xfdashboard_window_tracker_backend_x11_on_stage_active_window_changed(WnckScreen *inScreen,
-																					WnckWindow *inPreviousWindow,
-																					gpointer inUserData)
-{
-	XfdashboardWindowTrackerWindowX11			*stageWindow;
-	XfdashboardWindowTrackerWindowState			stageWindowState;
-	WnckWindow									*stageWnckWindow;
-	WnckWindow									*activeWindow;
-	gboolean									reselect;
-
-	g_return_if_fail(WNCK_IS_SCREEN(inScreen));
-	g_return_if_fail(inPreviousWindow==NULL || WNCK_IS_WINDOW(inPreviousWindow));
-	g_return_if_fail(XFDASHBOARD_IS_WINDOW_TRACKER_WINDOW_X11(inUserData));
-
-	stageWindow=XFDASHBOARD_WINDOW_TRACKER_WINDOW_X11(inUserData);
-	reselect=FALSE;
-
-	/* Get wnck window of stage window */
-	stageWnckWindow=xfdashboard_window_tracker_window_x11_get_window(stageWindow);
-	if(!stageWnckWindow)
-	{
-		g_critical("Could not get real stage window to handle signal 'active-window-changed'");
-		return;
-	}
-
-	/* Get stage of stage window */
-	stageWindowState=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(stageWindow));
-
-	/* Reactive stage window if not hidden */
-	activeWindow=wnck_screen_get_active_window(inScreen);
-
-	if(inPreviousWindow && inPreviousWindow==stageWnckWindow) reselect=TRUE;
-	if(!activeWindow || activeWindow!=stageWnckWindow) reselect=TRUE;
-	if(!(stageWindowState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED | XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN))) reselect=TRUE;
-
-	if(reselect)
-	{
-		wnck_window_activate_transient(stageWnckWindow, xfdashboard_window_tracker_x11_get_time());
-		XFDASHBOARD_DEBUG(stageWindow, WINDOWS,
-							"Active window changed from %p (%s) to %p (%s) but stage window %p (wnck-window=%p) is visible and should be active one",
-							inPreviousWindow, inPreviousWindow ? wnck_window_get_name(inPreviousWindow) : "<nil>",
-							activeWindow, activeWindow ? wnck_window_get_name(activeWindow) : "<nil>",
-							stageWindow,
-							stageWnckWindow);
-	}
-}
-
 /* Size of screen has changed so resize stage window */
 static void _xfdashboard_window_tracker_backend_x11_on_stage_screen_size_changed(XfdashboardWindowTracker *inWindowTracker,
 																					gint inWidth,
@@ -368,7 +320,6 @@ static void _xfdashboard_window_tracker_backend_x11_window_tracker_backend_show_
 	XfdashboardWindowTrackerBackendX11Private	*priv;
 	XfdashboardWindowTrackerWindowX11			*stageWindow;
 	WnckWindow									*stageWnckWindow;
-	WnckScreen									*screen;
 	guint										signalID;
 	gulong										handlerID;
 	gint										width, height;
@@ -396,9 +347,6 @@ static void _xfdashboard_window_tracker_backend_x11_window_tracker_backend_show_
 	if(!wnck_window_is_above(stageWnckWindow)) wnck_window_make_above(stageWnckWindow);
 	if(!wnck_window_is_pinned(stageWnckWindow)) wnck_window_pin(stageWnckWindow);
 
-	/* Get screen of window */
-	screen=wnck_window_get_screen(stageWnckWindow);
-
 	/* Connect signals if not already connected */
 	signalID=g_signal_lookup("state-changed", WNCK_TYPE_WINDOW);
 	handlerID=g_signal_handler_find(stageWnckWindow,
@@ -417,28 +365,6 @@ static void _xfdashboard_window_tracker_backend_x11_window_tracker_backend_show_
 		XFDASHBOARD_DEBUG(self, WINDOWS,
 							"Connecting signal handler %lu to 'state-changed' at window %p (wnck-window=%p)",
 							handlerID,
-							stageWindow,
-							stageWnckWindow);
-	}
-
-	signalID=g_signal_lookup("active-window-changed", WNCK_TYPE_SCREEN);
-	handlerID=g_signal_handler_find(screen,
-									G_SIGNAL_MATCH_ID | G_SIGNAL_MATCH_FUNC | G_SIGNAL_MATCH_DATA,
-									signalID,
-									0,
-									NULL,
-									G_CALLBACK(_xfdashboard_window_tracker_backend_x11_on_stage_active_window_changed),
-									stageWindow);
-	if(!handlerID)
-	{
-		handlerID=g_signal_connect(screen,
-									"active-window-changed",
-									G_CALLBACK(_xfdashboard_window_tracker_backend_x11_on_stage_active_window_changed),
-									stageWindow);
-		XFDASHBOARD_DEBUG(self, WINDOWS,
-							"Connecting signal handler %lu to 'active-window-changed' at screen %p of window %p (wnck-window=%p)",
-							handlerID,
-							screen,
 							stageWindow,
 							stageWnckWindow);
 	}
@@ -469,8 +395,13 @@ static void _xfdashboard_window_tracker_backend_x11_window_tracker_backend_show_
 																			height,
 																			inStageWindow);
 
-	/* Now the window is set up and we can show it */
+	/* Now the window is set up and we can show it. Take focus once so
+	 * ESC and key handling work. Focus is not forced back afterwards:
+	 * if the user clicks outside, the stage hides instead (see
+	 * XfdashboardStage active-window-changed handler).
+	 */
 	xfdashboard_window_tracker_window_show(inStageWindow);
+	wnck_window_activate_transient(stageWnckWindow, xfdashboard_window_tracker_x11_get_time());
 }
 
 /* Unset up and hide stage window */
@@ -481,7 +412,6 @@ static void _xfdashboard_window_tracker_backend_x11_window_tracker_backend_hide_
 	XfdashboardWindowTrackerBackendX11Private	*priv;
 	XfdashboardWindowTrackerWindowX11			*stageWindow;
 	WnckWindow									*stageWnckWindow;
-	WnckScreen									*screen;
 	guint										signalID;
 	gulong										handlerID;
 
@@ -503,9 +433,6 @@ static void _xfdashboard_window_tracker_backend_x11_window_tracker_backend_hide_
 	/* First hide window before removing signals etc. */
 	xfdashboard_window_tracker_window_hide(inStageWindow);
 
-	/* Get screen of window */
-	screen=wnck_window_get_screen(stageWnckWindow);
-
 	/* Disconnect signals */
 	signalID=g_signal_lookup("state-changed", WNCK_TYPE_WINDOW);
 	handlerID=g_signal_handler_find(stageWnckWindow,
@@ -521,25 +448,6 @@ static void _xfdashboard_window_tracker_backend_x11_window_tracker_backend_hide_
 		XFDASHBOARD_DEBUG(self, WINDOWS,
 							"Disconnecting handler %lu for signal 'state-changed' at window %p (wnck-window=%p)",
 							handlerID,
-							stageWindow,
-							stageWnckWindow);
-	}
-
-	signalID=g_signal_lookup("active-window-changed", WNCK_TYPE_SCREEN);
-	handlerID=g_signal_handler_find(screen,
-									G_SIGNAL_MATCH_ID | G_SIGNAL_MATCH_FUNC | G_SIGNAL_MATCH_DATA,
-									signalID,
-									0,
-									NULL,
-									G_CALLBACK(_xfdashboard_window_tracker_backend_x11_on_stage_active_window_changed),
-									stageWindow);
-	if(handlerID)
-	{
-		g_signal_handler_disconnect(screen, handlerID);
-		XFDASHBOARD_DEBUG(self, WINDOWS,
-							"Disconnecting handler %lu for signal 'active-window-changed' at screen %p of window %p (wnck-window=%p)",
-							handlerID,
-							screen,
 							stageWindow,
 							stageWnckWindow);
 	}
