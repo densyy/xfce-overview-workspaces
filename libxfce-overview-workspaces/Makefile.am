@@ -282,10 +282,10 @@ CLEANFILES = \
 	xgen-xmh
 
 enums.h: $(libxfce_overview_workspaces_la_headers) Makefile
-	$(AM_V_GEN) $(GLIB_MKENUMS) --template enums.h.template $(libxfce_overview_workspaces_la_headers) > $@
+	$(AM_V_GEN) $(GLIB_MKENUMS) --identifier-prefix=XfceOverviewWorkspaces --symbol-prefix=xfce_overview_workspaces --template enums.h.template $(libxfce_overview_workspaces_la_headers) > $@
 
 enums.c: $(libxfce_overview_workspaces_la_headers) Makefile
-	$(AM_V_GEN) $(GLIB_MKENUMS) --template enums.c.template $(libxfce_overview_workspaces_la_headers) > $@
+	$(AM_V_GEN) $(GLIB_MKENUMS) --identifier-prefix=XfceOverviewWorkspaces --symbol-prefix=xfce_overview_workspaces --template enums.c.template $(libxfce_overview_workspaces_la_headers) > $@
 
 marshal.h: stamp-marshal.h
 	@true

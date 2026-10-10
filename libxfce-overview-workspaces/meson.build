@@ -161,6 +161,8 @@ libxfce_overview_workspaces_sources += gnome.mkenums(
   c_template: 'enums.c.template',
   h_template: 'enums.h.template',
   sources: libxfce_overview_workspaces_headers,
+  identifier_prefix: 'XfceOverviewWorkspaces',
+  symbol_prefix: 'xfce_overview_workspaces',
 )
 
 libxfce_overview_workspaces_sources += gnome.genmarshal(
