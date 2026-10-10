@@ -75,8 +75,13 @@ build all: setup
 
 install: build
 	$(SUDO) $(MESON) install -C $(BUILDDIR)
+	@LIBDIR=$$($(SUDO) find $(PREFIX) -name 'libxfce-overview-workspaces.so*' -printf '%h\n' -quit 2>/dev/null); \
+	if [ -n "$$LIBDIR" ] && ! grep -qs "$$LIBDIR" /etc/ld.so.conf.d/xfce-overview-workspaces.conf 2>/dev/null; then \
+		echo "registrando $$LIBDIR no ld.so.conf.d..."; \
+		echo "$$LIBDIR" | $(SUDO) tee /etc/ld.so.conf.d/xfce-overview-workspaces.conf > /dev/null; \
+	fi
 	$(SUDO) ldconfig
-	@echo "OK. Teste: LD_LIBRARY_PATH=$(PREFIX)/lib/x86_64-linux-gnu xfce-overview-workspaces --version"
+	@echo "OK. Teste: xfce-overview-workspaces --version"
 
 autostart:
 	mkdir -p $(AUTOSTART_DIR)
@@ -100,6 +105,7 @@ off:
 
 uninstall:
 	$(SUDO) $(NINJA) uninstall -C $(BUILDDIR) || $(SUDO) $(MESON) --internal uninstall -C $(BUILDDIR)
+	$(SUDO) rm -f /etc/ld.so.conf.d/xfce-overview-workspaces.conf
 	$(SUDO) ldconfig
 	@echo "OK desinstalado."
 
