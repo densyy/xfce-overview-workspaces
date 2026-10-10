@@ -1227,11 +1227,12 @@ static void _xfce_overview_workspaces_stage_on_screen_size_changed(XfceOverviewW
 	 * fullscreen height.
 	 */
 	{
-		/* Chrome compensation: container y=8 + BoxLayout spacing 8 (see
-		 * data/themes/.../xfce-overview-workspaces.xml) would otherwise
-		 * overflow the 0.22 strip and get clipped (~20px cut at base).
+		/* Chrome compensation: container y=8 + BoxLayout spacing 8 top/bottom
+		 * (see data/.../xfce-overview-workspaces.xml) would otherwise put the
+		 * bottom outline exactly on the window edge (~20px cut + missing
+		 * bottom border). +24 = 8 top + 8 bottom + 8 box spacing.
 		 */
-		gint stripHeight=(gint)(screenHeight*0.22f)+16;
+		gint stripHeight=(gint)(screenHeight*0.22f)+24;
 		if(stripHeight<1) stripHeight=1;
 		if(stripHeight>screenHeight) stripHeight=screenHeight;
 
