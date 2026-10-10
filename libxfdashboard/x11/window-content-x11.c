@@ -711,23 +711,36 @@ static void _xfdashboard_window_content_x11_handle_x_event(XfdashboardWindowCont
 			case UnmapNotify:
 			{
 				XfdashboardWindowTrackerWindowState unmapState=0;
-				gboolean shouldSuspend=TRUE;
 
 				if(priv->window)
 				{
 					unmapState=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window));
-					if((unmapState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED |
-										XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN))==0)
-					{
-						shouldSuspend=FALSE;
-					}
 				}
 
-				if(shouldSuspend)
+				/* Minimized or closed windows lose their live content, so
+				 * suspend live updates. The last texture is kept as frozen
+				 * frame.
+				 */
+				if(priv->window==NULL ||
+					(unmapState & XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED)!=0)
 				{
 					priv->isMapped=FALSE;
 					_xfdashboard_window_content_x11_suspend(self);
 				}
+				/* Windows hidden by a workspace switch (HIDDEN without MINIMIZED)
+				 * keep their last frame: only mark them as unmapped and stop
+				 * invalidating. Do NOT suspend here (that would destroy damage
+				 * and pixmap) and keep the frozen live texture with
+				 * isFallback==FALSE, so paint keeps showing the last frame
+				 * instead of the fallback icon.
+				 */
+				else if((unmapState & XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN)!=0)
+				{
+					priv->isMapped=FALSE;
+				}
+				/* Transient unmap (neither minimized nor hidden):
+				 * keep live updates running.
+				 */
 				break;
 			}
 			case DestroyNotify:
@@ -747,6 +760,7 @@ static void _xfdashboard_window_content_x11_handle_x_event(XfdashboardWindowCont
 		_xfdashboard_window_content_x11_damage_event_base &&
 		inXEvent->type==(_xfdashboard_window_content_x11_damage_event_base + XDamageNotify) &&
 		((XDamageNotifyEvent*)inXEvent)->damage==priv->damage &&
+		priv->isMapped &&
 		priv->workaroundMode==XFDASHBOARD_WINDOW_CONTENT_X11_WORKAROUND_MODE_NONE)
 	{
 		/* Update texture for live window content */
@@ -1041,11 +1055,12 @@ static gboolean _xfdashboard_window_content_x11_resume_on_idle(gpointer inUserDa
 
 			/* Pixmap None for an inactive-workspace (still mapped)
 			 * window must not become a permanent fallback. Only
-			 * suspend after resume for really unmapped/closed
-			 * windows (minimized/hidden); otherwise keep fallback
-			 * texture without suspending so a later resume
-			 * (Map/Configure/workspace switch) retries NamePixmap.
-			 * On success below isFallback=FALSE + invalidate is emitted.
+			 * suspend after resume for really minimized/closed
+			 * windows (minimized); otherwise keep the frozen live
+			 * texture or fallback without suspending so a later
+			 * resume (Map/Configure/workspace switch) retries
+			 * NamePixmap. On success below isFallback=FALSE +
+			 * invalidate is emitted.
 			 */
 			{
 				gboolean pixmapIdleShouldSuspend=FALSE;
@@ -1056,8 +1071,7 @@ static gboolean _xfdashboard_window_content_x11_resume_on_idle(gpointer inUserDa
 					XfdashboardWindowTrackerWindowState pixmapIdleState;
 
 					pixmapIdleState=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window));
-					if((pixmapIdleState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED |
-											XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN))!=0)
+					if((pixmapIdleState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED))!=0)
 					{
 						pixmapIdleShouldSuspend=TRUE;
 					}
@@ -1086,11 +1100,11 @@ static gboolean _xfdashboard_window_content_x11_resume_on_idle(gpointer inUserDa
 			XfdashboardWindowTrackerWindowState		textureFailState=0;
 			gboolean								shouldSuspendAfterFail=FALSE;
 
-			/* Creating texture may fail. Only suspend for really unmapped
-			 * windows (minimized/hidden) or closed windows. In particular
+			/* Creating texture may fail. Only suspend for really minimized
+			 * windows (minimized) or closed windows. In particular
 			 * do NOT suspend just because the window is not on the active
 			 * workspace: windows on inactive workspaces must keep the
-			 * chance for a live thumbnail (fallback stays until a later
+			 * chance for a live thumbnail (the frozen live frame or fallback stays until a later
 			 * resume can retry).
 			 */
 			XFDASHBOARD_DEBUG(self, WINDOWS,
@@ -1113,8 +1127,7 @@ static gboolean _xfdashboard_window_content_x11_resume_on_idle(gpointer inUserDa
 			else
 			{
 				textureFailState=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window));
-				if((textureFailState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED |
-										XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN))!=0)
+				if((textureFailState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED))!=0)
 				{
 					shouldSuspendAfterFail=TRUE;
 				}
@@ -1127,9 +1140,9 @@ static gboolean _xfdashboard_window_content_x11_resume_on_idle(gpointer inUserDa
 			}
 				else
 				{
-					/* Not a minimized/hidden/closed window (e.g. window on
+					/* Not a minimized/closed window (e.g. window on
 					 * inactive workspace): free the just-named pixmap to
-					 * avoid a leak and keep fallback texture without
+					 * avoid a leak and keep the frozen live or fallback texture without
 					 * suspending the live path. A later resume (Map,
 					 * Configure, workspace switch) can retry.
 					 */
@@ -1278,6 +1291,26 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 	 */
 	if(!_xfdashboard_window_content_x11_have_composite_extension) return;
 
+	/* If a live (non-fallback) frame exists for a window on an inactive
+	 * workspace (HIDDEN without MINIMIZED), keep the frozen photo visible:
+	 * do not touch the visible texture and only queue an idle re-capture
+	 * which retries without degrading it to the fallback icon.
+	 */
+	if(priv->texture &&
+		!priv->isFallback &&
+		priv->window)
+	{
+		XfdashboardWindowTrackerWindowState	frozenState;
+
+		frozenState=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window));
+		if((frozenState & XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN)!=0 &&
+			(frozenState & XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED)==0)
+		{
+			_xfdashboard_window_content_x11_resume_on_idle_add(self);
+			return;
+		}
+	}
+
 	/* Get display as it used more than once ;) */
 	display=xfdashboard_window_tracker_x11_get_display();
 	if(G_UNLIKELY(display==None))
@@ -1300,8 +1333,8 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 			 * window on an inactive workspace (Unmap by WM) where
 			 * NameWindowPixmap has no content yet. Do not fall back
 			 * permanently: only suspend for really gone windows
-			 * (minimized/hidden/closed), otherwise retry via idle and
-			 * keep fallback texture until a later resume succeeds.
+			 * (minimized/closed), otherwise retry via idle and
+			 * keep the frozen live or fallback texture until a later resume succeeds.
 			 * On success below isFallback=FALSE + invalidate is emitted.
 			 */
 			{
@@ -1313,8 +1346,7 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 					XfdashboardWindowTrackerWindowState pixmapFailState;
 
 					pixmapFailState=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window));
-					if((pixmapFailState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED |
-											XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN))!=0)
+					if((pixmapFailState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED))!=0)
 					{
 						pixmapFailShouldSuspend=TRUE;
 					}
@@ -1346,8 +1378,8 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 			XfdashboardWindowTrackerWindowState		textureFailState=0;
 			gboolean								shouldSuspendAfterFail=FALSE;
 
-			/* Creating texture may fail. Only suspend for really unmapped
-			 * windows (minimized/hidden) or closed windows. In particular
+			/* Creating texture may fail. Only suspend for really minimized
+			 * windows (minimized) or closed windows. In particular
 			 * do NOT suspend just because the window is not on the active
 			 * workspace: windows on inactive workspaces must keep the
 			 * chance for a live thumbnail.
@@ -1372,8 +1404,7 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 			else
 			{
 				textureFailState=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window));
-				if((textureFailState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED |
-										XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN))!=0)
+				if((textureFailState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED))!=0)
 				{
 					shouldSuspendAfterFail=TRUE;
 				}
@@ -1385,9 +1416,9 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 			}
 				else
 				{
-					/* Not a minimized/hidden/closed window (e.g. window on
+					/* Not a minimized/closed window (e.g. window on
 					 * inactive workspace): free the just-named pixmap to
-					 * avoid a leak and keep fallback texture without
+					 * avoid a leak and keep the frozen live or fallback texture without
 					 * suspending the live path. A later resume can retry.
 					 */
 					if(priv->pixmap!=None)
