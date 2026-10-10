@@ -130,14 +130,16 @@ static gboolean _xfdashboard_live_workspace_is_visible_window(XfdashboardLiveWor
 		visible=FALSE;
 	}
 
-	if(visible &&
-		!xfdashboard_window_tracker_window_is_visible(inWindow))
-	{
-		XFDASHBOARD_DEBUG(self, ACTOR,
-							"Window '%s' is really invisible",
-							xfdashboard_window_tracker_window_get_name(inWindow));
-		visible=FALSE;
-	}
+	/* NOTE: Do NOT filter via xfdashboard_window_tracker_window_is_visible()
+	 * here. That helper returns FALSE for HIDDEN windows and libwnck sets
+	 * WNCK_WINDOW_STATE_HIDDEN for every window which is not on the active
+	 * workspace. Filtering on it would leave every inactive workspace empty
+	 * (or with only an icon fallback stretched over the thumbnail) while
+	 * only the active workspace shows live thumbnails. Workspace membership
+	 * below (is_on_workspace / pinned) already decides if a window belongs
+	 * to this LiveWorkspace; minimized/hidden windows must still keep their
+	 * actor with the last known (frozen) live image.
+	 */
 
 	if(visible &&
 		(!priv->workspace && !(state & XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_PINNED)))
@@ -575,25 +577,31 @@ static void _xfdashboard_live_workspace_on_window_workspace_changed(XfdashboardL
 																	XfdashboardWindowTrackerWorkspace *inWorkspace,
 																	gpointer inUserData)
 {
-	XfdashboardLiveWorkspacePrivate		*priv;
 	ClutterActor						*windowActor;
 
 	g_return_if_fail(XFDASHBOARD_IS_LIVE_WORKSPACE(self));
 	g_return_if_fail(XFDASHBOARD_IS_WINDOW_TRACKER_WINDOW(inWindow));
 
-	priv=self->priv;
+	(void)inWorkspace;
+	(void)inUserData;
 
-	/* Check if window was removed from workspace or added */
-	if(inWorkspace!=priv->workspace)
+	/* Decide by current visibility on this workspace (is_on_workspace /
+	 * pinned), not by pointer equality with the destination workspace.
+	 * Pointer comparison breaks pinned (on-all-workspaces) windows and
+	 * would drop them everywhere except the destination. Each LiveWorkspace
+	 * instance (even for an inactive/invisible workspace) must destroy its
+	 * actor if the window left, or create/move it if the window joined.
+	 */
+	if(_xfdashboard_live_workspace_is_visible_window(self, inWindow))
 	{
-		/* Find and destroy actor for window if available */
-		windowActor=_xfdashboard_live_workspace_find_by_window(self, inWindow);
-		if(windowActor) clutter_actor_destroy(windowActor);
+		/* Add (or restack, if already present) window actor */
+		_xfdashboard_live_workspace_create_and_add_window_actor(self, inWindow);
 	}
 		else
 		{
-			/* Add window actor */
-			_xfdashboard_live_workspace_create_and_add_window_actor(self, inWindow);
+			/* Find and destroy actor for window if available */
+			windowActor=_xfdashboard_live_workspace_find_by_window(self, inWindow);
+			if(windowActor) clutter_actor_destroy(windowActor);
 		}
 }
 

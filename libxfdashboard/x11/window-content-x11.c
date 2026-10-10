@@ -709,6 +709,27 @@ static void _xfdashboard_window_content_x11_handle_x_event(XfdashboardWindowCont
 				break;
 
 			case UnmapNotify:
+			{
+				XfdashboardWindowTrackerWindowState unmapState=0;
+				gboolean shouldSuspend=TRUE;
+
+				if(priv->window)
+				{
+					unmapState=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window));
+					if((unmapState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED |
+										XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN))==0)
+					{
+						shouldSuspend=FALSE;
+					}
+				}
+
+				if(shouldSuspend)
+				{
+					priv->isMapped=FALSE;
+					_xfdashboard_window_content_x11_suspend(self);
+				}
+				break;
+			}
 			case DestroyNotify:
 				priv->isMapped=FALSE;
 				_xfdashboard_window_content_x11_suspend(self);
@@ -1018,8 +1039,36 @@ static gboolean _xfdashboard_window_content_x11_resume_on_idle(gpointer inUserDa
 		{
 			g_warning("Could not get pixmap for window '%s", xfdashboard_window_tracker_window_get_name(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window)));
 
-			/* Set flag to suspend window content after resuming because of error */
-			priv->suspendAfterResumeOnIdle=TRUE;
+			/* Pixmap None for an inactive-workspace (still mapped)
+			 * window must not become a permanent fallback. Only
+			 * suspend after resume for really unmapped/closed
+			 * windows (minimized/hidden); otherwise keep fallback
+			 * texture without suspending so a later resume
+			 * (Map/Configure/workspace switch) retries NamePixmap.
+			 * On success below isFallback=FALSE + invalidate is emitted.
+			 */
+			{
+				gboolean pixmapIdleShouldSuspend=FALSE;
+
+				if(!priv->window) pixmapIdleShouldSuspend=TRUE;
+				else
+				{
+					XfdashboardWindowTrackerWindowState pixmapIdleState;
+
+					pixmapIdleState=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window));
+					if((pixmapIdleState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED |
+											XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN))!=0)
+					{
+						pixmapIdleShouldSuspend=TRUE;
+					}
+				}
+
+				if(pixmapIdleShouldSuspend)
+				{
+					/* Set flag to suspend window content after resuming because of error */
+					priv->suspendAfterResumeOnIdle=TRUE;
+				}
+			}
 			break;
 		}
 #else
@@ -1199,10 +1248,11 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 
 	/* Even with "immediate" creation priority, do not create the live
 	 * thumbnail (XCompositeNameWindowPixmap + XSync + texture + damage)
-	 * synchronously for really offscreen windows: minimized, hidden or
-	 * paged-out windows (MINIMIZED|HIDDEN|SKIP_PAGER|SKIP_TASKLIST).
-	 * Windows on inactive workspaces must still attempt synchronous
-	 * capture (NamePixmap + Damage) like windows on the active workspace,
+	 * synchronously for really offscreen windows: minimized or
+	 * paged-out windows (MINIMIZED|SKIP_PAGER|SKIP_TASKLIST).
+	 * Windows on inactive workspaces (HIDDEN without MINIMIZED, still
+	 * logically mapped) must still attempt synchronous capture
+	 * (NamePixmap + Damage) like windows on the active workspace,
 	 * so LiveWorkspace actors for all workspaces show live thumbnails
 	 * (GNOME style). Only truly offscreen windows get the fallback icon
 	 * texture now and the live texture from the idle queue. Visible
@@ -1215,7 +1265,6 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 		state=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window));
 
 		if((state & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED |
-						XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN |
 						XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_SKIP_PAGER |
 						XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_SKIP_TASKLIST))!=0)
 		{
@@ -1247,7 +1296,39 @@ static void _xfdashboard_window_content_x11_resume(XfdashboardWindowContentX11 *
 		if(priv->pixmap==None)
 		{
 			g_warning("Could not get pixmap for window '%s", xfdashboard_window_tracker_window_get_name(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window)));
-			_xfdashboard_window_content_x11_suspend(self);
+			/* Pixmap None happens for unmapped windows, e.g. a mapped
+			 * window on an inactive workspace (Unmap by WM) where
+			 * NameWindowPixmap has no content yet. Do not fall back
+			 * permanently: only suspend for really gone windows
+			 * (minimized/hidden/closed), otherwise retry via idle and
+			 * keep fallback texture until a later resume succeeds.
+			 * On success below isFallback=FALSE + invalidate is emitted.
+			 */
+			{
+				gboolean pixmapFailShouldSuspend=FALSE;
+
+				if(!priv->window) pixmapFailShouldSuspend=TRUE;
+				else
+				{
+					XfdashboardWindowTrackerWindowState pixmapFailState;
+
+					pixmapFailState=xfdashboard_window_tracker_window_get_state(XFDASHBOARD_WINDOW_TRACKER_WINDOW(priv->window));
+					if((pixmapFailState & (XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_MINIMIZED |
+											XFDASHBOARD_WINDOW_TRACKER_WINDOW_STATE_HIDDEN))!=0)
+					{
+						pixmapFailShouldSuspend=TRUE;
+					}
+				}
+
+				if(pixmapFailShouldSuspend)
+				{
+					_xfdashboard_window_content_x11_suspend(self);
+				}
+					else
+					{
+						_xfdashboard_window_content_x11_resume_on_idle_add(self);
+					}
+			}
 			break;
 		}
 #else

@@ -28,6 +28,7 @@
 
 #include <libxfdashboard/live-window-simple.h>
 
+#include <math.h>
 #include <glib/gi18n-lib.h>
 
 #include <libxfdashboard/click-action.h>
@@ -253,6 +254,38 @@ static void _xfdashboard_live_window_simple_on_closed(XfdashboardLiveWindowSimpl
 	}
 }
 
+/* Check if actor is in icon/fallback mode: displayType==ICON or LIVE_PREVIEW
+ * without a real window content (content==NULL or plain image from icon
+ * pixbuf). In this mode natural size must be icon size, never window
+ * geometry, and the icon must stay small and centered, never stretched.
+ * Full window geometry is only valid for LIVE_PREVIEW with a real
+ * XFDASHBOARD_IS_WINDOW_CONTENT texture.
+ */
+static gboolean _xfdashboard_live_window_simple_is_icon_fallback(XfdashboardLiveWindowSimple *self)
+{
+	XfdashboardLiveWindowSimplePrivate	*priv;
+	ClutterContent						*content;
+
+	g_return_val_if_fail(XFDASHBOARD_IS_LIVE_WINDOW_SIMPLE(self), FALSE);
+
+	priv=self->priv;
+
+	/* Explicit icon mode is always fallback-sized */
+	if(priv->displayType==XFDASHBOARD_LIVE_WINDOW_SIMPLE_DISPLAY_TYPE_ICON) return(TRUE);
+
+	/* Without child actor we cannot decide - assume live preview */
+	if(!priv->actorWindow) return(FALSE);
+
+	/* No content (photo not arrived yet) or non-window content
+	 * (icon pixbuf image) means fallback.
+	 */
+	content=clutter_actor_get_content(priv->actorWindow);
+	if(!content) return(TRUE);
+	if(!XFDASHBOARD_IS_WINDOW_CONTENT(content)) return(TRUE);
+
+	return(FALSE);
+}
+
 /* Set up actor's content depending on display. If no window is set the current
  * content of this actor is destroyed and a new one is not set up. The actor will
  * be displayed empty.
@@ -296,14 +329,23 @@ static void _xfdashboard_live_window_simple_setup_content(XfdashboardLiveWindowS
 
 		case XFDASHBOARD_LIVE_WINDOW_SIMPLE_DISPLAY_TYPE_ICON:
 			content=xfdashboard_image_content_new_for_pixbuf(xfdashboard_window_tracker_window_get_icon(priv->window));
-			clutter_actor_set_content(priv->actorWindow, content);
-			g_object_unref(content);
+			if(content)
+			{
+				clutter_actor_set_content(priv->actorWindow, content);
+				g_object_unref(content);
+			}
 			break;
 
 		default:
 			g_assert_not_reached();
 			break;
 	}
+
+	/* Content (live texture vs. small fallback icon) changed so preferred
+	 * size and allocation must be recomputed. This is especially important
+	 * when falling back to the icon until the live photo arrives.
+	 */
+	clutter_actor_queue_relayout(CLUTTER_ACTOR(self));
 }
 
 /* IMPLEMENTATION: ClutterActor */
@@ -318,6 +360,33 @@ static void _xfdashboard_live_window_simple_get_preferred_height(ClutterActor *s
 	gfloat								minHeight, naturalHeight;
 
 	minHeight=naturalHeight=0.0f;
+
+	/* Fallback/icon mode: natural size is icon size, never window geometry.
+	 * Full geometry is only valid for LIVE_PREVIEW with a real window content.
+	 */
+	if(_xfdashboard_live_window_simple_is_icon_fallback(XFDASHBOARD_LIVE_WINDOW_SIMPLE(self)))
+	{
+		if(priv->actorWindow)
+		{
+			ClutterContent				*content;
+
+			content=clutter_actor_get_content(priv->actorWindow);
+			if(content)
+			{
+				gfloat					childNaturalHeight;
+
+				if(clutter_content_get_preferred_size(content, NULL, &childNaturalHeight))
+				{
+					minHeight=naturalHeight=childNaturalHeight;
+				}
+			}
+		}
+
+		/* Store sizes computed */
+		if(outMinHeight) *outMinHeight=minHeight;
+		if(outNaturalHeight) *outNaturalHeight=naturalHeight;
+		return;
+	}
 
 	/* Determine size of window if available and visible (should usually be the largest actor) */
 	if(priv->actorWindow &&
@@ -364,6 +433,33 @@ static void _xfdashboard_live_window_simple_get_preferred_width(ClutterActor *se
 	gfloat								minWidth, naturalWidth;
 
 	minWidth=naturalWidth=0.0f;
+
+	/* Fallback/icon mode: natural size is icon size, never window geometry.
+	 * Full geometry is only valid for LIVE_PREVIEW with a real window content.
+	 */
+	if(_xfdashboard_live_window_simple_is_icon_fallback(XFDASHBOARD_LIVE_WINDOW_SIMPLE(self)))
+	{
+		if(priv->actorWindow)
+		{
+			ClutterContent				*content;
+
+			content=clutter_actor_get_content(priv->actorWindow);
+			if(content)
+			{
+				gfloat					childNaturalWidth;
+
+				if(clutter_content_get_preferred_size(content, &childNaturalWidth, NULL))
+				{
+					minWidth=naturalWidth=childNaturalWidth;
+				}
+			}
+		}
+
+		/* Store sizes computed */
+		if(outMinWidth) *outMinWidth=minWidth;
+		if(outNaturalWidth) *outNaturalWidth=naturalWidth;
+		return;
+	}
 
 	/* Determine size of window if available and visible (should usually be the largest actor) */
 	if(priv->actorWindow &&
@@ -412,10 +508,43 @@ static void _xfdashboard_live_window_simple_allocate(ClutterActor *self,
 	/* Chain up to store the allocation of the actor */
 	CLUTTER_ACTOR_CLASS(xfdashboard_live_window_simple_parent_class)->allocate(self, inBox, inFlags);
 
-	/* Set allocation on window texture */
-	boxActorWindow=clutter_actor_box_copy(inBox);
-	clutter_actor_box_set_origin(boxActorWindow, 0.0f, 0.0f);
-	clutter_actor_allocate(priv->actorWindow, boxActorWindow, inFlags);
+	if(!priv->actorWindow) return;
+
+	/* Fallback/icon mode: keep icon small and centered, never stretched to
+	 * window geometry. Even if the parent stretches this actor to window
+	 * size, the inner icon actor stays at its natural icon size.
+	 */
+	if(_xfdashboard_live_window_simple_is_icon_fallback(XFDASHBOARD_LIVE_WINDOW_SIMPLE(self)))
+	{
+		gfloat							allocWidth, allocHeight;
+		gfloat							iconWidth, iconHeight;
+		gfloat							left, top, right, bottom;
+
+		allocWidth=clutter_actor_box_get_width(inBox);
+		allocHeight=clutter_actor_box_get_height(inBox);
+
+		clutter_actor_get_preferred_size(priv->actorWindow, NULL, NULL, &iconWidth, &iconHeight);
+
+		/* Clamp icon to allocation so it never overflows */
+		if(iconWidth>allocWidth) iconWidth=allocWidth;
+		if(iconHeight>allocHeight) iconHeight=allocHeight;
+
+		/* Center icon within allocation */
+		left=(allocWidth-iconWidth)/2.0f;
+		top=(allocHeight-iconHeight)/2.0f;
+		right=left+iconWidth;
+		bottom=top+iconHeight;
+
+		boxActorWindow=clutter_actor_box_new(floor(left), floor(top), floor(right), floor(bottom));
+		clutter_actor_allocate(priv->actorWindow, boxActorWindow, inFlags);
+	}
+		else
+		{
+			/* Live preview with real texture: fill full window geometry */
+			boxActorWindow=clutter_actor_box_copy(inBox);
+			clutter_actor_box_set_origin(boxActorWindow, 0.0f, 0.0f);
+			clutter_actor_allocate(priv->actorWindow, boxActorWindow, inFlags);
+		}
 
 	/* Release allocated resources */
 	if(boxActorWindow) clutter_actor_box_free(boxActorWindow);
